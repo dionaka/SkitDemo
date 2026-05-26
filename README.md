@@ -47,6 +47,18 @@ L/
 | 服务端 | REST API、JWT 认证、本地文件存储、SQLite 数据库 |
 | 大模型 | Doubao-Seed-2.0-lite 集成（无 API Key 时自动使用模拟数据） |
 
+## 版本管理（GitHub）
+
+本地已初始化 Git 仓库，敏感文件已通过 `.gitignore` 排除。
+
+**推送到 GitHub：** 见 [docs/GITHUB_UPLOAD.md](docs/GITHUB_UPLOAD.md)
+
+```powershell
+cd c:\Users\hp\Desktop\L
+git remote add origin https://github.com/你的用户名/仓库名.git
+git push -u origin main
+```
+
 ## 快速启动
 
 ### 1. 安装依赖
