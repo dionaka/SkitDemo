@@ -32,6 +32,8 @@ L/
 │       │   └── effects/        # 特效动画
 │       ├── api/                # API 封装
 │       └── stores/             # Pinia 状态
+├── frontend-mobile/            # Android 用户端 (Capacitor + Vue3)
+│   └── README.md               # App 打包与联调说明
 ├── database/                   # MySQL 建表脚本（可选）
 └── uploads/                    # 本地视频/封面存储
     ├── videos/
@@ -52,6 +54,8 @@ L/
 本地已初始化 Git 仓库，敏感文件已通过 `.gitignore` 排除。
 
 **推送到 GitHub：** 见 [docs/GITHUB_UPLOAD.md](docs/GITHUB_UPLOAD.md)
+
+**更新记录：** 见 [docs/CHANGELOG.md](docs/CHANGELOG.md)
 
 ```powershell
 cd c:\Users\hp\Desktop\L
@@ -111,6 +115,7 @@ npm run dev
 
 - 用户端：http://localhost:5173
 - 管理后台：http://localhost:5173/admin/login
+- **Android App**：见 [frontend-mobile/README.md](frontend-mobile/README.md)
 - 默认管理员：`admin` / `admin123`
 
 ## 使用流程

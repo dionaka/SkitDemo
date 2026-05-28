@@ -11,6 +11,8 @@ backend/.env.*
 !backend/.env.example
 frontend/.env
 frontend/.env.local
+frontend-mobile/.env
+frontend-mobile/.env.local
 
 # 本地加密密钥库（API Key 存于此，切勿提交）
 backend/data/
@@ -31,7 +33,14 @@ uploads/*
 
 # 构建产物
 frontend/dist/
+frontend-mobile/dist/
 dist/
+
+# Capacitor Android 构建产物
+frontend-mobile/android/.gradle/
+frontend-mobile/android/app/build/
+frontend-mobile/android/build/
+frontend-mobile/android/local.properties
 
 # 日志与缓存
 *.log

@@ -1,0 +1,8 @@
+{
+  "appId": "com.skitdemo.app",
+  "appName": "短剧互动",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http"
+  }
+}

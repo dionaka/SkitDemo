@@ -30,8 +30,10 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ code: 500, message: err.message, data: null, timestamp: Date.now() });
 });
 
-app.listen(config.port, () => {
+const host = config.host || '0.0.0.0';
+app.listen(config.port, host, () => {
   console.log(`\n🎬 短剧互动平台后端已启动: http://localhost:${config.port}`);
+  console.log(`   局域网访问: http://<本机IP>:${config.port} （Android App 需配置此地址）`);
   console.log(`   用户端 API: http://localhost:${config.port}/api/v1`);
   console.log(`   管理端 API: http://localhost:${config.port}/api/admin`);
   console.log(`   文件目录:   ${uploadPath}\n`);
