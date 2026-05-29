@@ -74,7 +74,6 @@ function initDatabase() {
   `);
 
   migrateSchema();
-  migrateCoverUrls();
 
   const admin = db.prepare('SELECT id FROM admin WHERE username = ?').get('admin');
   if (!admin) {
@@ -111,18 +110,6 @@ function migrateSchema() {
       UPDATE video SET series_id = ?, episode_number = COALESCE(episode_number, 1) WHERE id = ?
     `).run(seriesId, v.id);
   });
-}
-
-function migrateCoverUrls() {
-  const { DEFAULT_COVER_PATH } = require('../utils/defaultCover');
-  db.prepare(`
-    UPDATE series SET cover_url = ?
-    WHERE cover_url IS NULL OR cover_url = '' OR cover_url LIKE '%default-cover%' OR cover_url LIKE '%demo-cover%'
-  `).run(DEFAULT_COVER_PATH);
-  db.prepare(`
-    UPDATE video SET cover_url = ?
-    WHERE cover_url LIKE '%default-cover%' OR cover_url LIKE '%demo-cover%'
-  `).run(DEFAULT_COVER_PATH);
 }
 
 function seedDemoData() {

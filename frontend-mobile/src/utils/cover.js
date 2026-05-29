@@ -37,6 +37,10 @@ export function isDefaultCoverUrl(url) {
   return /default-cover|demo-cover/i.test(url);
 }
 
+export function isRealCoverUrl(url) {
+  return url && !isDefaultCoverUrl(url);
+}
+
 export function getBundledDefaultCover() {
   return defaultCoverAsset;
 }
@@ -46,13 +50,10 @@ export function resolveRemoteCoverUrl(coverUrl) {
   return resolveMediaUrl(coverUrl);
 }
 
-/** Custom cover URL, else server default, else bundled asset for offline. */
 export function resolveCoverSrc(coverUrl) {
   const custom = resolveRemoteCoverUrl(coverUrl);
   if (custom) return custom;
 
   const serverDefault = resolveMediaUrl(DEFAULT_COVER_PATH);
-  if (serverDefault) return serverDefault;
-
-  return getBundledDefaultCover();
+  return serverDefault || getBundledDefaultCover();
 }

@@ -1,4 +1,5 @@
 const db = require('../db');
+const seriesService = require('./seriesService');
 
 const MIN_RESUME_SECONDS = 5;
 const COMPLETE_RATIO = 0.95;
@@ -32,7 +33,7 @@ class WatchProgressService {
   }
 
   getContinueList(userSessionId, limit = 10) {
-    return db.prepare(`
+    const list = db.prepare(`
       SELECT wp.position_seconds, wp.updated_at,
         v.id as video_id, v.title, v.episode_number, v.total_duration, v.series_id,
         s.title as series_title, s.cover_url as series_cover_url
@@ -45,6 +46,11 @@ class WatchProgressService {
       ORDER BY wp.updated_at DESC
       LIMIT ?
     `).all(userSessionId, MIN_RESUME_SECONDS, COMPLETE_RATIO, limit);
+
+    return list.map((item) => ({
+      ...item,
+      series_cover_url: seriesService.getById(item.series_id)?.cover_url || item.series_cover_url,
+    }));
   }
 }
 

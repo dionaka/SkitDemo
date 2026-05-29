@@ -38,4 +38,9 @@ app.listen(config.port, host, () => {
   console.log(`   用户端 API: http://localhost:${config.port}/api/v1`);
   console.log(`   管理端 API: http://localhost:${config.port}/api/admin`);
   console.log(`   文件目录:   ${uploadPath}\n`);
+
+  const { backfillMissingCovers } = require('./services/coverBackfill');
+  backfillMissingCovers().catch((err) => {
+    console.warn('[cover] 启动时补生成封面失败:', err.message);
+  });
 });

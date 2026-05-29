@@ -11,7 +11,7 @@ const storage = multer.diskStorage({
   filename: (_req, file, cb) => cb(null, `upload_${Date.now()}${path.extname(file.originalname)}`),
 });
 
-const upload = multer({
+const videoUpload = multer({
   storage,
   limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
@@ -21,4 +21,18 @@ const upload = multer({
   },
 });
 
-module.exports = upload;
+const imageUpload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.webp'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, allowed.includes(ext));
+  },
+});
+
+module.exports = {
+  single: videoUpload.single.bind(videoUpload),
+  fields: videoUpload.fields.bind(videoUpload),
+  imageSingle: imageUpload.single.bind(imageUpload),
+};

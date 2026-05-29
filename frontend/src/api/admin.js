@@ -17,6 +17,14 @@ export const updateVideo = (id, data) => request.put(`/api/admin/videos/${id}`, 
 
 export const deleteVideo = (id) => request.delete(`/api/admin/videos/${id}`);
 
+export const uploadVideoCover = (id, formData) =>
+  request.put(`/api/admin/videos/${id}/cover`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
+export const regenerateVideoCover = (id, data = {}) =>
+  request.post(`/api/admin/videos/${id}/regenerate-cover`, data);
+
 export const analyzeVideo = (id) => request.post(`/api/admin/videos/${id}/analyze`);
 
 export const getHighlights = (videoId) =>

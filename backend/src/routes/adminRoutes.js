@@ -15,8 +15,13 @@ router.use(auth);
 
 router.get('/series', seriesController.list);
 router.get('/videos', videoAdminController.list);
-router.post('/videos', upload.single('video_file'), videoAdminController.upload);
+router.post('/videos', upload.fields([
+  { name: 'video_file', maxCount: 1 },
+  { name: 'cover_file', maxCount: 1 },
+]), videoAdminController.upload);
 router.put('/videos/:id', videoAdminController.update);
+router.put('/videos/:id/cover', upload.imageSingle('cover_file'), videoAdminController.updateCover);
+router.post('/videos/:id/regenerate-cover', videoAdminController.regenerateCover);
 router.put('/videos/:id/publish', videoAdminController.publish);
 router.delete('/videos/:id', videoAdminController.remove);
 router.post('/videos/:id/analyze', videoAdminController.analyze);

@@ -121,10 +121,25 @@ class VideoService {
     if (result.changes === 0) return false;
 
     this.deleteLocalFile(video.video_url);
-  if (video.cover_url && !/default-cover|demo-cover/i.test(video.cover_url)) {
+    if (video.cover_url && !/default-cover|demo-cover/i.test(video.cover_url)) {
       this.deleteLocalFile(video.cover_url);
     }
     return true;
+  }
+
+  updateCover(id, coverUrl) {
+    const existing = this.getById(id);
+    if (!existing) return null;
+
+    if (existing.cover_url
+      && existing.cover_url !== coverUrl
+      && !/default-cover|demo-cover/i.test(existing.cover_url)) {
+      this.deleteLocalFile(existing.cover_url);
+    }
+
+    db.prepare('UPDATE video SET cover_url = ?, updated_at = datetime(\'now\') WHERE id = ?')
+      .run(coverUrl, id);
+    return this.getById(id);
   }
 
   deleteLocalFile(urlPath) {

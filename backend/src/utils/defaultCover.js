@@ -4,6 +4,11 @@ const path = require('path');
 const DEFAULT_COVER_PATH = '/uploads/covers/default-cover.svg';
 const LEGACY_COVER_NAMES = ['default-cover.jpg', 'demo-cover.jpg'];
 
+function isPlaceholderCover(url) {
+  if (!url) return true;
+  return /default-cover|demo-cover/i.test(url);
+}
+
 function ensureDefaultCovers(uploadBasePath) {
   const coversDir = path.join(uploadBasePath, 'covers');
   fs.mkdirSync(coversDir, { recursive: true });
@@ -28,4 +33,5 @@ function ensureDefaultCovers(uploadBasePath) {
 module.exports = {
   DEFAULT_COVER_PATH,
   ensureDefaultCovers,
+  isPlaceholderCover,
 };
