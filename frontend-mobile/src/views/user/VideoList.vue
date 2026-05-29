@@ -241,11 +241,11 @@ function onProfileTap() {
   width: 100%;
   min-height: 100%;
   scroll-snap-align: start;
-  scroll-snap-stop: normal;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 480px;
+  scroll-snap-stop: always;
   padding: 0 16px;
   box-sizing: border-box;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 480px;
 }
 
 .continue-scroll {
