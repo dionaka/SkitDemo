@@ -1,6 +1,7 @@
 <template>
   <Transition name="slide-up">
     <div v-if="visible" class="interaction-panel">
+      <div class="panel-handle" />
       <div class="panel-header">
         <span class="tag" :class="highlight?.category">{{ categoryLabel }}</span>
         <h3>{{ highlight?.title }}</h3>
@@ -19,7 +20,7 @@
       </div>
 
       <div v-if="stats" class="stats">
-        <p class="stats-title">其他用户的选择</p>
+        <p class="stats-title">其他观众的选择</p>
         <div v-for="s in stats.options" :key="s.option" class="stat-row">
           <span class="opt-label">{{ s.option }}</span>
           <div class="stat-bar-wrap">
@@ -54,35 +55,46 @@ const categoryLabel = computed(() => labels[props.highlight?.category] || '高�
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(26, 26, 46, 0.97);
+  background: rgba(18, 18, 28, 0.96);
   color: #fff;
-  padding: 20px 16px calc(24px + env(safe-area-inset-bottom));
-  z-index: 100;
-  backdrop-filter: blur(10px);
-  max-height: 70vh;
+  padding: 8px 20px calc(28px + env(safe-area-inset-bottom));
+  z-index: 200;
+  backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px 20px 0 0;
+  max-height: 72vh;
   overflow-y: auto;
 }
 
-.panel-header {
-  margin-bottom: 14px;
+.panel-handle {
+  width: 36px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  margin: 0 auto 16px;
 }
+
+.panel-header { margin-bottom: 16px; }
 
 .tag {
   display: inline-block;
-  padding: 2px 10px;
-  border-radius: 12px;
-  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
   margin-bottom: 8px;
 }
 
-.tag.conflict { background: #ff4757; }
-.tag.reversal { background: #ffa502; }
-.tag.sweet { background: #ff6b81; }
-.tag.scene { background: #5352ed; }
+.tag.conflict { background: rgba(255, 71, 87, 0.85); }
+.tag.reversal { background: rgba(255, 165, 2, 0.85); }
+.tag.sweet { background: rgba(255, 107, 129, 0.85); }
+.tag.scene { background: rgba(83, 82, 237, 0.85); }
 
 .panel-header h3 {
-  font-size: 17px;
+  font-size: 18px;
+  font-weight: 700;
   line-height: 1.4;
+  letter-spacing: -0.2px;
 }
 
 .options {
@@ -92,33 +104,37 @@ const categoryLabel = computed(() => labels[props.highlight?.category] || '高�
 }
 
 .option-btn {
-  padding: 14px 20px;
-  border: 2px solid #e94560;
-  border-radius: 12px;
-  background: transparent;
+  padding: 15px 20px;
+  border: 1.5px solid rgba(255, 77, 109, 0.5);
+  border-radius: 14px;
+  background: rgba(255, 77, 109, 0.08);
   color: #fff;
   font-size: 16px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.15s;
   text-align: center;
 }
 
 .option-btn:active:not(:disabled) {
-  background: #e94560;
+  background: var(--accent);
+  border-color: var(--accent);
+  transform: scale(0.98);
 }
 
-.option-btn:disabled {
-  opacity: 0.5;
-}
+.option-btn:disabled { opacity: 0.45; }
 
 .stats {
-  margin-top: 16px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .stats-title {
-  font-size: 13px;
-  color: #aaa;
-  margin-bottom: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 10px;
+  font-weight: 500;
 }
 
 .stat-row {
@@ -135,32 +151,34 @@ const categoryLabel = computed(() => labels[props.highlight?.category] || '高�
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .stat-bar-wrap {
   flex: 1;
-  height: 6px;
-  background: #333;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 3px;
 }
 
 .stat-bar {
   height: 100%;
-  background: #e94560;
+  background: var(--accent-gradient);
   border-radius: 3px;
-  transition: width 0.5s;
+  transition: width 0.5s ease;
 }
 
 .pct {
   width: 36px;
   text-align: right;
-  color: #aaa;
+  color: rgba(255, 255, 255, 0.45);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .slide-up-enter-active,
 .slide-up-leave-active {
-  transition: transform 0.3s ease;
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .slide-up-enter-from,

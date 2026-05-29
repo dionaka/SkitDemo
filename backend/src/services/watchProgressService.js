@@ -35,7 +35,7 @@ class WatchProgressService {
     return db.prepare(`
       SELECT wp.position_seconds, wp.updated_at,
         v.id as video_id, v.title, v.episode_number, v.total_duration, v.series_id,
-        s.title as series_title
+        s.title as series_title, s.cover_url as series_cover_url
       FROM watch_progress wp
       JOIN video v ON v.id = wp.video_id AND v.status = 1
       JOIN series s ON s.id = v.series_id

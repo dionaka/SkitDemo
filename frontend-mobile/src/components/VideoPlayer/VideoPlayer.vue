@@ -208,7 +208,7 @@ video {
 
 .progress-fill {
   height: 100%;
-  background: #e94560;
+  background: linear-gradient(90deg, #ff4d6d, #ff8fa3);
   border-radius: 4px;
   transition: width 0.1s;
 }

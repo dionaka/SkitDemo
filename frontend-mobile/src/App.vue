@@ -1,80 +1,92 @@
-<template>
-  <div class="app-layout" :class="{ 'play-mode': hideHeader }">
-    <header v-if="!hideHeader" class="app-header">
-      <router-link to="/" class="logo">🎬 短剧互动</router-link>
-      <router-link to="/settings" class="settings-btn" aria-label="设置">⚙</router-link>
-    </header>
-    <main class="app-main" :class="{ 'play-main': hideHeader }">
-      <router-view />
-    </main>
-  </div>
-</template>
-
-<script setup>
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
-
-const route = useRoute();
-const hideHeader = computed(() => Boolean(route.meta.hideAppHeader));
-</script>
-
-<style scoped>
-.app-layout {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: #0f0f1a;
-}
-
-.app-layout.play-mode {
-  background: #000;
-}
-
-.app-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 16px;
-  height: 52px;
-  padding-top: env(safe-area-inset-top);
-  background: #1a1a2e;
-  color: #fff;
-  position: sticky;
-  top: 0;
-  z-index: 50;
-}
-
-.logo {
-  font-size: 17px;
-  font-weight: 700;
-  color: #fff;
-  text-decoration: none;
-}
-
-.settings-btn {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  color: #ccc;
-  text-decoration: none;
-  border-radius: 8px;
-}
-
-.settings-btn.router-link-active {
-  color: #e94560;
-}
-
-.app-main {
-  flex: 1;
-  padding: 16px;
-  padding-bottom: calc(16px + env(safe-area-inset-bottom));
-}
-
-.app-main.play-main {
-  padding: 0;
-  padding-bottom: env(safe-area-inset-bottom);
-}
-</style>
+<template>
+  <div class="app-layout" :class="{ 'chrome-hidden': hideChrome }">
+    <main class="app-main" :class="{ 'play-main': hideChrome }">
+      <router-view />
+    </main>
+
+    <nav v-if="!hideChrome" class="tab-bar">
+      <router-link to="/" class="tab-item" :class="{ active: isHome }">
+        <span class="tab-icon">🏠</span>
+        <span class="tab-label">首页</span>
+      </router-link>
+      <router-link to="/settings" class="tab-item" :class="{ active: isSettings }">
+        <span class="tab-icon">⚙️</span>
+        <span class="tab-label">设置</span>
+      </router-link>
+    </nav>
+  </div>
+</template>
+
+<script setup>
+import { computed } from 'vue';
+import { useRoute } from 'vue-router';
+
+const route = useRoute();
+const hideChrome = computed(() => Boolean(route.meta.hideChrome));
+const isHome = computed(() => route.path === '/');
+const isSettings = computed(() => route.path === '/settings');
+</script>
+
+<style scoped>
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+}
+
+.app-layout.chrome-hidden {
+  background: #000;
+}
+
+.app-main {
+  flex: 1;
+  padding: calc(16px + var(--safe-top)) 16px calc(var(--tab-height) + 16px + var(--safe-bottom));
+  overflow-y: auto;
+}
+
+.app-main.play-main {
+  padding: var(--safe-top) 0 var(--safe-bottom);
+}
+
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--tab-height) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  display: flex;
+  background: rgba(12, 12, 20, 0.92);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  z-index: 100;
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  transition: color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tab-item.active {
+  color: var(--accent);
+}
+
+.tab-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.tab-label {
+  letter-spacing: 0.3px;
+}
+</style>
