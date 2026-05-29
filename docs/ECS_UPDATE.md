@@ -18,6 +18,8 @@ git log -1 --oneline
 ```bash
 cd ~/SkitDemo/backend
 npm install
+# 若 npm 安装 ffmpeg-static 较慢，可改用系统 ffmpeg：
+# sudo apt update && sudo apt install -y ffmpeg
 pm2 restart skitdemo
 ```
 
