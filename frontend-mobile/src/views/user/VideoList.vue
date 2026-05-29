@@ -2,7 +2,7 @@
   <div class="home">
     <HomeTopNav
       :scroll-y="scrollY"
-      @avatar="$router.push('/settings')"
+      @profile="onProfileTap"
       @search="onSearchTap"
     />
 
@@ -18,9 +18,13 @@
     </div>
 
     <template v-else>
-      <HomeCategoryBar v-model="activeCategory" :pinned="scrollY > 72" />
+      <HomeCategoryBar
+        :model-value="activeCategory"
+        :pinned="scrollY > 56"
+        @update:model-value="onCategoryPick"
+      />
 
-      <section v-if="continueList.length" class="section">
+      <section v-if="continueList.length" class="section continue-section">
         <div class="section-header">
           <h2 class="section-title">继续观看</h2>
         </div>
@@ -46,58 +50,71 @@
         </div>
       </section>
 
-      <div v-if="loading" class="loading-box">
-        <div class="loading-spinner" />
-        <span>加载中...</span>
-      </div>
-
-      <div v-else-if="error" class="card">
-        <p class="error-text">{{ error }}</p>
-        <button class="btn btn-ghost" @click="loadData">重试</button>
-      </div>
-
-      <div v-else-if="displaySeries.length === 0" class="empty-state">
-        <div class="empty-icon">📺</div>
-        暂无短剧<br />请在管理后台上传并发布
-      </div>
-
-      <section v-else class="section">
-        <div class="section-header">
-          <h2 class="section-title">{{ categoryTitle }}</h2>
-          <span class="section-more">共 {{ displaySeries.length }} 部</span>
-        </div>
-        <div class="poster-grid">
-          <div
-            v-for="s in displaySeries"
-            :key="s.id"
-            class="poster-card"
-            @click="$router.push(`/series/${s.id}`)"
-          >
-            <SeriesCover
-              class="poster-cover"
-              variant="poster"
-              :cover-url="s.cover_url"
-              :title="s.title"
-            >
-              <span class="poster-ep-badge">{{ s.episode_count }}集</span>
-            </SeriesCover>
-            <div class="poster-title">{{ s.title }}</div>
+      <div
+        ref="swiperRef"
+        class="category-swiper"
+        @scroll.passive="() => onSwiperScroll(activeCategory)"
+      >
+        <div
+          v-for="cat in homeCategories"
+          :key="cat.id"
+          class="swiper-page"
+        >
+          <div v-if="loading" class="loading-box">
+            <div class="loading-spinner" />
+            <span>加载中...</span>
           </div>
+
+          <div v-else-if="error" class="card">
+            <p class="error-text">{{ error }}</p>
+            <button class="btn btn-ghost" @click="loadData">重试</button>
+          </div>
+
+          <div v-else-if="seriesFor(cat.id).length === 0" class="empty-state">
+            <div class="empty-icon">📺</div>
+            暂无短剧<br />请在管理后台上传并发布
+          </div>
+
+          <section v-else class="section">
+            <div class="section-header">
+              <h2 class="section-title">{{ titleFor(cat.id) }}</h2>
+              <span class="section-more">共 {{ seriesFor(cat.id).length }} 部</span>
+            </div>
+            <div class="poster-grid">
+              <div
+                v-for="s in seriesFor(cat.id)"
+                :key="s.id"
+                class="poster-card"
+                @click="$router.push(`/series/${s.id}`)"
+              >
+                <SeriesCover
+                  class="poster-cover"
+                  variant="poster"
+                  :cover-url="s.cover_url"
+                  :title="s.title"
+                >
+                  <span class="poster-ep-badge">{{ s.episode_count }}集</span>
+                </SeriesCover>
+                <div class="poster-title">{{ s.title }}</div>
+              </div>
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import { getApiBaseUrl } from '@/config/server';
-import { homeTheme } from '@/config/homeTheme';
+import { homeTheme, homeCategories } from '@/config/homeTheme';
 import { getSeriesList } from '@/api/series';
 import { getContinueWatching } from '@/api/watchProgress';
 import { useSessionStore } from '@/stores/session';
 import { formatProgressLabel } from '@/utils/watchProgress';
 import { useHomeScroll } from '@/composables/useHomeScroll';
+import { useCategorySwiper } from '@/composables/useCategorySwiper';
 import SeriesCover from '@/components/SeriesCover.vue';
 import HomeTopNav from '@/components/home/HomeTopNav.vue';
 import HomeCategoryBar from '@/components/home/HomeCategoryBar.vue';
@@ -110,23 +127,25 @@ const loading = ref(true);
 const error = ref('');
 const activeCategory = ref('hot');
 
+const { swiperRef, onSwiperScroll, scrollToCategory, initSwiper } = useCategorySwiper(homeCategories);
+
 const hasServer = computed(() => Boolean(getApiBaseUrl()));
 
-const displaySeries = computed(() => {
+function seriesFor(categoryId) {
   const list = [...seriesList.value];
-  if (activeCategory.value === 'latest') {
+  if (categoryId === 'latest') {
     return list.sort((a, b) => (b.id || 0) - (a.id || 0));
   }
-  if (activeCategory.value === 'recommend') {
+  if (categoryId === 'recommend') {
     return [...list].reverse();
   }
   return list;
-});
+}
 
-const categoryTitle = computed(() => {
+function titleFor(categoryId) {
   const map = { hot: '热门短剧', recommend: '为你推荐', latest: '最新上架' };
-  return map[activeCategory.value] || '热门短剧';
-});
+  return map[categoryId] || '热门短剧';
+}
 
 onMounted(loadData);
 
@@ -148,7 +167,15 @@ async function loadData() {
     error.value = e.message || '加载失败';
   } finally {
     loading.value = false;
+    if (hasServer.value) {
+      nextTick(() => initSwiper(activeCategory));
+    }
   }
+}
+
+function onCategoryPick(id) {
+  activeCategory.value = id;
+  scrollToCategory(id);
 }
 
 function formatProgress(item) {
@@ -156,7 +183,11 @@ function formatProgress(item) {
 }
 
 function onSearchTap() {
-  // 预留搜索入口，后续可接搜索页
+  // 预留搜索页
+}
+
+function onProfileTap() {
+  // 预留个人中心页
 }
 </script>
 
@@ -178,7 +209,35 @@ function onSearchTap() {
 }
 
 .section {
-  margin-bottom: 28px;
+  margin-bottom: 20px;
+}
+
+.continue-section {
+  margin-bottom: 16px;
+}
+
+.category-swiper {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  margin: 0 -16px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+
+.category-swiper::-webkit-scrollbar {
+  display: none;
+}
+
+.swiper-page {
+  flex: 0 0 100%;
+  width: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  padding: 0 16px;
+  box-sizing: border-box;
 }
 
 .continue-scroll {

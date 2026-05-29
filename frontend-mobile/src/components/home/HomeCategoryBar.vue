@@ -1,13 +1,14 @@
 <template>
   <div class="home-category-wrap" :class="{ pinned: pinned }">
-    <div class="home-category-bar">
+    <div ref="barRef" class="home-category-bar">
       <button
         v-for="cat in categories"
         :key="cat.id"
         type="button"
         class="category-chip"
         :class="{ active: modelValue === cat.id }"
-        @click="$emit('update:modelValue', cat.id)"
+        :data-id="cat.id"
+        @click="select(cat.id)"
       >
         {{ cat.label }}
       </button>
@@ -16,15 +17,33 @@
 </template>
 
 <script setup>
+import { ref, watch, nextTick } from 'vue';
 import { homeCategories } from '@/config/homeTheme';
 
-defineProps({
+const props = defineProps({
   modelValue: { type: String, default: 'hot' },
   pinned: { type: Boolean, default: false },
   categories: { type: Array, default: () => homeCategories },
 });
 
-defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue']);
+
+const barRef = ref(null);
+
+function select(id) {
+  emit('update:modelValue', id);
+}
+
+function scrollActiveIntoView() {
+  nextTick(() => {
+    const bar = barRef.value;
+    if (!bar) return;
+    const active = bar.querySelector(`[data-id="${props.modelValue}"]`);
+    active?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  });
+}
+
+watch(() => props.modelValue, scrollActiveIntoView, { immediate: true });
 </script>
 
 <style scoped>
@@ -32,17 +51,17 @@ defineEmits(['update:modelValue']);
   position: sticky;
   top: 0;
   z-index: 50;
-  margin: 0 -16px 16px;
-  padding: 8px 16px 12px;
+  margin: 0 -16px 12px;
+  padding: 8px 16px 10px;
   transition: background 0.2s, box-shadow 0.2s, padding 0.2s;
 }
 
 .home-category-wrap.pinned {
   padding-top: calc(8px + var(--safe-top));
-  background: rgba(7, 7, 13, 0.92);
+  background: rgba(7, 7, 13, 0.94);
   backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28);
 }
 
 .home-category-bar {

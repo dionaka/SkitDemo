@@ -1,29 +1,28 @@
 <template>
   <header
     class="home-top-nav"
-    :class="{ hidden: collapsed }"
-    :style="themeStyle"
+    :class="{ collapsed: collapsed }"
+    :style="themeVars"
   >
     <div class="nav-bg" />
+    <div class="nav-mesh" />
     <div class="nav-glow" />
     <div class="nav-inner" :style="innerStyle">
-      <div class="brand-row">
-        <h1 class="brand-title">{{ theme.brandTitle }}</h1>
-        <button type="button" class="avatar-btn" aria-label="我的" @click="$emit('avatar')">
+      <div class="toolbar-row">
+        <div class="search-box" role="button" tabindex="0" @click="$emit('search')">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.5-3.5" stroke-linecap="round" />
+          </svg>
+          <span class="search-placeholder">搜索剧名、演员</span>
+        </div>
+        <button type="button" class="avatar-btn" aria-label="个人中心" @click="$emit('profile')">
           <span class="avatar-ring">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v1.2h19.2v-1.2c0-3.2-6.4-4.8-9.6-4.8z"/>
+              <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v1.2h19.2v-1.2c0-3.2-6.4-4.8-9.6-4.8z" />
             </svg>
           </span>
         </button>
-      </div>
-      <p v-if="theme.brandSubtitle" class="brand-sub">{{ theme.brandSubtitle }}</p>
-      <div class="search-box" @click="$emit('search')">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="7"/>
-          <path d="M20 20l-3.5-3.5" stroke-linecap="round"/>
-        </svg>
-        <span class="search-placeholder">搜索剧名、演员</span>
       </div>
     </div>
   </header>
@@ -38,10 +37,10 @@ const props = defineProps({
   theme: { type: Object, default: () => homeTheme },
 });
 
-defineEmits(['avatar', 'search']);
+defineEmits(['profile', 'search']);
 
-const collapseStart = 24;
-const collapseEnd = 120;
+const collapseStart = 16;
+const collapseEnd = 100;
 
 const progress = computed(() => {
   const y = props.scrollY;
@@ -53,18 +52,18 @@ const progress = computed(() => {
 const collapsed = computed(() => progress.value >= 0.98);
 
 const innerStyle = computed(() => ({
-  opacity: 1 - progress.value * 0.92,
-  transform: `translateY(${-progress.value * 28}px)`,
+  opacity: 1 - progress.value * 0.95,
+  transform: `translateY(${-progress.value * 20}px)`,
 }));
 
-const themeStyle = computed(() => ({
+const themeVars = computed(() => ({
   '--home-nav-gradient': props.theme.navBackgroundGradient,
   '--home-nav-bg-image': props.theme.navBackgroundImage
     ? `url(${props.theme.navBackgroundImage})`
     : 'none',
   '--home-nav-glow': props.theme.navAccentGlow,
+  '--home-nav-mesh': props.theme.navMeshColor || 'rgba(255, 120, 150, 0.1)',
   '--home-nav-height': props.theme.navHeight,
-  opacity: 1 - progress.value * 0.35,
 }));
 </script>
 
@@ -78,69 +77,101 @@ const themeStyle = computed(() => ({
   height: calc(var(--home-nav-height) + var(--safe-top));
   padding-top: var(--safe-top);
   pointer-events: none;
-  transition: opacity 0.15s ease;
+  overflow: hidden;
 }
 
-.home-top-nav.hidden {
-  opacity: 0;
+.home-top-nav.collapsed .nav-inner {
+  pointer-events: none;
 }
 
 .nav-bg {
   position: absolute;
   inset: 0;
-  background: var(--home-nav-gradient);
+  background-color: #1a1028;
   background-image: var(--home-nav-bg-image), var(--home-nav-gradient);
   background-size: cover;
   background-position: center top;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
 
 .nav-bg::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, transparent 40%, var(--bg-base) 100%);
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.06) 0%,
+    transparent 35%,
+    rgba(7, 7, 13, 0.15) 75%,
+    var(--bg-base) 100%
+  );
+}
+
+.nav-mesh {
+  position: absolute;
+  inset: 0;
+  opacity: 0.9;
+  background-image:
+    radial-gradient(circle at 18% 30%, var(--home-nav-mesh) 0%, transparent 42%),
+    radial-gradient(circle at 82% 18%, rgba(120, 90, 255, 0.18) 0%, transparent 40%),
+    linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.04) 48%, transparent 100%);
+  pointer-events: none;
 }
 
 .nav-glow {
   position: absolute;
-  top: -20px;
-  right: -10px;
-  width: 180px;
-  height: 180px;
-  background: radial-gradient(circle, var(--home-nav-glow) 0%, transparent 70%);
+  top: -30px;
+  right: 20px;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, var(--home-nav-glow) 0%, transparent 68%);
   pointer-events: none;
 }
 
 .nav-inner {
   position: relative;
   z-index: 1;
-  padding: 10px 16px 14px;
+  padding: 12px 16px 14px;
   pointer-events: auto;
   will-change: transform, opacity;
 }
 
-.brand-row {
+.toolbar-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 4px;
 }
 
-.brand-title {
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.4px;
-  background: var(--accent-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.search-box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 21px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(14px);
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-.brand-sub {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 12px;
+.search-icon {
+  width: 18px;
+  height: 18px;
+  color: rgba(255, 255, 255, 0.55);
+  flex-shrink: 0;
+}
+
+.search-placeholder {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .avatar-btn {
@@ -152,44 +183,20 @@ const themeStyle = computed(() => ({
 }
 
 .avatar-ring {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-primary);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
 .avatar-ring svg {
-  width: 20px;
-  height: 20px;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 42px;
-  padding: 0 14px;
-  border-radius: 21px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(12px);
-  cursor: pointer;
-}
-
-.search-icon {
-  width: 18px;
-  height: 18px;
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.search-placeholder {
-  font-size: 14px;
-  color: var(--text-muted);
+  width: 22px;
+  height: 22px;
 }
 </style>
