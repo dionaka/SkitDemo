@@ -1,26 +1,37 @@
 const videoService = require('../../services/videoService');
 const highlightService = require('../../services/highlightService');
+const seriesService = require('../../services/seriesService');
 const { success, fail } = require('../../utils/response');
 
 exports.upload = (req, res) => {
   try {
     if (!req.file) return res.status(400).json(fail(400, '请上传视频文件'));
-    const { title } = req.body;
-    if (!title) return res.status(400).json(fail(400, '请填写视频标题'));
+    const { title, series_title } = req.body;
+    if (!title) return res.status(400).json(fail(400, '请填写单集标题'));
+
+    const episodeNumber = parseInt(req.body.episode_number, 10) || 1;
+    const seriesName = (series_title || title).trim();
+    if (!seriesName) return res.status(400).json(fail(400, '请填写剧名'));
 
     const videoUrl = videoService.saveUploadedFile(req.file, 'videos');
     const coverUrl = '/uploads/covers/default-cover.jpg';
+    const series = seriesService.findOrCreate(seriesName, coverUrl);
 
     const video = videoService.create({
       title,
       coverUrl,
       videoUrl,
       totalDuration: parseInt(req.body.total_duration, 10) || 300,
+      seriesId: series.id,
+      episodeNumber,
     });
 
     res.json(success({
       video_id: video.id,
       title: video.title,
+      series_id: series.id,
+      series_title: series.title,
+      episode_number: video.episode_number,
       cover_url: video.cover_url,
       video_url: video.video_url,
       total_duration: video.total_duration,
@@ -40,6 +51,12 @@ exports.publish = (req, res) => {
   const video = videoService.publish(req.params.id);
   if (!video) return res.status(404).json(fail(404, '视频不存在'));
   res.json(success({ video_id: video.id, status: video.status }, '发布成功'));
+};
+
+exports.remove = (req, res) => {
+  const ok = videoService.remove(req.params.id);
+  if (!ok) return res.status(404).json(fail(404, '视频不存在'));
+  res.json(success(null, '删除成功'));
 };
 
 exports.analyze = async (req, res) => {

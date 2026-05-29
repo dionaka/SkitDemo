@@ -8,11 +8,12 @@ class VideoService {
     const offset = (page - 1) * size;
     const total = db.prepare('SELECT COUNT(*) as c FROM video WHERE status = 1').get().c;
     const list = db.prepare(`
-      SELECT v.*,
+      SELECT v.*, s.title as series_title,
         (SELECT COUNT(*) FROM highlight h WHERE h.video_id = v.id) as highlight_count
       FROM video v
+      LEFT JOIN series s ON s.id = v.series_id
       WHERE v.status = 1
-      ORDER BY v.created_at DESC
+      ORDER BY s.title ASC, v.episode_number ASC, v.created_at DESC
       LIMIT ? OFFSET ?
     `).all(size, offset);
 
@@ -21,14 +22,21 @@ class VideoService {
 
   listAll() {
     return db.prepare(`
-      SELECT v.*,
+      SELECT v.*, s.title as series_title,
         (SELECT COUNT(*) FROM highlight h WHERE h.video_id = v.id) as highlight_count
-      FROM video v ORDER BY v.created_at DESC
+      FROM video v
+      LEFT JOIN series s ON s.id = v.series_id
+      ORDER BY s.title ASC, v.episode_number ASC, v.created_at DESC
     `).all();
   }
 
   getById(id) {
-    return db.prepare('SELECT * FROM video WHERE id = ?').get(id);
+    const video = db.prepare('SELECT * FROM video WHERE id = ?').get(id);
+    if (!video) return null;
+    const series = video.series_id
+      ? db.prepare('SELECT * FROM series WHERE id = ?').get(video.series_id)
+      : null;
+    return { ...video, series_title: series?.title || null };
   }
 
   getDetailWithHighlights(id) {
@@ -48,18 +56,55 @@ class VideoService {
     };
   }
 
-  create({ title, coverUrl, videoUrl, totalDuration }) {
+  create({ title, coverUrl, videoUrl, totalDuration, seriesId, episodeNumber }) {
     const result = db.prepare(`
-      INSERT INTO video (title, cover_url, video_url, total_duration, status)
-      VALUES (?, ?, ?, ?, 0)
-    `).run(title, coverUrl, videoUrl, totalDuration || 0);
+      INSERT INTO video (title, cover_url, video_url, total_duration, status, series_id, episode_number)
+      VALUES (?, ?, ?, ?, 0, ?, ?)
+    `).run(
+      title,
+      coverUrl,
+      videoUrl,
+      totalDuration || 0,
+      seriesId,
+      episodeNumber || 1
+    );
 
+    db.prepare('UPDATE series SET updated_at = datetime(\'now\') WHERE id = ?').run(seriesId);
     return this.getById(result.lastInsertRowid);
   }
 
   publish(id) {
     db.prepare('UPDATE video SET status = 1, updated_at = datetime(\'now\') WHERE id = ?').run(id);
-    return this.getById(id);
+    const video = this.getById(id);
+    if (video?.series_id) {
+      db.prepare('UPDATE series SET updated_at = datetime(\'now\') WHERE id = ?').run(video.series_id);
+    }
+    return video;
+  }
+
+  remove(id) {
+    const video = this.getById(id);
+    if (!video) return false;
+
+    const result = db.prepare('DELETE FROM video WHERE id = ?').run(id);
+    if (result.changes === 0) return false;
+
+    this.deleteLocalFile(video.video_url);
+    if (video.cover_url && !video.cover_url.includes('default-cover')) {
+      this.deleteLocalFile(video.cover_url);
+    }
+    return true;
+  }
+
+  deleteLocalFile(urlPath) {
+    if (!urlPath || !urlPath.startsWith('/uploads/')) return;
+    const relative = urlPath.replace(/^\/uploads\//, '');
+    const fullPath = path.join(config.uploadBasePath, relative);
+    try {
+      if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+    } catch (err) {
+      console.warn('删除本地文件失败:', fullPath, err.message);
+    }
   }
 
   ensureUploadDirs() {

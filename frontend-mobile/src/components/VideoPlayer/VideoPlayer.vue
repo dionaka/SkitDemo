@@ -10,9 +10,9 @@
         preload="metadata"
         @timeupdate="onTimeUpdate"
         @loadedmetadata="onLoaded"
+        @pause="onPause"
         @click="togglePlay"
         @play="playing = true"
-        @pause="playing = false"
       />
       <EffectOverlay :type="effectType" :active="showEffect" />
     </div>
@@ -46,9 +46,10 @@ import EffectOverlay from '../effects/EffectOverlay.vue';
 const props = defineProps({
   src: String,
   highlights: { type: Array, default: () => [] },
+  startTime: { type: Number, default: 0 },
 });
 
-const emit = defineEmits(['highlight-reached', 'timeupdate']);
+const emit = defineEmits(['highlight-reached', 'timeupdate', 'pause']);
 
 const videoRef = ref(null);
 const progressRef = ref(null);
@@ -59,6 +60,7 @@ const progressPercent = ref(0);
 const triggeredIds = ref(new Set());
 const effectType = ref('');
 const showEffect = ref(false);
+const hasAppliedStart = ref(false);
 
 function togglePlay() {
   if (!videoRef.value) return;
@@ -71,6 +73,20 @@ function togglePlay() {
 
 function onLoaded() {
   duration.value = videoRef.value?.duration || 0;
+  applyStartTime();
+}
+
+function applyStartTime() {
+  if (hasAppliedStart.value || !videoRef.value || props.startTime <= 0) return;
+  videoRef.value.currentTime = props.startTime;
+  currentTime.value = props.startTime;
+  progressPercent.value = duration.value ? (props.startTime / duration.value) * 100 : 0;
+  hasAppliedStart.value = true;
+}
+
+function onPause() {
+  playing.value = false;
+  emit('pause', videoRef.value?.currentTime || 0);
 }
 
 function onTimeUpdate() {
@@ -127,7 +143,11 @@ function resetTriggers() {
   triggeredIds.value.clear();
 }
 
-defineExpose({ playEffect, jumpTo, resetTriggers });
+function getCurrentTime() {
+  return videoRef.value?.currentTime || 0;
+}
+
+defineExpose({ playEffect, jumpTo, resetTriggers, getCurrentTime });
 </script>
 
 <style scoped>

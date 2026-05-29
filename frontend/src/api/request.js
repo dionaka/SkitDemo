@@ -18,13 +18,17 @@ request.interceptors.response.use(
   (res) => {
     const { code, message, data } = res.data;
     if (code !== 0) {
-      ElMessage.error(message || '请求失败');
+      if (!res.config.silent) {
+        ElMessage.error(message || '请求失败');
+      }
       return Promise.reject(new Error(message));
     }
     return data;
   },
   (err) => {
-    ElMessage.error(err.response?.data?.message || '网络错误');
+    if (!err.config?.silent) {
+      ElMessage.error(err.response?.data?.message || '网络错误');
+    }
     return Promise.reject(err);
   }
 );

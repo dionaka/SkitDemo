@@ -4,12 +4,16 @@ export const adminLogin = (data) => request.post('/api/admin/login', data);
 
 export const getAdminVideos = () => request.get('/api/admin/videos');
 
+export const getAdminSeries = () => request.get('/api/admin/series');
+
 export const uploadVideo = (formData) =>
   request.post('/api/admin/videos', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
 export const publishVideo = (id) => request.put(`/api/admin/videos/${id}/publish`);
+
+export const deleteVideo = (id) => request.delete(`/api/admin/videos/${id}`);
 
 export const analyzeVideo = (id) => request.post(`/api/admin/videos/${id}/analyze`);
 

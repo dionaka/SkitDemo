@@ -12,6 +12,14 @@ db.pragma('foreign_keys = ON');
 
 function initDatabase() {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS series (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      cover_url TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS video (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
@@ -19,8 +27,11 @@ function initDatabase() {
       video_url TEXT NOT NULL,
       total_duration INTEGER NOT NULL DEFAULT 0,
       status INTEGER NOT NULL DEFAULT 0,
+      series_id INTEGER,
+      episode_number INTEGER NOT NULL DEFAULT 1,
       created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (series_id) REFERENCES series(id)
     );
 
     CREATE TABLE IF NOT EXISTS highlight (
@@ -44,6 +55,16 @@ function initDatabase() {
       FOREIGN KEY (highlight_id) REFERENCES highlight(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS watch_progress (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_session_id TEXT NOT NULL,
+      video_id INTEGER NOT NULL,
+      position_seconds REAL NOT NULL DEFAULT 0,
+      updated_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(user_session_id, video_id),
+      FOREIGN KEY (video_id) REFERENCES video(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS admin (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
@@ -51,6 +72,8 @@ function initDatabase() {
       created_at TEXT DEFAULT (datetime('now'))
     );
   `);
+
+  migrateSchema();
 
   const admin = db.prepare('SELECT id FROM admin WHERE username = ?').get('admin');
   if (!admin) {
@@ -64,16 +87,44 @@ function initDatabase() {
   }
 }
 
+function migrateSchema() {
+  const videoCols = db.prepare('PRAGMA table_info(video)').all().map((c) => c.name);
+  if (!videoCols.includes('series_id')) {
+    db.exec('ALTER TABLE video ADD COLUMN series_id INTEGER');
+  }
+  if (!videoCols.includes('episode_number')) {
+    db.exec('ALTER TABLE video ADD COLUMN episode_number INTEGER NOT NULL DEFAULT 1');
+  }
+
+  const orphans = db.prepare('SELECT * FROM video WHERE series_id IS NULL').all();
+  orphans.forEach((v) => {
+    const existing = db.prepare('SELECT id FROM series WHERE title = ?').get(v.title);
+    let seriesId;
+    if (existing) {
+      seriesId = existing.id;
+    } else {
+      seriesId = db.prepare('INSERT INTO series (title, cover_url) VALUES (?, ?)')
+        .run(v.title, v.cover_url).lastInsertRowid;
+    }
+    db.prepare(`
+      UPDATE video SET series_id = ?, episode_number = COALESCE(episode_number, 1) WHERE id = ?
+    `).run(seriesId, v.id);
+  });
+}
+
 function seedDemoData() {
-  const insertVideo = db.prepare(`
-    INSERT INTO video (title, cover_url, video_url, total_duration, status)
-    VALUES (?, ?, ?, ?, 1)
-  `);
-  const videoId = insertVideo.run(
-    '十八岁太奶奶驾到',
+  const seriesId = db.prepare('INSERT INTO series (title, cover_url) VALUES (?, ?)')
+    .run('十八岁太奶奶驾到', '/uploads/covers/demo-cover.jpg').lastInsertRowid;
+
+  const videoId = db.prepare(`
+    INSERT INTO video (title, cover_url, video_url, total_duration, status, series_id, episode_number)
+    VALUES (?, ?, ?, ?, 1, ?, 1)
+  `).run(
+    '第1集',
     '/uploads/covers/demo-cover.jpg',
     '/uploads/videos/demo.mp4',
-    360
+    360,
+    seriesId
   ).lastInsertRowid;
 
   const insertHighlight = db.prepare(`

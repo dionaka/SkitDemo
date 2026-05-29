@@ -41,6 +41,7 @@ frontend-mobile/android/.gradle/
 frontend-mobile/android/app/build/
 frontend-mobile/android/build/
 frontend-mobile/android/local.properties
+frontend-mobile/android/.idea/
 
 # 日志与缓存
 *.log
