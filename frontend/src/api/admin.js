@@ -13,6 +13,8 @@ export const uploadVideo = (formData) =>
 
 export const publishVideo = (id) => request.put(`/api/admin/videos/${id}/publish`);
 
+export const updateVideo = (id, data) => request.put(`/api/admin/videos/${id}`, data);
+
 export const deleteVideo = (id) => request.delete(`/api/admin/videos/${id}`);
 
 export const analyzeVideo = (id) => request.post(`/api/admin/videos/${id}/analyze`);

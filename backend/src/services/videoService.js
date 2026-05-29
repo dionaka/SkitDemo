@@ -82,6 +82,37 @@ class VideoService {
     return video;
   }
 
+  update(id, { title, seriesId, episodeNumber, totalDuration }) {
+    const existing = this.getById(id);
+    if (!existing) return null;
+
+    const oldSeriesId = existing.series_id;
+    db.prepare(`
+      UPDATE video SET
+        title = ?,
+        series_id = ?,
+        episode_number = ?,
+        total_duration = ?,
+        updated_at = datetime('now')
+      WHERE id = ?
+    `).run(
+      title ?? existing.title,
+      seriesId ?? existing.series_id,
+      episodeNumber ?? existing.episode_number,
+      totalDuration ?? existing.total_duration,
+      id
+    );
+
+    if (oldSeriesId) {
+      db.prepare('UPDATE series SET updated_at = datetime(\'now\') WHERE id = ?').run(oldSeriesId);
+    }
+    if (seriesId && seriesId !== oldSeriesId) {
+      db.prepare('UPDATE series SET updated_at = datetime(\'now\') WHERE id = ?').run(seriesId);
+    }
+
+    return this.getById(id);
+  }
+
   remove(id) {
     const video = this.getById(id);
     if (!video) return false;

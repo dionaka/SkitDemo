@@ -16,6 +16,7 @@ router.use(auth);
 router.get('/series', seriesController.list);
 router.get('/videos', videoAdminController.list);
 router.post('/videos', upload.single('video_file'), videoAdminController.upload);
+router.put('/videos/:id', videoAdminController.update);
 router.put('/videos/:id/publish', videoAdminController.publish);
 router.delete('/videos/:id', videoAdminController.remove);
 router.post('/videos/:id/analyze', videoAdminController.analyze);
