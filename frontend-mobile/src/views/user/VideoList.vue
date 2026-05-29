@@ -19,10 +19,37 @@
 
     <template v-else>
       <HomeCategoryBar
+        ref="categoryBarRef"
         :model-value="activeCategory"
         :pinned="scrollY > 56"
         @update:model-value="onCategoryPick"
       />
+
+      <section v-if="continueList.length" class="section continue-section">
+        <div class="section-header">
+          <h2 class="section-title">继续观看</h2>
+        </div>
+        <div class="continue-scroll">
+          <div
+            v-for="item in continueList"
+            :key="item.video_id"
+            class="continue-item"
+            @click="$router.push(`/play/${item.video_id}`)"
+          >
+            <SeriesCover
+              class="continue-poster"
+              variant="thumb"
+              :cover-url="item.series_cover_url"
+              :title="item.series_title"
+            >
+              <span class="continue-play">▶</span>
+              <div class="continue-ep-tag">第{{ item.episode_number }}集</div>
+            </SeriesCover>
+            <div class="continue-name">{{ item.series_title }}</div>
+            <div class="continue-progress-text">{{ formatProgress(item) }}</div>
+          </div>
+        </div>
+      </section>
 
       <div ref="swiperRef" class="category-swiper">
         <div
@@ -30,32 +57,6 @@
           :key="cat.id"
           class="swiper-page"
         >
-          <section v-if="continueList.length" class="section continue-section">
-            <div class="section-header">
-              <h2 class="section-title">继续观看</h2>
-            </div>
-            <div class="continue-scroll">
-              <div
-                v-for="item in continueList"
-                :key="item.video_id"
-                class="continue-item"
-                @click="$router.push(`/play/${item.video_id}`)"
-              >
-                <SeriesCover
-                  class="continue-poster"
-                  variant="thumb"
-                  :cover-url="item.series_cover_url"
-                  :title="item.series_title"
-                >
-                  <span class="continue-play">▶</span>
-                  <div class="continue-ep-tag">第{{ item.episode_number }}集</div>
-                </SeriesCover>
-                <div class="continue-name">{{ item.series_title }}</div>
-                <div class="continue-progress-text">{{ formatProgress(item) }}</div>
-              </div>
-            </div>
-          </section>
-
           <div v-if="loading" class="loading-box">
             <div class="loading-spinner" />
             <span>加载中...</span>
@@ -122,6 +123,7 @@ const continueList = ref([]);
 const loading = ref(true);
 const error = ref('');
 const activeCategory = ref('hot');
+const categoryBarRef = ref(null);
 
 const { swiperRef, scrollToCategory, initSwiper } = useCategorySwiper(homeCategories, activeCategory);
 
@@ -172,6 +174,7 @@ async function loadData() {
 function onCategoryPick(id) {
   activeCategory.value = id;
   scrollToCategory(id);
+  categoryBarRef.value?.scrollActiveIntoView();
 }
 
 function formatProgress(item) {
@@ -217,12 +220,16 @@ function onProfileTap() {
   display: flex;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   margin: 0 -16px;
   min-height: calc(100dvh - var(--tab-height) - var(--safe-bottom) - var(--home-chrome-top));
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+}
+
+.category-swiper.smooth-scroll {
+  scroll-behavior: smooth;
 }
 
 .category-swiper::-webkit-scrollbar {
@@ -234,7 +241,9 @@ function onProfileTap() {
   width: 100%;
   min-height: 100%;
   scroll-snap-align: start;
-  scroll-snap-stop: always;
+  scroll-snap-stop: normal;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 480px;
   padding: 0 16px;
   box-sizing: border-box;
 }

@@ -7,12 +7,22 @@ export function useCategorySwiper(categories, activeCategoryRef) {
   const swiperRef = ref(null);
   let scrollingProgrammatically = false;
   let scrollEndTimer = null;
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let touchAxis = null;
+  let scrollRaf = 0;
 
   function getIndex(id) {
     return categories.findIndex((c) => c.id === id);
+  }
+
+  function clearProgrammaticFlag() {
+    scrollingProgrammatically = false;
+    window.clearTimeout(scrollEndTimer);
+    scrollEndTimer = null;
+  }
+
+  function markProgrammaticScroll(smooth) {
+    scrollingProgrammatically = true;
+    window.clearTimeout(scrollEndTimer);
+    scrollEndTimer = window.setTimeout(clearProgrammaticFlag, smooth ? 400 : 0);
   }
 
   function scrollToCategory(id, smooth = true) {
@@ -21,14 +31,13 @@ export function useCategorySwiper(categories, activeCategoryRef) {
     const index = getIndex(id);
     if (index < 0) return;
 
-    scrollingProgrammatically = true;
+    markProgrammaticScroll(smooth);
+    if (smooth) el.classList.add('smooth-scroll');
     const left = index * el.clientWidth;
     el.scrollTo({ left, behavior: smooth ? 'smooth' : 'auto' });
-
-    window.clearTimeout(scrollEndTimer);
-    scrollEndTimer = window.setTimeout(() => {
-      scrollingProgrammatically = false;
-    }, smooth ? 320 : 0);
+    if (smooth) {
+      window.setTimeout(() => el.classList.remove('smooth-scroll'), 400);
+    }
   }
 
   function readCategoryFromScroll() {
@@ -43,83 +52,33 @@ export function useCategorySwiper(categories, activeCategoryRef) {
     }
   }
 
-  function onTouchStart(e) {
-    if (scrollingProgrammatically) return;
-    const t = e.touches[0];
-    touchStartX = t.clientX;
-    touchStartY = t.clientY;
-    touchAxis = null;
-  }
-
-  function onTouchMove(e) {
-    if (touchAxis !== null || scrollingProgrammatically) return;
-    const t = e.touches[0];
-    const dx = t.clientX - touchStartX;
-    const dy = t.clientY - touchStartY;
-    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-    touchAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-  }
-
-  function onTouchEnd(e) {
-    if (touchAxis !== 'x' || scrollingProgrammatically) {
-      touchAxis = null;
-      return;
-    }
-
-    if (e.target?.closest?.('.continue-scroll')) {
-      touchAxis = null;
-      return;
-    }
-
-    const el = swiperRef.value;
-    const startLeft = el?.scrollLeft ?? 0;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - touchStartX;
-
-    // Native horizontal scroll already moved — scroll handler will sync tabs.
-    if (el && Math.abs(el.scrollLeft - startLeft) > 12) {
-      touchAxis = null;
+  function scheduleReadCategoryFromScroll() {
+    if (scrollRaf) return;
+    scrollRaf = window.requestAnimationFrame(() => {
+      scrollRaf = 0;
       readCategoryFromScroll();
-      return;
-    }
+    });
+  }
 
-    const threshold = 50;
-    if (Math.abs(dx) >= threshold) {
-      const currentIndex = getIndex(activeCategoryRef.value);
-      const nextIndex = dx < 0
-        ? Math.min(currentIndex + 1, categories.length - 1)
-        : Math.max(currentIndex - 1, 0);
-      if (nextIndex !== currentIndex) {
-        activeCategoryRef.value = categories[nextIndex].id;
-        scrollToCategory(categories[nextIndex].id);
-      }
-    }
-
-    touchAxis = null;
+  function onScrollEnd() {
+    clearProgrammaticFlag();
+    readCategoryFromScroll();
   }
 
   function bindSwiper(el) {
     if (!el || el.dataset.categorySwiperBound) return;
     el.dataset.categorySwiperBound = '1';
 
-    el.addEventListener('scroll', readCategoryFromScroll, { passive: true });
-    if ('onscrollend' in window) {
-      el.addEventListener('scrollend', readCategoryFromScroll, { passive: true });
-    }
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: true });
-    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('scroll', scheduleReadCategoryFromScroll, { passive: true });
+    el.addEventListener('scrollend', onScrollEnd, { passive: true });
   }
 
   function unbindSwiper(el) {
     if (!el?.dataset?.categorySwiperBound) return;
     delete el.dataset.categorySwiperBound;
 
-    el.removeEventListener('scroll', readCategoryFromScroll);
-    el.removeEventListener('scrollend', readCategoryFromScroll);
-    el.removeEventListener('touchstart', onTouchStart);
-    el.removeEventListener('touchmove', onTouchMove);
-    el.removeEventListener('touchend', onTouchEnd);
+    el.removeEventListener('scroll', scheduleReadCategoryFromScroll);
+    el.removeEventListener('scrollend', onScrollEnd);
   }
 
   function initSwiper() {
@@ -139,6 +98,7 @@ export function useCategorySwiper(categories, activeCategoryRef) {
 
   onUnmounted(() => {
     window.clearTimeout(scrollEndTimer);
+    if (scrollRaf) window.cancelAnimationFrame(scrollRaf);
     if (swiperRef.value) unbindSwiper(swiperRef.value);
   });
 

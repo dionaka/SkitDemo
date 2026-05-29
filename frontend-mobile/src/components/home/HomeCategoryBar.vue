@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue';
+import { ref, nextTick } from 'vue';
 import { homeCategories } from '@/config/homeTheme';
 
 const props = defineProps({
@@ -39,11 +39,11 @@ function scrollActiveIntoView() {
     const bar = barRef.value;
     if (!bar) return;
     const active = bar.querySelector(`[data-id="${props.modelValue}"]`);
-    active?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    active?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'auto' });
   });
 }
 
-watch(() => props.modelValue, scrollActiveIntoView, { immediate: true });
+defineExpose({ scrollActiveIntoView });
 </script>
 
 <style scoped>
