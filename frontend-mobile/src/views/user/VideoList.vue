@@ -24,11 +24,7 @@
         @update:model-value="onCategoryPick"
       />
 
-      <div
-        ref="swiperRef"
-        class="category-swiper"
-        @scroll.passive="() => onSwiperScroll(activeCategory)"
-      >
+      <div ref="swiperRef" class="category-swiper">
         <div
           v-for="cat in homeCategories"
           :key="cat.id"
@@ -127,7 +123,7 @@ const loading = ref(true);
 const error = ref('');
 const activeCategory = ref('hot');
 
-const { swiperRef, onSwiperScroll, scrollToCategory, initSwiper } = useCategorySwiper(homeCategories);
+const { swiperRef, scrollToCategory, initSwiper } = useCategorySwiper(homeCategories, activeCategory);
 
 const hasServer = computed(() => Boolean(getApiBaseUrl()));
 
@@ -168,7 +164,7 @@ async function loadData() {
   } finally {
     loading.value = false;
     if (hasServer.value) {
-      nextTick(() => initSwiper(activeCategory));
+      nextTick(() => initSwiper());
     }
   }
 }
