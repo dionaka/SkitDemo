@@ -24,32 +24,6 @@
         @update:model-value="onCategoryPick"
       />
 
-      <section v-if="continueList.length" class="section continue-section">
-        <div class="section-header">
-          <h2 class="section-title">继续观看</h2>
-        </div>
-        <div class="continue-scroll">
-          <div
-            v-for="item in continueList"
-            :key="item.video_id"
-            class="continue-item"
-            @click="$router.push(`/play/${item.video_id}`)"
-          >
-            <SeriesCover
-              class="continue-poster"
-              variant="thumb"
-              :cover-url="item.series_cover_url"
-              :title="item.series_title"
-            >
-              <span class="continue-play">▶</span>
-              <div class="continue-ep-tag">第{{ item.episode_number }}集</div>
-            </SeriesCover>
-            <div class="continue-name">{{ item.series_title }}</div>
-            <div class="continue-progress-text">{{ formatProgress(item) }}</div>
-          </div>
-        </div>
-      </section>
-
       <div
         ref="swiperRef"
         class="category-swiper"
@@ -60,6 +34,32 @@
           :key="cat.id"
           class="swiper-page"
         >
+          <section v-if="continueList.length" class="section continue-section">
+            <div class="section-header">
+              <h2 class="section-title">继续观看</h2>
+            </div>
+            <div class="continue-scroll">
+              <div
+                v-for="item in continueList"
+                :key="item.video_id"
+                class="continue-item"
+                @click="$router.push(`/play/${item.video_id}`)"
+              >
+                <SeriesCover
+                  class="continue-poster"
+                  variant="thumb"
+                  :cover-url="item.series_cover_url"
+                  :title="item.series_title"
+                >
+                  <span class="continue-play">▶</span>
+                  <div class="continue-ep-tag">第{{ item.episode_number }}集</div>
+                </SeriesCover>
+                <div class="continue-name">{{ item.series_title }}</div>
+                <div class="continue-progress-text">{{ formatProgress(item) }}</div>
+              </div>
+            </div>
+          </section>
+
           <div v-if="loading" class="loading-box">
             <div class="loading-spinner" />
             <span>加载中...</span>
@@ -193,6 +193,7 @@ function onProfileTap() {
 
 <style scoped>
 .home {
+  --home-chrome-top: calc(76px + var(--safe-top) + 54px);
   padding-bottom: 8px;
 }
 
@@ -222,9 +223,10 @@ function onProfileTap() {
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
   margin: 0 -16px;
+  min-height: calc(100dvh - var(--tab-height) - var(--safe-bottom) - var(--home-chrome-top));
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
+  overscroll-behavior-x: contain;
 }
 
 .category-swiper::-webkit-scrollbar {
@@ -234,6 +236,7 @@ function onProfileTap() {
 .swiper-page {
   flex: 0 0 100%;
   width: 100%;
+  min-height: 100%;
   scroll-snap-align: start;
   scroll-snap-stop: always;
   padding: 0 16px;
