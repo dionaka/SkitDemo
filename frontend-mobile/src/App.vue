@@ -1,6 +1,6 @@
 <template>
   <div class="app-layout" :class="{ 'chrome-hidden': hideChrome }">
-    <main class="app-main" :class="{ 'play-main': hideChrome }">
+    <main class="app-main" :class="{ 'play-main': hideChrome, 'home-layout': isHomeLayout }">
       <router-view />
     </main>
 
@@ -23,6 +23,7 @@ import { useRoute } from 'vue-router';
 
 const route = useRoute();
 const hideChrome = computed(() => Boolean(route.meta.hideChrome));
+const isHomeLayout = computed(() => Boolean(route.meta.homeLayout));
 const isHome = computed(() => route.path === '/');
 const isSettings = computed(() => route.path === '/settings');
 </script>
@@ -47,6 +48,10 @@ const isSettings = computed(() => route.path === '/settings');
 
 .app-main.play-main {
   padding: var(--safe-top) 0 var(--safe-bottom);
+}
+
+.app-main.home-layout {
+  padding: 0 16px calc(var(--tab-height) + 16px + var(--safe-bottom));
 }
 
 .tab-bar {

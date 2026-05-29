@@ -1,11 +1,15 @@
 <template>
   <div class="home">
-    <!-- Hero -->
-    <div class="hero">
-      <div class="hero-glow" />
-      <h1 class="hero-title">短剧互动</h1>
-      <p class="hero-sub">发现精彩 · 参与剧情</p>
-    </div>
+    <HomeTopNav
+      :scroll-y="scrollY"
+      @avatar="$router.push('/settings')"
+      @search="onSearchTap"
+    />
+
+    <div
+      class="nav-spacer"
+      :style="{ height: `calc(${homeTheme.navHeight} + var(--safe-top))` }"
+    />
 
     <div v-if="!hasServer" class="card setup-card">
       <div class="empty-icon">🔗</div>
@@ -14,7 +18,8 @@
     </div>
 
     <template v-else>
-      <!-- Continue watching - horizontal scroll -->
+      <HomeCategoryBar v-model="activeCategory" :pinned="scrollY > 72" />
+
       <section v-if="continueList.length" class="section">
         <div class="section-header">
           <h2 class="section-title">继续观看</h2>
@@ -51,19 +56,19 @@
         <button class="btn btn-ghost" @click="loadData">重试</button>
       </div>
 
-      <div v-else-if="seriesList.length === 0" class="empty-state">
+      <div v-else-if="displaySeries.length === 0" class="empty-state">
         <div class="empty-icon">📺</div>
         暂无短剧<br />请在管理后台上传并发布
       </div>
 
       <section v-else class="section">
         <div class="section-header">
-          <h2 class="section-title">热门短剧</h2>
-          <span class="section-more">共 {{ seriesList.length }} 部</span>
+          <h2 class="section-title">{{ categoryTitle }}</h2>
+          <span class="section-more">共 {{ displaySeries.length }} 部</span>
         </div>
         <div class="poster-grid">
           <div
-            v-for="s in seriesList"
+            v-for="s in displaySeries"
             :key="s.id"
             class="poster-card"
             @click="$router.push(`/series/${s.id}`)"
@@ -87,19 +92,41 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { getApiBaseUrl } from '@/config/server';
+import { homeTheme } from '@/config/homeTheme';
 import { getSeriesList } from '@/api/series';
 import { getContinueWatching } from '@/api/watchProgress';
 import { useSessionStore } from '@/stores/session';
 import { formatProgressLabel } from '@/utils/watchProgress';
+import { useHomeScroll } from '@/composables/useHomeScroll';
 import SeriesCover from '@/components/SeriesCover.vue';
+import HomeTopNav from '@/components/home/HomeTopNav.vue';
+import HomeCategoryBar from '@/components/home/HomeCategoryBar.vue';
 
 const session = useSessionStore();
+const { scrollY } = useHomeScroll();
 const seriesList = ref([]);
 const continueList = ref([]);
 const loading = ref(true);
 const error = ref('');
+const activeCategory = ref('hot');
 
 const hasServer = computed(() => Boolean(getApiBaseUrl()));
+
+const displaySeries = computed(() => {
+  const list = [...seriesList.value];
+  if (activeCategory.value === 'latest') {
+    return list.sort((a, b) => (b.id || 0) - (a.id || 0));
+  }
+  if (activeCategory.value === 'recommend') {
+    return [...list].reverse();
+  }
+  return list;
+});
+
+const categoryTitle = computed(() => {
+  const map = { hot: '热门短剧', recommend: '为你推荐', latest: '最新上架' };
+  return map[activeCategory.value] || '热门短剧';
+});
 
 onMounted(loadData);
 
@@ -127,43 +154,15 @@ async function loadData() {
 function formatProgress(item) {
   return formatProgressLabel(item.position_seconds, item.total_duration) || '继续播放';
 }
+
+function onSearchTap() {
+  // 预留搜索入口，后续可接搜索页
+}
 </script>
 
 <style scoped>
 .home {
   padding-bottom: 8px;
-}
-
-.hero {
-  position: relative;
-  padding: 8px 0 24px;
-  overflow: hidden;
-}
-
-.hero-glow {
-  position: absolute;
-  top: -40px;
-  right: -30px;
-  width: 160px;
-  height: 160px;
-  background: radial-gradient(circle, rgba(255, 77, 109, 0.25) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.hero-title {
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  background: var(--accent-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.hero-sub {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-top: 4px;
 }
 
 .setup-card {

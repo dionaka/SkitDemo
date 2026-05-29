@@ -3,8 +3,11 @@
     <h1 class="page-title">短剧列表</h1>
 
     <div v-if="continueList.length" class="continue-section">
-      <h2 class="section-title">继续观看</h2>
-      <div class="continue-list">
+      <div class="section-header">
+        <h2 class="section-title">继续观看</h2>
+        <span class="section-more">{{ continueList.length }} 部</span>
+      </div>
+      <div class="continue-scroll">
         <div
           v-for="item in continueList"
           :key="item.video_id"
@@ -18,7 +21,7 @@
           />
           <div class="continue-info">
             <div class="continue-series">{{ item.series_title }}</div>
-            <div class="continue-ep">第 {{ item.episode_number }} 集 · {{ item.title }}</div>
+            <div class="continue-ep">第 {{ item.episode_number }} 集</div>
             <div class="continue-progress">{{ formatProgress(item) }}</div>
           </div>
         </div>
@@ -80,16 +83,52 @@ function formatProgress(item) {
 <style scoped>
 .empty { text-align: center; color: #999; padding: 60px; }
 .continue-section { margin-bottom: 28px; }
-.section-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
-.continue-list { display: flex; flex-direction: column; gap: 10px; }
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.section-title { font-size: 16px; font-weight: 600; }
+.section-more { font-size: 12px; color: #999; }
+.continue-scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #ddd transparent;
+}
+.continue-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.continue-scroll::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 2px;
+}
 .continue-card {
-  display: flex; gap: 14px; padding: 12px 16px; background: #fff;
-  border-radius: 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  flex-shrink: 0;
+  width: 200px;
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   transition: transform 0.15s;
 }
 .continue-card:hover { transform: translateY(-2px); }
-.continue-series { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
-.continue-ep { font-size: 13px; color: #666; margin-bottom: 4px; }
+.continue-info { min-width: 0; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.continue-series {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.continue-ep { font-size: 12px; color: #666; margin-bottom: 4px; }
 .continue-progress { font-size: 12px; color: #e94560; }
 .ep-badge {
   position: absolute;

@@ -1,7 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 
 const routes = [
-  { path: '/', name: 'VideoList', component: () => import('@/views/user/VideoList.vue') },
+  { path: '/', name: 'VideoList', component: () => import('@/views/user/VideoList.vue'), meta: { homeLayout: true } },
   {
     path: '/series/:id',
     name: 'SeriesDetail',
