@@ -74,6 +74,7 @@ function initDatabase() {
   `);
 
   migrateSchema();
+  migrateCoverUrls();
 
   const admin = db.prepare('SELECT id FROM admin WHERE username = ?').get('admin');
   if (!admin) {
@@ -112,16 +113,29 @@ function migrateSchema() {
   });
 }
 
+function migrateCoverUrls() {
+  const { DEFAULT_COVER_PATH } = require('../utils/defaultCover');
+  db.prepare(`
+    UPDATE series SET cover_url = ?
+    WHERE cover_url IS NULL OR cover_url = '' OR cover_url LIKE '%default-cover%' OR cover_url LIKE '%demo-cover%'
+  `).run(DEFAULT_COVER_PATH);
+  db.prepare(`
+    UPDATE video SET cover_url = ?
+    WHERE cover_url LIKE '%default-cover%' OR cover_url LIKE '%demo-cover%'
+  `).run(DEFAULT_COVER_PATH);
+}
+
 function seedDemoData() {
+  const { DEFAULT_COVER_PATH } = require('../utils/defaultCover');
   const seriesId = db.prepare('INSERT INTO series (title, cover_url) VALUES (?, ?)')
-    .run('十八岁太奶奶驾到', '/uploads/covers/demo-cover.jpg').lastInsertRowid;
+    .run('十八岁太奶奶驾到', DEFAULT_COVER_PATH).lastInsertRowid;
 
   const videoId = db.prepare(`
     INSERT INTO video (title, cover_url, video_url, total_duration, status, series_id, episode_number)
     VALUES (?, ?, ?, ?, 1, ?, 1)
   `).run(
     '第1集',
-    '/uploads/covers/demo-cover.jpg',
+    DEFAULT_COVER_PATH,
     '/uploads/videos/demo.mp4',
     360,
     seriesId

@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const config = require('./config');
+const { ensureDefaultCovers } = require('./utils/defaultCover');
 require('./services/secretsService');
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -15,7 +16,7 @@ app.use(express.urlencoded({ extended: true }));
 
 const uploadPath = config.uploadBasePath;
 fs.mkdirSync(path.join(uploadPath, 'videos'), { recursive: true });
-fs.mkdirSync(path.join(uploadPath, 'covers'), { recursive: true });
+ensureDefaultCovers(uploadPath);
 app.use('/uploads', express.static(uploadPath));
 
 app.use('/api/v1', userRoutes);

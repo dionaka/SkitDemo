@@ -121,7 +121,7 @@ class VideoService {
     if (result.changes === 0) return false;
 
     this.deleteLocalFile(video.video_url);
-    if (video.cover_url && !video.cover_url.includes('default-cover')) {
+  if (video.cover_url && !/default-cover|demo-cover/i.test(video.cover_url)) {
       this.deleteLocalFile(video.cover_url);
     }
     return true;

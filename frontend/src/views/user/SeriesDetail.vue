@@ -4,6 +4,14 @@
 
     <template v-else-if="series">
       <PageBackBar label="返回短剧列表" @back="goBack" />
+
+      <SeriesCover
+        class="series-banner"
+        variant="banner"
+        :cover-url="series.cover_url"
+        :title="series.title"
+      />
+
       <h1 class="page-title">{{ series.title }}</h1>
       <p class="series-meta">共 {{ episodes.length }} 集</p>
 
@@ -42,6 +50,7 @@
 import { ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import PageBackBar from '@/components/PageBackBar.vue';
+import SeriesCover from '@/components/SeriesCover.vue';
 import { getSeriesEpisodes } from '@/api/series';
 import { useSessionStore } from '@/stores/session';
 import { smartBack } from '@/utils/navigation';
@@ -106,6 +115,7 @@ function formatDuration(sec) {
 </script>
 
 <style scoped>
+.series-banner { margin-bottom: 16px; }
 .series-meta { color: #888; margin: -12px 0 20px; font-size: 14px; }
 .episode-list { display: flex; flex-direction: column; gap: 10px; }
 .episode-card {

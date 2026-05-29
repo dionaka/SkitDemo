@@ -1,3 +1,4 @@
+const { DEFAULT_COVER_PATH } = require('../../utils/defaultCover');
 const videoService = require('../../services/videoService');
 const highlightService = require('../../services/highlightService');
 const seriesService = require('../../services/seriesService');
@@ -14,7 +15,7 @@ exports.upload = (req, res) => {
     if (!seriesName) return res.status(400).json(fail(400, '请填写剧名'));
 
     const videoUrl = videoService.saveUploadedFile(req.file, 'videos');
-    const coverUrl = '/uploads/covers/default-cover.jpg';
+    const coverUrl = DEFAULT_COVER_PATH;
     const series = seriesService.findOrCreate(seriesName, coverUrl);
 
     const video = videoService.create({

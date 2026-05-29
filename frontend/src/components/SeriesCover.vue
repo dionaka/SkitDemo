@@ -32,7 +32,6 @@ import {
 const props = defineProps({
   coverUrl: { type: String, default: '' },
   title: { type: String, default: '' },
-  /** poster | banner | thumb */
   variant: { type: String, default: 'poster' },
 });
 
@@ -61,26 +60,30 @@ function onImageError() {
 .series-cover {
   position: relative;
   overflow: hidden;
-  box-shadow: var(--shadow-card);
+  background: #1a1a28;
 }
 
 .series-cover.poster {
   width: 100%;
   aspect-ratio: 3 / 4;
-  border-radius: var(--radius-sm);
+}
+
+.series-cover.card {
+  width: 100%;
+  height: 180px;
+}
+
+.series-cover.thumb {
+  width: 56px;
+  height: 74px;
+  border-radius: 10px;
+  flex-shrink: 0;
 }
 
 .series-cover.banner {
   width: 100%;
-  height: 100%;
-  border-radius: var(--radius-lg);
-}
-
-.series-cover.thumb {
-  width: 110px;
-  height: 148px;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
+  height: 200px;
+  border-radius: 12px;
 }
 
 .cover-img,
@@ -101,18 +104,12 @@ function onImageError() {
   font-size: 28px;
   font-weight: 800;
   color: rgba(255, 255, 255, 0.9);
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  z-index: 1;
-}
-
-.series-cover.banner .cover-initial {
-  font-size: 48px;
 }
 
 .cover-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.45) 0%, transparent 55%);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.35) 0%, transparent 55%);
   pointer-events: none;
 }
 

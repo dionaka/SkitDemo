@@ -1,4 +1,4 @@
-import { resolveMediaUrl } from '@/config/server';
+import { resolveMediaUrl } from '@/utils/media';
 import defaultCoverAsset from '@/assets/images/default-cover.svg';
 
 export const DEFAULT_COVER_PATH = '/uploads/covers/default-cover.svg';
@@ -46,13 +46,8 @@ export function resolveRemoteCoverUrl(coverUrl) {
   return resolveMediaUrl(coverUrl);
 }
 
-/** Custom cover URL, else server default, else bundled asset for offline. */
 export function resolveCoverSrc(coverUrl) {
   const custom = resolveRemoteCoverUrl(coverUrl);
   if (custom) return custom;
-
-  const serverDefault = resolveMediaUrl(DEFAULT_COVER_PATH);
-  if (serverDefault) return serverDefault;
-
-  return getBundledDefaultCover();
+  return resolveMediaUrl(DEFAULT_COVER_PATH) || getBundledDefaultCover();
 }

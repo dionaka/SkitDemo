@@ -1,4 +1,5 @@
 const db = require('../db');
+const { DEFAULT_COVER_PATH } = require('../utils/defaultCover');
 
 class SeriesService {
   listAll() {
@@ -51,7 +52,7 @@ class SeriesService {
 
     const result = db.prepare(`
       INSERT INTO series (title, cover_url) VALUES (?, ?)
-    `).run(trimmed, coverUrl || '/uploads/covers/default-cover.jpg');
+    `).run(trimmed, coverUrl || DEFAULT_COVER_PATH);
 
     return this.getById(result.lastInsertRowid);
   }

@@ -11,7 +11,11 @@
           class="continue-card"
           @click="$router.push(`/play/${item.video_id}`)"
         >
-          <div class="continue-cover">▶</div>
+          <SeriesCover
+            variant="thumb"
+            :cover-url="item.series_cover_url"
+            :title="item.series_title"
+          />
           <div class="continue-info">
             <div class="continue-series">{{ item.series_title }}</div>
             <div class="continue-ep">第 {{ item.episode_number }} 集 · {{ item.title }}</div>
@@ -30,7 +34,9 @@
         class="video-card"
         @click="$router.push(`/series/${s.id}`)"
       >
-        <div class="cover">🎬</div>
+        <SeriesCover variant="card" :cover-url="s.cover_url" :title="s.title">
+          <span class="ep-badge">{{ s.episode_count }} 集</span>
+        </SeriesCover>
         <div class="info">
           <div class="title">{{ s.title }}</div>
           <div class="meta">共 {{ s.episode_count }} 集</div>
@@ -42,6 +48,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import SeriesCover from '@/components/SeriesCover.vue';
 import { getSeriesList } from '@/api/series';
 import { getContinueWatching } from '@/api/watchProgress';
 import { useSessionStore } from '@/stores/session';
@@ -81,12 +88,18 @@ function formatProgress(item) {
   transition: transform 0.15s;
 }
 .continue-card:hover { transform: translateY(-2px); }
-.continue-cover {
-  width: 56px; height: 56px; border-radius: 10px; flex-shrink: 0;
-  background: linear-gradient(135deg, #e94560, #764ba2);
-  display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px;
-}
 .continue-series { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
 .continue-ep { font-size: 13px; color: #666; margin-bottom: 4px; }
 .continue-progress { font-size: 12px; color: #e94560; }
+.ep-badge {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
 </style>
