@@ -1,5 +1,5 @@
 <template>
-  <div ref="playerRootRef" class="video-player" :class="{ 'is-fullscreen': cssFullscreen }">
+  <div ref="playerRootRef" class="video-player" :class="{ 'is-fullscreen': isFullscreen }">
     <div class="player-wrapper">
       <video
         ref="videoRef"
