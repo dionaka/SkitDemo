@@ -8,9 +8,9 @@
 
     <template v-else-if="video">
 
-      <PageBackBar :label="backLabel" @back="goBack" />
+      <PageBackBar v-show="!playerFullscreen" :label="backLabel" @back="goBack" />
 
-      <div class="play-header">
+      <div v-show="!playerFullscreen" class="play-header">
 
         <h2>{{ video.series_title }} · 第 {{ video.episode_number }} 集</h2>
 
@@ -31,6 +31,7 @@
         :highlights="highlights"
 
         :start-time="startTime"
+        :overlay-visible="panelVisible"
 
         @highlight-reached="onHighlightReached"
 
@@ -38,11 +39,28 @@
 
         @pause="onPause"
 
-      />
+        @fullscreen-change="playerFullscreen = $event"
+        @overlay-dismiss="closePanel"
+
+      >
+        <template #overlay>
+          <InteractionPanel
+            :visible="panelVisible"
+            :highlight="currentHighlight"
+            :stats="interactionStats"
+            :selected="hasSelected"
+            :mode="panelMode"
+            :selected-option="selectedOption"
+            :countdown-progress="countdownProgress"
+            :countdown-seconds="countdownSeconds"
+            @select="onSelectOption"
+          />
+        </template>
+      </VideoPlayer>
 
 
 
-      <div class="highlight-list card">
+      <div v-show="!playerFullscreen" class="highlight-list card">
 
         <h3>高光点时间轴</h3>
 
@@ -88,27 +106,12 @@
 
 
 
-    <InteractionPanel
-
-      :visible="panelVisible"
-
-      :highlight="currentHighlight"
-
-      :stats="interactionStats"
-
-      :selected="hasSelected"
-
-      @select="onSelectOption"
-
-    />
-
-
-
     <div v-if="toast" class="toast">{{ toast }}</div>
 
   </div>
 
 </template>
+
 
 
 
@@ -166,11 +169,25 @@ const interactionStats = ref(null);
 
 const hasSelected = ref(false);
 
+const panelMode = ref('options');
+
+const selectedOption = ref('');
+
+const countdownProgress = ref(0);
+
+const countdownSeconds = ref(0);
+
+let countdownTimer = null;
+
+let countdownInterval = null;
+
 const toast = ref('');
 
 const startTime = ref(0);
 
 const resumeHint = ref('');
+
+const playerFullscreen = ref(false);
 
 let lastSaveAt = 0;
 
@@ -247,6 +264,8 @@ async function loadVideo() {
 onBeforeUnmount(() => {
 
   flushProgress(playerRef.value?.getCurrentTime() || 0);
+
+  stopCountdown();
 
 });
 
@@ -339,17 +358,37 @@ function onHighlightReached(highlight) {
 
   currentHighlight.value = highlight;
 
+  interactionStats.value = null;
+
   panelVisible.value = true;
 
   hasSelected.value = false;
 
+  panelMode.value = 'options';
+
+  selectedOption.value = '';
+
   loadStats(highlight.id);
+
+  startCountdown(5000, () => {
+    if (!hasSelected.value) closePanel();
+  });
 
 }
 
 
 
 async function onSelectOption(option) {
+  if (!currentHighlight.value || hasSelected.value) return;
+
+  stopCountdown();
+
+  hasSelected.value = true;
+
+  selectedOption.value = option;
+
+  panelMode.value = 'result';
+
 
   try {
 
@@ -360,27 +399,31 @@ async function onSelectOption(option) {
       user_session_id: session.userSessionId,
 
       selected_option: option,
-
     });
-
-    hasSelected.value = true;
 
     playerRef.value?.playEffect(currentHighlight.value.category);
 
     await loadStats(currentHighlight.value.id);
 
-    showToast(`你选择了「${option}」`);
-
-    setTimeout(() => { panelVisible.value = false; }, 3000);
+    startCountdown(3000, closePanel);
 
   } catch (e) {
 
+    hasSelected.value = false;
+
+    panelMode.value = 'options';
+
+    selectedOption.value = '';
+
     showToast(e.message || '提交失败');
+
+    startCountdown(5000, () => {
+      if (!hasSelected.value) closePanel();
+    });
 
   }
 
 }
-
 
 
 async function loadStats(highlightId) {
@@ -388,6 +431,47 @@ async function loadStats(highlightId) {
   interactionStats.value = await getInteractionStats(highlightId);
 
 }
+
+function closePanel() {
+  panelVisible.value = false;
+  stopCountdown();
+}
+
+function stopCountdown() {
+  if (countdownTimer) {
+    clearTimeout(countdownTimer);
+    countdownTimer = null;
+  }
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+  countdownProgress.value = 0;
+  countdownSeconds.value = 0;
+}
+
+function startCountdown(ms, onDone) {
+  stopCountdown();
+  if (!ms || ms <= 0) return;
+  const endAt = Date.now() + ms;
+
+  const tick = () => {
+    const remaining = Math.max(0, endAt - Date.now());
+    countdownProgress.value = remaining / ms;
+    countdownSeconds.value = Math.ceil(remaining / 1000);
+    if (remaining <= 0) {
+      stopCountdown();
+      onDone?.();
+    }
+  };
+
+  tick();
+  countdownInterval = setInterval(tick, 80);
+  countdownTimer = setTimeout(() => {
+    tick();
+  }, ms);
+}
+
 
 
 

@@ -9,6 +9,13 @@ export async function initSafeArea() {
   if (!Capacitor.isNativePlatform()) return;
 
   try {
+    const { ScreenOrientation } = await import('@capacitor/screen-orientation');
+    await ScreenOrientation.lock({ orientation: 'portrait' });
+  } catch {
+    // Screen orientation optional at runtime
+  }
+
+  try {
     const { StatusBar, Style } = await import('@capacitor/status-bar');
     await StatusBar.setOverlaysWebView({ overlay: false });
     await StatusBar.setBackgroundColor({ color: '#07070d' });

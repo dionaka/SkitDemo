@@ -317,3 +317,11 @@ a {
   border-radius: 2px;
   transition: width 0.4s ease;
 }
+
+body.video-fullscreen-active .tab-bar {
+  display: none;
+}
+
+body.video-fullscreen-active .app-main {
+  overflow: hidden;
+}

@@ -7,6 +7,7 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 export function useCategorySwiper(categories, activeCategoryRef) {
   const swiperRef = ref(null);
   let settledIndex = 0;
+  let gestureStartIndex = 0;
   let scrollRaf = 0;
   let programmaticNav = false;
   let programmaticTimer = null;
@@ -43,6 +44,7 @@ export function useCategorySwiper(categories, activeCategoryRef) {
     }, smooth ? 420 : 0);
 
     settledIndex = index;
+    gestureStartIndex = index;
     if (smooth) el.classList.add('smooth-scroll');
     el.scrollTo({ left: index * el.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
     activeCategoryRef.value = id;
@@ -58,12 +60,14 @@ export function useCategorySwiper(categories, activeCategoryRef) {
     const pageWidth = el.clientWidth;
     let index = pageIndexFromScroll(el.scrollLeft, pageWidth);
 
-    if (!programmaticNav && Math.abs(index - settledIndex) > 1) {
-      index = settledIndex + Math.sign(index - settledIndex);
+    // Limit to ±1 page per gesture (anchor = touchstart), not stale settledIndex.
+    if (!programmaticNav && Math.abs(index - gestureStartIndex) > 1) {
+      index = gestureStartIndex + Math.sign(index - gestureStartIndex);
     }
 
     const targetLeft = index * pageWidth;
     settledIndex = index;
+    gestureStartIndex = index;
     applyCategoryIndex(index);
 
     if (Math.abs(el.scrollLeft - targetLeft) > 1) {
@@ -85,11 +89,21 @@ export function useCategorySwiper(categories, activeCategoryRef) {
     });
   }
 
+  function onTouchStart() {
+    const el = swiperRef.value;
+    if (!el?.clientWidth) return;
+
+    const index = pageIndexFromScroll(el.scrollLeft, el.clientWidth);
+    gestureStartIndex = index;
+    settledIndex = index;
+  }
+
   function onScrollEnd() {
     if (programmaticNav) {
       const el = swiperRef.value;
       if (el?.clientWidth) {
         settledIndex = pageIndexFromScroll(el.scrollLeft, el.clientWidth);
+        gestureStartIndex = settledIndex;
         applyCategoryIndex(settledIndex);
       }
       return;
@@ -107,6 +121,7 @@ export function useCategorySwiper(categories, activeCategoryRef) {
   function bindSwiper(el) {
     if (!el || el.dataset.categorySwiperBound) return;
     el.dataset.categorySwiperBound = '1';
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
     el.addEventListener('touchend', onTouchEnd, { passive: true });
     el.addEventListener('scroll', onScroll, { passive: true });
     el.addEventListener('scrollend', onScrollEnd, { passive: true });
@@ -115,6 +130,7 @@ export function useCategorySwiper(categories, activeCategoryRef) {
   function unbindSwiper(el) {
     if (!el?.dataset?.categorySwiperBound) return;
     delete el.dataset.categorySwiperBound;
+    el.removeEventListener('touchstart', onTouchStart);
     el.removeEventListener('touchend', onTouchEnd);
     el.removeEventListener('scroll', onScroll);
     el.removeEventListener('scrollend', onScrollEnd);

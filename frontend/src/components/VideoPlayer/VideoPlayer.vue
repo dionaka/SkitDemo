@@ -1,5 +1,5 @@
 <template>
-  <div class="video-player">
+  <div ref="playerRootRef" class="video-player" :class="{ 'is-fullscreen': cssFullscreen }">
     <div class="player-wrapper">
       <video
         ref="videoRef"
@@ -13,7 +13,9 @@
     </div>
 
     <div class="controls">
-      <button class="ctrl-btn" @click="togglePlay">{{ playing ? '⏸' : '▶' }}</button>
+      <button type="button" class="ctrl-btn" aria-label="播放/暂停" @click="togglePlay">
+        {{ playing ? '⏸' : '▶' }}
+      </button>
 
       <div class="progress-area" ref="progressRef" @click="seek">
         <div class="progress-bar">
@@ -29,13 +31,36 @@
       </div>
 
       <span class="time">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
+
+      <div class="speed-wrap">
+        <button type="button" class="ctrl-btn speed-btn" @click="speedMenuOpen = !speedMenuOpen">
+          {{ playbackRate }}x
+        </button>
+        <div v-if="speedMenuOpen" class="speed-menu">
+          <button
+            v-for="rate in speedOptions"
+            :key="rate"
+            type="button"
+            class="speed-option"
+            :class="{ active: playbackRate === rate }"
+            @click="setPlaybackRate(rate)"
+          >
+            {{ rate }}x
+          </button>
+        </div>
+      </div>
+
       <input type="range" min="0" max="1" step="0.05" v-model.number="volume" class="volume" />
+
+      <button type="button" class="ctrl-btn" aria-label="全屏" @click="toggleFullscreen">
+        {{ isFullscreen ? '⤡' : '⛶' }}
+      </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, onUnmounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import HighlightMarker from './HighlightMarker.vue';
 import EffectOverlay from '../effects/EffectOverlay.vue';
 
@@ -47,13 +72,20 @@ const props = defineProps({
 
 const emit = defineEmits(['highlight-reached', 'timeupdate', 'pause']);
 
+const speedOptions = [0.75, 1, 1.25, 1.5, 2];
+
 const videoRef = ref(null);
+const playerRootRef = ref(null);
 const progressRef = ref(null);
 const playing = ref(false);
 const currentTime = ref(0);
 const duration = ref(0);
 const volume = ref(1);
 const progressPercent = ref(0);
+const playbackRate = ref(1);
+const speedMenuOpen = ref(false);
+const isFullscreen = ref(false);
+const cssFullscreen = ref(false);
 const triggeredIds = ref(new Set());
 const effectType = ref('');
 const showEffect = ref(false);
@@ -70,6 +102,7 @@ function togglePlay() {
 function onLoaded() {
   duration.value = videoRef.value?.duration || 0;
   applyStartTime();
+  if (videoRef.value) videoRef.value.playbackRate = playbackRate.value;
 }
 
 function applyStartTime() {
@@ -114,6 +147,64 @@ function jumpTo(time) {
   }
 }
 
+function setPlaybackRate(rate) {
+  playbackRate.value = rate;
+  if (videoRef.value) videoRef.value.playbackRate = rate;
+  speedMenuOpen.value = false;
+}
+
+function getFullscreenElement() {
+  return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+function syncFullscreenState() {
+  isFullscreen.value = Boolean(getFullscreenElement()) || cssFullscreen.value;
+}
+
+async function toggleFullscreen() {
+  speedMenuOpen.value = false;
+  const root = playerRootRef.value;
+  const video = videoRef.value;
+  if (!root) return;
+
+  if (getFullscreenElement() || cssFullscreen.value) {
+    await exitFullscreen();
+    return;
+  }
+
+  try {
+    if (root.requestFullscreen) {
+      await root.requestFullscreen();
+    } else if (root.webkitRequestFullscreen) {
+      await root.webkitRequestFullscreen();
+    } else if (video?.webkitEnterFullscreen) {
+      video.webkitEnterFullscreen();
+    } else {
+      cssFullscreen.value = true;
+      document.body.style.overflow = 'hidden';
+    }
+    syncFullscreenState();
+  } catch {
+    cssFullscreen.value = true;
+    document.body.style.overflow = 'hidden';
+    syncFullscreenState();
+  }
+}
+
+async function exitFullscreen() {
+  cssFullscreen.value = false;
+  document.body.style.overflow = '';
+  if (getFullscreenElement()) {
+    if (document.exitFullscreen) await document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  }
+  syncFullscreenState();
+}
+
+function onDocumentClick(e) {
+  if (!e.target.closest('.speed-wrap')) speedMenuOpen.value = false;
+}
+
 function formatTime(sec) {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
@@ -135,18 +226,80 @@ function getCurrentTime() {
   return videoRef.value?.currentTime || 0;
 }
 
+onMounted(() => {
+  document.addEventListener('fullscreenchange', syncFullscreenState);
+  document.addEventListener('webkitfullscreenchange', syncFullscreenState);
+  document.addEventListener('click', onDocumentClick);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', syncFullscreenState);
+  document.removeEventListener('webkitfullscreenchange', syncFullscreenState);
+  document.removeEventListener('click', onDocumentClick);
+  if (cssFullscreen.value) document.body.style.overflow = '';
+});
+
 defineExpose({ playEffect, jumpTo, resetTriggers, getCurrentTime });
 </script>
 
 <style scoped>
 .video-player { background: #000; border-radius: 12px; overflow: hidden; }
+.video-player.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+}
+.video-player.is-fullscreen .player-wrapper { flex: 1; display: flex; align-items: center; }
+.video-player.is-fullscreen video { max-height: none; height: 100%; width: 100%; }
 .player-wrapper { position: relative; }
 video { width: 100%; max-height: 480px; display: block; cursor: pointer; }
 .controls {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 16px; background: #111; color: #fff;
+  flex-shrink: 0;
 }
 .ctrl-btn { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; }
+.speed-btn {
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 44px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.speed-wrap { position: relative; }
+.speed-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  background: rgba(20, 20, 28, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 72px;
+  z-index: 10;
+}
+.speed-option {
+  border: none;
+  background: transparent;
+  color: #ddd;
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+.speed-option.active,
+.speed-option:hover {
+  background: rgba(233, 69, 96, 0.25);
+  color: #fff;
+}
 .progress-area { flex: 1; cursor: pointer; padding: 8px 0; }
 .progress-bar {
   position: relative; height: 6px; background: #444; border-radius: 3px;

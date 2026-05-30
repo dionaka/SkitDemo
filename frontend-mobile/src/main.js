@@ -12,7 +12,9 @@ if (Capacitor.isNativePlatform()) {
   initSafeArea();
 
   import('@capacitor/app').then(({ App: CapApp }) => {
-    CapApp.addListener('backButton', () => {
+    CapApp.addListener('backButton', async () => {
+      const { handleAppBackButton } = await import('./utils/playerFullscreen');
+      if (handleAppBackButton()) return;
       if (router.options.history.state.back) {
         router.back();
       } else {

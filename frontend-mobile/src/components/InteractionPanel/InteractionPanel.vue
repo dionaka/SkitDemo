@@ -1,32 +1,53 @@
 <template>
-  <Transition name="slide-up">
+  <Transition name="panel-pop">
     <div v-if="visible" class="interaction-panel">
-      <div class="panel-handle" />
       <div class="panel-header">
-        <span class="tag" :class="highlight?.category">{{ categoryLabel }}</span>
-        <h3>{{ highlight?.title }}</h3>
-      </div>
-
-      <div class="options">
-        <button
-          v-for="opt in highlight?.options"
-          :key="opt"
-          class="option-btn"
-          :disabled="selected"
-          @click="$emit('select', opt)"
-        >
-          {{ opt }}
-        </button>
-      </div>
-
-      <div v-if="stats" class="stats">
-        <p class="stats-title">其他观众的选择</p>
-        <div v-for="s in stats.options" :key="s.option" class="stat-row">
-          <span class="opt-label">{{ s.option }}</span>
-          <div class="stat-bar-wrap">
-            <div class="stat-bar" :style="{ width: s.percentage + '%' }" />
+        <div class="panel-header-left">
+          <div class="title-row">
+            <span class="tag" :class="highlight?.category">{{ categoryLabel }}</span>
+            <h3>{{ highlight?.title }}</h3>
           </div>
-          <span class="pct">{{ s.percentage }}%</span>
+        </div>
+        <div
+          v-if="countdownSeconds > 0"
+          class="countdown"
+          :style="{ '--p': Math.round((countdownProgress || 0) * 100) }"
+        >
+          <span class="countdown-text">{{ countdownSeconds }}</span>
+        </div>
+      </div>
+
+      <div class="flip-wrap">
+        <div class="flip" :class="{ flipped: mode === 'result' }">
+          <div class="face face-front">
+            <div class="options">
+              <button
+                v-for="opt in highlight?.options"
+                :key="opt"
+                class="option-btn"
+                :disabled="selected"
+                @click="$emit('select', opt)"
+              >
+                <span class="option-text">{{ opt }}</span>
+                <span class="option-pct option-pct--placeholder">00%</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="face face-back">
+            <div class="options">
+              <button
+                v-for="opt in highlight?.options"
+                :key="opt"
+                class="option-btn option-btn--result"
+                disabled
+                :style="{ '--pct': percentageFor(opt) }"
+              >
+                <span class="option-text">{{ opt }}</span>
+                <span class="option-pct">{{ percentageFor(opt) }}%</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -41,48 +62,110 @@ const props = defineProps({
   highlight: Object,
   stats: Object,
   selected: Boolean,
+  mode: { type: String, default: 'options' },
+  selectedOption: { type: String, default: '' },
+  countdownProgress: { type: Number, default: 0 },
+  countdownSeconds: { type: Number, default: 0 },
 });
 
 defineEmits(['select']);
 
 const labels = { conflict: '冲突', reversal: '反转', sweet: '撒糖', scene: '名场面' };
 const categoryLabel = computed(() => labels[props.highlight?.category] || '高光');
+
+const percentageMap = computed(() => {
+  const m = new Map();
+  const list = props.stats?.options || [];
+  list.forEach((s) => {
+    if (typeof s?.option === 'string') m.set(s.option, Number(s.percentage || 0));
+  });
+  return m;
+});
+
+function percentageFor(option) {
+  const v = percentageMap.value.get(option);
+  return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 0;
+}
 </script>
 
 <style scoped>
 .interaction-panel {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
   background: rgba(18, 18, 28, 0.96);
   color: #fff;
-  padding: 8px 20px calc(28px + env(safe-area-inset-bottom));
-  z-index: 200;
+  padding: 8px 8px 8px;
+  z-index: 4;
   backdrop-filter: blur(24px);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px 20px 0 0;
-  max-height: 72vh;
-  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  max-height: 100%;
+  overflow: hidden;
+  contain: paint;
+  -webkit-clip-path: inset(0 round 14px);
+  clip-path: inset(0 round 14px);
+  width: clamp(180px, 46vw, 280px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.panel-handle {
-  width: 36px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 2px;
-  margin: 0 auto 16px;
+.panel-header {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 4px;
 }
 
-.panel-header { margin-bottom: 16px; }
+.panel-header-left {
+  min-width: 0;
+  flex: 1;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.countdown {
+  --p: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: conic-gradient(var(--accent) calc(var(--p) * 1%), rgba(255, 255, 255, 0.14) 0);
+}
+
+.countdown::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: rgba(18, 18, 28, 0.96);
+}
+
+.countdown-text {
+  position: relative;
+  z-index: 1;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.9);
+}
 
 .tag {
   display: inline-block;
-  padding: 3px 10px;
+  padding: 2px 8px;
   border-radius: 8px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .tag.conflict { background: rgba(255, 71, 87, 0.85); }
@@ -91,29 +174,82 @@ const categoryLabel = computed(() => labels[props.highlight?.category] || '高�
 .tag.scene { background: rgba(83, 82, 237, 0.85); }
 
 .panel-header h3 {
-  font-size: 18px;
+  font-size: 12px;
   font-weight: 700;
-  line-height: 1.4;
+  line-height: 1.2;
   letter-spacing: -0.2px;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flip-wrap {
+  perspective: 900px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.flip {
+  display: grid;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+  width: 100%;
+  min-height: 0;
+}
+
+.flip.flipped {
+  transform: rotateY(180deg);
+}
+
+.face {
+  grid-area: 1 / 1;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  min-height: 0;
+  display: flex;
+  width: 100%;
+}
+
+.face-back {
+  transform: rotateY(180deg);
 }
 
 .options {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
+  overflow-y: auto;
+  padding-bottom: 2px;
 }
 
 .option-btn {
-  padding: 15px 20px;
+  padding: 8px 6px;
   border: 1.5px solid rgba(255, 77, 109, 0.5);
-  border-radius: 14px;
+  border-radius: 12px;
   background: rgba(255, 77, 109, 0.08);
   color: #fff;
-  font-size: 16px;
+  font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
-  text-align: center;
+  text-align: left;
+  line-height: 1.15;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px;
+  align-items: center;
+  column-gap: 6px;
+  position: relative;
+  overflow: hidden;
+  min-height: 34px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .option-btn:active:not(:disabled) {
@@ -124,65 +260,60 @@ const categoryLabel = computed(() => labels[props.highlight?.category] || '高�
 
 .option-btn:disabled { opacity: 0.45; }
 
-.stats {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.stats-title {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.45);
-  margin-bottom: 10px;
-  font-weight: 500;
-}
-
-.stat-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-size: 13px;
-}
-
-.opt-label {
-  width: 72px;
-  flex-shrink: 0;
+.option-text {
+  display: block;
+  position: relative;
+  z-index: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: rgba(255, 255, 255, 0.8);
 }
 
-.stat-bar-wrap {
-  flex: 1;
-  height: 5px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
-}
-
-.stat-bar {
-  height: 100%;
-  background: var(--accent-gradient);
-  border-radius: 3px;
-  transition: width 0.5s ease;
-}
-
-.pct {
-  width: 36px;
+.option-pct {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 24px;
   text-align: right;
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 12px;
+  font-size: 10px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.75);
 }
 
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+.option-pct--placeholder {
+  opacity: 0;
 }
 
-.slide-up-enter-from,
-.slide-up-leave-to {
-  transform: translateY(100%);
+.option-btn--result {
+  opacity: 1;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.option-btn--result:disabled {
+  opacity: 1;
+}
+
+.option-btn--result::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: calc(var(--pct) * 1%);
+  background: rgba(255, 77, 109, 0.26);
+}
+
+.panel-pop-enter-active,
+.panel-pop-leave-active {
+  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.24s ease;
+}
+
+.panel-pop-enter-from,
+.panel-pop-leave-to {
+  transform: translateY(10px) scale(0.98);
+  opacity: 0;
 }
 </style>
