@@ -249,13 +249,19 @@ defineExpose({ playEffect, jumpTo, resetTriggers, getCurrentTime });
   inset: 0;
   z-index: 9999;
   border-radius: 0;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
-.video-player.is-fullscreen .player-wrapper { flex: 1; display: flex; align-items: center; }
-.video-player.is-fullscreen video { max-height: none; height: 100%; width: 100%; }
+.video-player.is-fullscreen .player-wrapper { flex: 1; min-height: 0; display: flex; align-items: center; }
+.video-player.is-fullscreen video { max-height: 100%; height: 100%; width: 100%; object-fit: contain; }
 .player-wrapper { position: relative; }
-video { width: 100%; max-height: 480px; display: block; cursor: pointer; }
+video { width: 100%; max-height: min(480px, 80vh); display: block; cursor: pointer; object-fit: contain; }
 .controls {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 16px; background: #111; color: #fff;
