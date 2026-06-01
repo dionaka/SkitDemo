@@ -29,6 +29,13 @@
           </label>
         </div>
 
+        <SeriesEngagementBar
+          v-if="video.series_id"
+          :series-id="video.series_id"
+          class="play-engagement"
+          @toast="showToast"
+        />
+
       </div>
 
 
@@ -191,6 +198,7 @@ import BranchSegmentPlayer from '@/branch/components/BranchSegmentPlayer.vue';
 import { getBranchPointDetail, chooseBranchPoint, getBranchPointStats } from '@/api/branchPoint';
 
 import PageBackBar from '@/components/PageBackBar.vue';
+import SeriesEngagementBar from '@/components/SeriesEngagementBar.vue';
 
 import { resolveMediaUrl } from '@/config/server';
 
@@ -716,6 +724,10 @@ function categoryLabel(c) { return labels[c] || c; }
 }
 
 .pref-item input { accent-color: var(--accent); }
+
+.play-engagement {
+  margin-top: 14px;
+}
 
 .highlight-list {
   margin-top: 20px;

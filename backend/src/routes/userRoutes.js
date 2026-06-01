@@ -5,6 +5,7 @@ const interactionController = require('../controllers/user/interactionController
 const watchProgressController = require('../controllers/user/watchProgressController');
 const authController = require('../controllers/user/authController');
 const searchController = require('../controllers/user/searchController');
+const engagementController = require('../controllers/user/engagementController');
 const upload = require('../middleware/upload');
 
 const router = express.Router();
@@ -16,6 +17,10 @@ router.post('/auth/avatar', upload.imageSingle('avatar_file'), authController.up
 router.get('/search', searchController.search);
 
 router.get('/series', seriesController.list);
+router.get('/series/:id/engagement', engagementController.getSeriesEngagement);
+router.post('/series/:id/like', engagementController.toggleLike);
+router.post('/series/:id/favorite', engagementController.toggleFavorite);
+router.get('/user/favorites', engagementController.listFavorites);
 router.get('/series/:id/episodes', seriesController.episodesWithProgress);
 router.get('/watch-progress/continue', watchProgressController.continueList);
 router.get('/watch-progress/:videoId', watchProgressController.getOne);

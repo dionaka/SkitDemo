@@ -81,6 +81,24 @@ function initDatabase() {
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS user_series_like (
+      user_id INTEGER NOT NULL,
+      series_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, series_id),
+      FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE,
+      FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS user_series_favorite (
+      user_id INTEGER NOT NULL,
+      series_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, series_id),
+      FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE,
+      FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
+    );
   `);
 
   migrateSchema();

@@ -23,6 +23,15 @@
         </div>
       </div>
 
+      <SeriesEngagementBar
+        v-if="series.id"
+        :series-id="series.id"
+        class="series-engagement"
+        @toast="showToast"
+      />
+
+      <div v-if="toast" class="toast">{{ toast }}</div>
+
       <div v-if="episodes.length === 0" class="empty-state">
         <div class="empty-icon">📭</div>
         该剧暂无已发布分集
@@ -74,6 +83,7 @@ import { useSessionStore } from '@/stores/session';
 import { smartBack } from '@/utils/navigation';
 import { formatProgressLabel, getLocalProgress } from '@/utils/watchProgress';
 import SeriesCover from '@/components/SeriesCover.vue';
+import SeriesEngagementBar from '@/components/SeriesEngagementBar.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -84,6 +94,7 @@ const error = ref('');
 const series = ref(null);
 const episodes = ref([]);
 const progressMap = ref({});
+const toast = ref('');
 
 watch(() => route.params.id, loadData, { immediate: true });
 
@@ -109,6 +120,11 @@ async function loadData() {
 
 function goBack() {
   smartBack(router, '/');
+}
+
+function showToast(msg) {
+  toast.value = msg;
+  setTimeout(() => { toast.value = ''; }, 2200);
 }
 
 function getProgress(ep) {
@@ -144,8 +160,12 @@ function formatDuration(sec) {
   border-radius: var(--radius-lg);
   overflow: hidden;
   height: 180px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   box-shadow: var(--shadow-card);
+}
+
+.series-engagement {
+  margin-bottom: 20px;
 }
 
 .hero-cover {

@@ -130,3 +130,5 @@ class UserAuthService {
 }
 
 module.exports = new UserAuthService();
+module.exports.getBySessionId = getBySessionId;
+module.exports.requireUserBySessionId = requireUserBySessionId;

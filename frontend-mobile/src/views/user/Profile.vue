@@ -32,6 +32,39 @@
       <p class="profile-desc">登录后可同步观看进度</p>
       <button type="button" class="btn btn-primary" @click="router.push('/login')">登录 / 注册</button>
     </div>
+
+    <section v-if="session.isLoggedIn" class="favorites-section">
+      <div class="section-header">
+        <h2 class="section-title">我的收藏</h2>
+        <span v-if="favorites.length" class="section-more">{{ favorites.length }} 部</span>
+      </div>
+
+      <div v-if="favoritesLoading" class="loading-box compact">
+        <div class="loading-spinner" />
+      </div>
+
+      <div v-else-if="favorites.length === 0" class="favorites-empty card">
+        还没有收藏，去选集页点「收藏」吧
+      </div>
+
+      <div v-else class="favorites-scroll">
+        <div
+          v-for="item in favorites"
+          :key="item.id"
+          class="favorite-item"
+          @click="router.push(`/series/${item.id}`)"
+        >
+          <SeriesCover
+            class="favorite-cover"
+            variant="thumb"
+            :cover-url="item.cover_url"
+            :title="item.title"
+          />
+          <div class="favorite-title">{{ item.title }}</div>
+          <div class="favorite-meta">{{ item.episode_count }} 集</div>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -40,7 +73,9 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import PageBackBar from '@/components/PageBackBar.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
+import SeriesCover from '@/components/SeriesCover.vue';
 import { getProfile, uploadAvatar } from '@/api/auth';
+import { getFavoriteSeries } from '@/api/engagement';
 import { useSessionStore } from '@/stores/session';
 import { smartBack } from '@/utils/navigation';
 
@@ -49,6 +84,8 @@ const session = useSessionStore();
 const fileRef = ref(null);
 const uploading = ref(false);
 const createdAt = ref('');
+const favorites = ref([]);
+const favoritesLoading = ref(false);
 
 const createdAtLabel = computed(() => {
   if (!createdAt.value) return '';
@@ -57,7 +94,10 @@ const createdAtLabel = computed(() => {
   return date.toLocaleDateString('zh-CN');
 });
 
-onMounted(refreshProfile);
+onMounted(async () => {
+  await refreshProfile();
+  await loadFavorites();
+});
 
 async function refreshProfile() {
   if (!session.isLoggedIn) return;
@@ -67,6 +107,19 @@ async function refreshProfile() {
     createdAt.value = data.created_at || '';
   } catch {
     /* ignore */
+  }
+}
+
+async function loadFavorites() {
+  if (!session.isLoggedIn) return;
+  favoritesLoading.value = true;
+  try {
+    const data = await getFavoriteSeries(session.userSessionId);
+    favorites.value = data.list || [];
+  } catch {
+    favorites.value = [];
+  } finally {
+    favoritesLoading.value = false;
   }
 }
 
@@ -110,6 +163,7 @@ function handleLogout() {
 .guest-card {
   text-align: center;
   padding: 36px 24px;
+  margin-bottom: 20px;
 }
 
 .avatar-upload {
@@ -150,5 +204,63 @@ function handleLogout() {
 .logout-btn {
   width: 100%;
   max-width: 280px;
+}
+
+.favorites-section {
+  margin-top: 4px;
+}
+
+.loading-box.compact {
+  min-height: 120px;
+}
+
+.favorites-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px 16px;
+}
+
+.favorites-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin: 0 -16px;
+  padding-left: 16px;
+  padding-right: 16px;
+  scrollbar-width: none;
+}
+
+.favorites-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.favorite-item {
+  flex-shrink: 0;
+  width: 100px;
+}
+
+.favorite-item:active {
+  opacity: 0.85;
+}
+
+.favorite-cover {
+  width: 100px;
+}
+
+.favorite-title {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.favorite-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 </style>
