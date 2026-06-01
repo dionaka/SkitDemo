@@ -1,36 +1,36 @@
-<template>
+﻿<template>
   <div class="login-page">
     <div class="box-wrap">
       <div class="box">
         <div class="left"></div>
         <div class="right">
-          <h2>欢迎登录喵</h2>
+          <h2>娆㈣繋鐧诲綍鍠?/h2>
           <form id="loginForm" class="login-form" @submit.prevent="handleLogin">
             <input
               v-model="form.username"
               class="acc"
               type="text"
-              placeholder="用户名/邮箱登录"
+              placeholder="鐢ㄦ埛鍚?閭鐧诲綍"
               required
             />
             <input
               v-model="form.password"
               class="acc"
               type="password"
-              placeholder="密码"
+              placeholder="瀵嗙爜"
               required
             />
             <div v-show="errorMsg" class="error-message">{{ errorMsg }}</div>
             <input
-              id="登录"
+              id="鐧诲綍"
               type="submit"
               :class="{ 'after-error': errorMsg }"
-              :value="loading ? '登录中...' : '登录'"
+              :value="loading ? '鐧诲綍涓?..' : '鐧诲綍'"
               :disabled="loading"
             />
           </form>
           <div class="fn">
-            <span class="hint">默认账号: admin / admin123</span>
+            <span class="hint">榛樿璐﹀彿: admin / admin123</span>
           </div>
         </div>
       </div>
@@ -56,7 +56,7 @@ async function handleLogin() {
   const password = form.value.password;
 
   if (!username || !password) {
-    errorMsg.value = '用户名和密码不能为空';
+    errorMsg.value = '鐢ㄦ埛鍚嶅拰瀵嗙爜涓嶈兘涓虹┖';
     return;
   }
 
@@ -69,7 +69,7 @@ async function handleLogin() {
     session.setAdmin(data.token, data.username);
     router.push('/admin/videos');
   } catch (err) {
-    errorMsg.value = err.message || '登录失败';
+    errorMsg.value = err.message || '鐧诲綍澶辫触';
   } finally {
     loading.value = false;
   }
@@ -77,7 +77,7 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-/* 与原站 index.css 一致：html font-size 为 10px，rem 才等于设计稿尺寸 */
+/* 涓庡師绔?index.css 涓€鑷达細html font-size 涓?10px锛宺em 鎵嶇瓑浜庤璁＄灏哄 */
 .login-page {
   min-height: 100vh;
   position: relative;
@@ -88,16 +88,15 @@ async function handleLogin() {
   padding: 2rem;
 }
 
-/* 与原站一致：不做移动端单独改布局；按视口等比缩放，开/关桌面版结构相同 */
+/* 鏁翠綋缂╂斁鍒扮害 62%锛岄伩鍏嶅崰婊″睆骞?*/
 .box-wrap {
-  --login-scale: min(0.62, calc((100vw - 4rem) / 90rem));
-  width: calc(90rem * var(--login-scale));
-  height: calc(50rem * var(--login-scale));
+  width: 55.8rem;
+  height: 31rem;
   flex-shrink: 0;
 }
 
 .box-wrap .box {
-  transform: scale(var(--login-scale));
+  transform: scale(0.62);
   transform-origin: top left;
   margin: 0;
 }
@@ -152,7 +151,7 @@ async function handleLogin() {
 
 .box .right h2 {
   color: black;
-  font-family: 仿宋, FangSong, serif;
+  font-family: 浠垮畫, FangSong, serif;
   font-weight: 300;
   font-size: 3.5rem;
   margin-top: 5rem;
@@ -175,7 +174,7 @@ async function handleLogin() {
   padding: 0 1.2rem;
   font-size: 3.5rem;
   font-weight: 400;
-  font-family: 楷体, KaiTi, serif;
+  font-family: 妤蜂綋, KaiTi, serif;
   line-height: calc(4.2rem - 2px);
   color: #333;
   background: #fff;
@@ -187,7 +186,7 @@ async function handleLogin() {
 
 .acc::placeholder {
   color: #999;
-  font-family: 楷体, KaiTi, serif;
+  font-family: 妤蜂綋, KaiTi, serif;
   font-weight: 200;
 }
 
@@ -198,7 +197,7 @@ async function handleLogin() {
   padding: 0 calc(1.2rem - 1px);
 }
 
-#登录 {
+#鐧诲綍 {
   width: 37.8rem;
   max-width: 85%;
   height: 4.2rem;
@@ -211,11 +210,11 @@ async function handleLogin() {
   border-radius: 0.2rem;
 }
 
-#登录.after-error {
+#鐧诲綍.after-error {
   margin-top: 0;
 }
 
-#登录:disabled {
+#鐧诲綍:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
@@ -234,5 +233,49 @@ async function handleLogin() {
 
 .fn .hint {
   color: #666;
+}
+
+@media (max-width: 768px) {
+  .login-page {
+    font-size: 8px;
+    padding: 1rem;
+  }
+
+  .box-wrap {
+    width: calc(90vw / 0.62);
+    max-width: 55.8rem;
+    height: auto;
+  }
+
+  .box-wrap .box {
+    transform: scale(0.62);
+    width: 90rem;
+    max-width: none;
+  }
+
+  .box {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .box .left {
+    width: 100%;
+    height: 18rem;
+  }
+
+  .box .right {
+    width: 100%;
+    padding-bottom: 3rem;
+  }
+
+  .box .right h2 {
+    font-size: 3rem;
+    margin-top: 2rem;
+  }
+
+  .acc {
+    font-size: 3rem;
+    line-height: calc(4.2rem - 2px);
+  }
 }
 </style>
