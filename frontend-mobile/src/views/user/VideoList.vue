@@ -104,6 +104,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
 import { getApiBaseUrl } from '@/config/server';
 import { homeTheme, homeCategories } from '@/config/homeTheme';
 import { getSeriesList } from '@/api/series';
@@ -117,6 +118,7 @@ import HomeTopNav from '@/components/home/HomeTopNav.vue';
 import HomeCategoryBar from '@/components/home/HomeCategoryBar.vue';
 
 const session = useSessionStore();
+const router = useRouter();
 const { scrollY } = useHomeScroll();
 const seriesList = ref([]);
 const continueList = ref([]);
@@ -182,11 +184,11 @@ function formatProgress(item) {
 }
 
 function onSearchTap() {
-  // 预留搜索页
+  router.push('/search');
 }
 
 function onProfileTap() {
-  // 预留个人中心页
+  router.push('/profile');
 }
 </script>
 

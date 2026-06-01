@@ -11,7 +11,7 @@ import AppearanceSection from './AppearanceSection.vue';
 export const settingsSections = [
   { id: 'server', component: ServerConfigSection, enabled: true },
   { id: 'history', component: HistorySection, enabled: false },
-  { id: 'account', component: AccountSection, enabled: false },
+  { id: 'account', component: AccountSection, enabled: true },
   { id: 'offline', component: OfflineCacheSection, enabled: false },
   { id: 'appearance', component: AppearanceSection, enabled: false },
 ];

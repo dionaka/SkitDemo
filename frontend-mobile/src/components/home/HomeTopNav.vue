@@ -14,7 +14,7 @@
             <circle cx="11" cy="11" r="7" />
             <path d="M20 20l-3.5-3.5" stroke-linecap="round" />
           </svg>
-          <span class="search-placeholder">搜索剧名、演员</span>
+          <span class="search-placeholder">搜索剧名、分集</span>
         </div>
         <button type="button" class="avatar-btn" aria-label="个人中心" @click="$emit('profile')">
           <span class="avatar-ring">

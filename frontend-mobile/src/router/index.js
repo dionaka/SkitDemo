@@ -15,6 +15,24 @@ const routes = [
     meta: { hideChrome: true },
   },
   { path: '/settings', name: 'Settings', component: () => import('@/views/Settings.vue') },
+  {
+    path: '/search',
+    name: 'Search',
+    component: () => import('@/views/user/Search.vue'),
+    meta: { hideChrome: true },
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/views/user/Login.vue'),
+    meta: { hideChrome: true },
+  },
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('@/views/user/Profile.vue'),
+    meta: { hideChrome: true },
+  },
 ];
 
 const router = createRouter({
