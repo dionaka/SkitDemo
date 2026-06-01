@@ -21,13 +21,13 @@
       </div>
 
       <VideoPlayer
-        v-show="!branchSegmentVisible"
         ref="playerRef"
         :src="videoUrl"
         :highlights="effectiveHighlights"
         :branch-points="effectiveBranchPoints"
         :start-time="startTime"
         :overlay-visible="panelVisible || branchPanelVisible"
+        :segment-visible="branchSegmentVisible"
         @highlight-reached="onHighlightReached"
         @branch-reached="onBranchReached"
         @timeupdate="onTimeUpdate"
@@ -56,14 +56,14 @@
             @dismiss="closeBranchPanel"
           />
         </template>
+        <template #segment>
+          <BranchSegmentPlayer
+            v-if="branchSegmentVisible"
+            :asset="branchPlayback.asset"
+            @segment-ended="onBranchSegmentEnded"
+          />
+        </template>
       </VideoPlayer>
-
-      <div v-if="branchSegmentVisible" class="branch-segment-wrap">
-        <BranchSegmentPlayer
-          :asset="branchPlayback.asset"
-          @segment-ended="onBranchSegmentEnded"
-        />
-      </div>
 
       <div v-if="highlights.length" class="highlight-list">
         <h3>高光点时间轴</h3>
@@ -389,10 +389,4 @@ function categoryLabel(c) { return labels[c] || c; }
 .branch-list { margin-top: 16px; }
 .branch-item { border-left: 3px solid #5352ed; }
 .branch-tag { background: #5352ed !important; }
-.branch-segment-wrap {
-  margin: 16px 0;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(83, 82, 237, 0.2);
-}
 </style>

@@ -2,6 +2,7 @@
   <div ref="playerRootRef" class="video-player" :class="{ 'is-fullscreen': isFullscreen }">
     <div class="player-wrapper">
       <video
+        v-show="!segmentVisible"
         ref="videoRef"
         :src="src"
         @timeupdate="onTimeUpdate"
@@ -9,15 +10,18 @@
         @pause="onPause"
         @click="togglePlay"
       />
-      <EffectOverlay :type="effectType" :active="showEffect" />
-      <div v-if="overlayVisible" class="player-overlay-mask" @click="$emit('overlay-dismiss')">
+      <EffectOverlay v-show="!segmentVisible" :type="effectType" :active="showEffect" />
+      <div v-if="segmentVisible" class="player-segment-layer">
+        <slot name="segment" />
+      </div>
+      <div v-if="overlayVisible && !segmentVisible" class="player-overlay-mask" @click="$emit('overlay-dismiss')">
         <div class="player-overlay" @click.stop>
           <slot name="overlay" />
         </div>
       </div>
     </div>
 
-    <div class="controls">
+    <div v-show="!segmentVisible" class="controls">
       <button type="button" class="ctrl-btn" aria-label="播放/暂停" @click="togglePlay">
         {{ playing ? '⏸' : '▶' }}
       </button>
@@ -83,6 +87,7 @@ const props = defineProps({
   branchPoints: { type: Array, default: () => [] },
   startTime: { type: Number, default: 0 },
   overlayVisible: { type: Boolean, default: false },
+  segmentVisible: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['highlight-reached', 'branch-reached', 'timeupdate', 'pause', 'overlay-dismiss']);
@@ -393,9 +398,47 @@ defineExpose({
   flex-direction: column;
   overflow: hidden;
 }
-.video-player.is-fullscreen .player-wrapper { flex: 1; min-height: 0; display: flex; align-items: center; }
+.video-player.is-fullscreen .player-wrapper { flex: 1; min-height: 0; display: flex; align-items: center; position: relative; }
 .video-player.is-fullscreen video { max-height: 100%; height: 100%; width: 100%; object-fit: contain; }
-.player-wrapper { position: relative; }
+.player-wrapper { position: relative; width: 100%; }
+.player-segment-layer {
+  position: relative;
+  width: 100%;
+  background: #000;
+}
+.player-segment-layer :deep(.branch-segment) {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: min(480px, 80vh);
+}
+.player-segment-layer :deep(.segment-video),
+.player-segment-layer :deep(.composite-image) {
+  object-fit: contain;
+}
+.video-player.is-fullscreen .player-segment-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.video-player.is-fullscreen .player-segment-layer :deep(.branch-segment) {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  aspect-ratio: unset;
+  border-radius: 0;
+}
+.video-player.is-fullscreen .player-segment-layer :deep(.segment-video),
+.video-player.is-fullscreen .player-segment-layer :deep(.composite-image) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.video-player.is-fullscreen .player-segment-layer :deep(.segment-composite) {
+  width: 100%;
+  height: 100%;
+}
 .player-overlay-mask {
   position: absolute;
   inset: 0;
