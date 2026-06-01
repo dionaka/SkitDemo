@@ -18,6 +18,17 @@
 
         <p v-if="resumeHint" class="resume-hint">{{ resumeHint }}</p>
 
+        <div class="play-prefs">
+          <label class="pref-item">
+            <input v-model="prefs.highlightEnabled" type="checkbox" @change="savePrefs" />
+            <span>高光互动</span>
+          </label>
+          <label class="pref-item">
+            <input v-model="prefs.branchEnabled" type="checkbox" @change="savePrefs" />
+            <span>剧情分支</span>
+          </label>
+        </div>
+
       </div>
 
 
@@ -28,10 +39,11 @@
 
         :src="videoUrl"
 
-        :highlights="highlights"
-        :branch-points="branchPoints"
+        :highlights="effectiveHighlights"
+        :branch-points="effectiveBranchPoints"
         :start-time="startTime"
         :overlay-visible="panelVisible || branchPanelVisible"
+        :segment-visible="branchSegmentVisible"
 
         @highlight-reached="onHighlightReached"
         @branch-reached="onBranchReached"
@@ -41,7 +53,7 @@
         @pause="onPause"
 
         @fullscreen-change="playerFullscreen = $event"
-        @overlay-dismiss="closePanel"
+        @overlay-dismiss="onOverlayDismiss"
 
       >
         <template #overlay>
@@ -56,6 +68,7 @@
             :countdown-progress="countdownProgress"
             :countdown-seconds="countdownSeconds"
             @select="onSelectOption"
+            @dismiss="closePanel"
           />
           <BranchChoicePanel
             v-if="branchPanelVisible"
@@ -68,15 +81,18 @@
             @dismiss="closeBranchPanel"
           />
         </template>
+        <template #segment>
+          <BranchSegmentPlayer
+            v-if="branchSegmentVisible"
+            :asset="branchPlayback.asset"
+            @segment-ended="onBranchSegmentEnded"
+          />
+        </template>
       </VideoPlayer>
 
-      <div v-if="branchSegmentVisible" class="branch-segment-mobile">
-        <BranchSegmentPlayer :asset="branchPlayback.asset" @segment-ended="onBranchSegmentEnded" />
-      </div>
 
 
-
-      <div v-show="!playerFullscreen" class="highlight-list card">
+      <div v-if="highlights.length" v-show="!playerFullscreen" class="highlight-list card">
 
         <h3>高光点时间轴</h3>
 
@@ -101,6 +117,36 @@
             <span class="hl-title">{{ h.title }}</span>
 
             <span class="hl-tag">{{ categoryLabel(h.category) }}</span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div v-if="branchPoints.length" v-show="!playerFullscreen" class="highlight-list card branch-list">
+
+        <h3>剧情分支点</h3>
+
+        <div class="hl-items">
+
+          <div
+
+            v-for="b in branchPoints"
+
+            :key="b.id"
+
+            class="hl-item branch-item"
+
+            @click="seekBranchPoint(b)"
+
+          >
+
+            <span class="hl-time">{{ formatTime(b.timestamp) }}</span>
+
+            <span class="hl-title">{{ b.title }}</span>
+
+            <span class="hl-tag branch-tag">分支</span>
 
           </div>
 
@@ -160,6 +206,8 @@ import { smartBack } from '@/utils/navigation';
 
 import { getLocalProgress, setLocalProgress, formatProgressLabel } from '@/utils/watchProgress';
 
+import { getPlayPreferences, savePlayPreferences } from '@/utils/playPreferences';
+
 
 
 const route = useRoute();
@@ -217,6 +265,8 @@ const resumeHint = ref('');
 
 const playerFullscreen = ref(false);
 
+const prefs = ref(getPlayPreferences());
+
 let lastSaveAt = 0;
 
 
@@ -226,6 +276,10 @@ const videoUrl = computed(() => resolveMediaUrl(video.value?.video_url || ''));
 const videoId = computed(() => Number(route.params.id));
 
 const backLabel = computed(() => (video.value?.series_id ? '返回选集' : '返回列表'));
+
+const effectiveHighlights = computed(() => (prefs.value.highlightEnabled ? highlights.value : []));
+
+const effectiveBranchPoints = computed(() => (prefs.value.branchEnabled ? branchPoints.value : []));
 
 
 
@@ -297,6 +351,14 @@ onBeforeUnmount(() => {
   stopCountdown();
 
 });
+
+
+
+function savePrefs() {
+  savePlayPreferences(prefs.value);
+  if (!prefs.value.highlightEnabled && panelVisible.value) closePanel();
+  if (!prefs.value.branchEnabled && branchPanelVisible.value) closeBranchPanel();
+}
 
 
 
@@ -390,7 +452,6 @@ async function onBranchReached(point) {
   }
   playerRef.value?.confirmBranch(point.id);
   stopCountdown();
-  playerRef.value?.pause();
   resumeAfterBranch.value = playerRef.value?.getCurrentTime?.() || point.timestamp;
   currentBranchPoint.value = point;
   branchPanelVisible.value = true;
@@ -414,6 +475,7 @@ async function onBranchSelect(choice) {
     branchPanelVisible.value = false;
     branchPlayback.value = { asset: result.asset };
     branchSegmentVisible.value = true;
+    playerRef.value?.pause?.();
     showToast(`已选择「${result.choice.option_label}」`);
   } finally {
     branchChoosing.value = false;
@@ -438,7 +500,6 @@ function onHighlightReached(highlight) {
   if (branchPanelVisible.value || branchSegmentVisible.value) return;
 
   playerRef.value?.confirmHighlight(highlight.id);
-  playerRef.value?.pause();
   currentHighlight.value = highlight;
 
   interactionStats.value = null;
@@ -518,12 +579,18 @@ async function loadStats(highlightId) {
 function closePanel() {
   panelVisible.value = false;
   stopCountdown();
-  resumeMainVideo();
+  if (currentHighlight.value?.id) {
+    playerRef.value?.clearHighlightTrigger?.(currentHighlight.value.id);
+  }
 }
 
-function resumeMainVideo() {
-  if (branchPanelVisible.value || branchSegmentVisible.value) return;
-  playerRef.value?.play?.();
+function onOverlayDismiss() {
+  if (panelVisible.value) closePanel();
+  else if (branchPanelVisible.value) closeBranchPanel();
+}
+
+function seekBranchPoint(b) {
+  playerRef.value?.jumpToBranch?.(b.timestamp, b.id);
 }
 
 function stopCountdown() {
@@ -618,6 +685,38 @@ function categoryLabel(c) { return labels[c] || c; }
 
 .play-empty { text-align: center; color: var(--text-secondary); padding: 48px 16px; }
 
+.play-prefs {
+
+  display: flex;
+
+  gap: 16px;
+
+  margin-top: 10px;
+
+  flex-wrap: wrap;
+
+}
+
+.pref-item {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  font-size: 12px;
+
+  color: var(--text-secondary);
+
+  cursor: pointer;
+
+  user-select: none;
+
+}
+
+.pref-item input { accent-color: var(--accent); }
+
 .highlight-list {
   margin-top: 20px;
   background: var(--bg-card);
@@ -659,11 +758,11 @@ function categoryLabel(c) { return labels[c] || c; }
 .hl-item.sweet .hl-tag { background: #ff6b81; }
 .hl-item.scene .hl-tag { background: #5352ed; }
 
-.branch-segment-mobile {
-  margin: 12px 0;
-  border-radius: 12px;
-  overflow: hidden;
-}
+.branch-list { margin-top: 12px; }
+
+.branch-item { border-left: 3px solid #5352ed; }
+
+.branch-tag { background: #5352ed !important; }
 
 </style>
 

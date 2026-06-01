@@ -1,37 +1,38 @@
 <template>
   <Transition name="branch-panel">
     <div v-if="visible" class="branch-choice-panel">
-      <div class="panel-inner">
-        <div class="panel-header">
+      <div class="panel-header">
+        <div class="panel-header-left">
           <span class="panel-tag">剧情分支</span>
           <h3>{{ title }}</h3>
           <p v-if="subtitle" class="panel-sub">{{ subtitle }}</p>
         </div>
+        <button type="button" class="close-btn" aria-label="关闭" @click="$emit('dismiss')">×</button>
+      </div>
 
-        <div class="choice-list">
-          <button
-            v-for="choice in choices"
-            :key="choice.id"
-            type="button"
-            class="choice-btn"
-            :disabled="loading"
-            @click="$emit('select', choice)"
-          >
-            <span class="choice-label">{{ choice.option_label }}</span>
-            <span v-if="choice.option_desc" class="choice-desc">{{ choice.option_desc }}</span>
-            <span v-if="choice.preview?.caption" class="choice-preview">{{ choice.preview.caption }}</span>
-          </button>
-        </div>
+      <div class="choice-list">
+        <button
+          v-for="choice in choices"
+          :key="choice.id"
+          type="button"
+          class="choice-btn"
+          :disabled="loading"
+          @click="$emit('select', choice)"
+        >
+          <span class="choice-label">{{ choice.option_label }}</span>
+          <span v-if="choice.option_desc" class="choice-desc">{{ choice.option_desc }}</span>
+          <span v-if="choice.preview?.caption" class="choice-preview">{{ choice.preview.caption }}</span>
+        </button>
+      </div>
 
-        <div v-if="stats?.choices?.length" class="stats-block">
-          <div class="stats-title">其他用户选择分布</div>
-          <div v-for="item in stats.choices" :key="item.id" class="stat-row">
-            <span class="stat-label">{{ item.option_label }}</span>
-            <div class="stat-bar-wrap">
-              <div class="stat-bar" :style="{ width: item.percentage + '%' }" />
-            </div>
-            <span class="stat-pct">{{ item.percentage }}%</span>
+      <div v-if="stats?.choices?.length" class="stats-block">
+        <div class="stats-title">其他用户选择分布</div>
+        <div v-for="item in stats.choices" :key="item.id" class="stat-row">
+          <span class="stat-label">{{ item.option_label }}</span>
+          <div class="stat-bar-wrap">
+            <div class="stat-bar" :style="{ width: item.percentage + '%' }" />
           </div>
+          <span class="stat-pct">{{ item.percentage }}%</span>
         </div>
       </div>
     </div>
@@ -48,72 +49,97 @@ defineProps({
   loading: { type: Boolean, default: false },
 });
 
-defineEmits(['select']);
+defineEmits(['select', 'dismiss']);
 </script>
 
 <style scoped>
 .branch-choice-panel {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
+  background: rgba(18, 18, 28, 0.96);
+  color: #fff;
+  padding: 10px 10px 12px;
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  max-height: 100%;
+  overflow-y: auto;
+  width: clamp(200px, 28vw, 300px);
+  box-sizing: border-box;
+}
+
+.panel-header {
   display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
-  padding: 24px;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
 }
-.panel-inner {
-  width: 100%;
-  max-width: 560px;
-  background: #fff;
-  border-radius: 16px 16px 12px 12px;
-  padding: 24px;
-  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.2);
+
+.panel-header-left { min-width: 0; flex: 1; }
+
+.close-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
 }
-.panel-header { margin-bottom: 20px; }
+
+.close-btn:hover { background: rgba(255, 255, 255, 0.16); }
+
 .panel-tag {
   display: inline-block;
   font-size: 11px;
   font-weight: 700;
   color: #e94560;
-  background: #ffeef1;
+  background: rgba(233, 69, 96, 0.15);
   padding: 3px 10px;
   border-radius: 20px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
-.panel-header h3 { font-size: 20px; margin-bottom: 6px; }
-.panel-sub { color: #666; font-size: 14px; }
-.choice-list { display: flex; flex-direction: column; gap: 10px; }
+
+.panel-header h3 { font-size: 14px; margin: 0 0 4px; }
+.panel-sub { color: #aaa; font-size: 12px; margin: 0; }
+
+.choice-list { display: flex; flex-direction: column; gap: 8px; }
+
 .choice-btn {
   text-align: left;
-  padding: 14px 16px;
-  border: 2px solid #eee;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
-  background: #fafafa;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
   cursor: pointer;
-  transition: border-color 0.2s, transform 0.15s;
+  transition: background 0.15s;
 }
-.choice-btn:hover:not(:disabled) {
-  border-color: #e94560;
-  transform: translateY(-1px);
-}
-.choice-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.choice-label { display: block; font-weight: 700; font-size: 16px; color: #222; }
-.choice-desc { display: block; font-size: 13px; color: #666; margin-top: 4px; }
-.choice-preview { display: block; font-size: 12px; color: #e94560; margin-top: 6px; }
+
+.choice-btn:hover:not(:disabled) { background: rgba(83, 82, 237, 0.25); border-color: rgba(83, 82, 237, 0.5); }
+.choice-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.choice-label { display: block; font-weight: 700; font-size: 14px; }
+.choice-desc { display: block; font-size: 12px; color: #aaa; margin-top: 4px; }
+.choice-preview { display: block; font-size: 11px; color: #e94560; margin-top: 4px; }
+
 .stats-block {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #eee;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
-.stats-title { font-size: 13px; color: #888; margin-bottom: 10px; }
-.stat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.stat-label { width: 88px; font-size: 12px; flex-shrink: 0; }
-.stat-bar-wrap { flex: 1; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; }
-.stat-bar { height: 100%; background: #e94560; border-radius: 3px; }
-.stat-pct { width: 36px; font-size: 12px; color: #666; text-align: right; }
+
+.stats-title { font-size: 11px; color: #888; margin-bottom: 8px; }
+.stat-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 11px; }
+.stat-label { width: 72px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat-bar-wrap { flex: 1; height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; overflow: hidden; }
+.stat-bar { height: 100%; background: #5352ed; }
+.stat-pct { width: 32px; text-align: right; color: #aaa; }
+
 .branch-panel-enter-active,
-.branch-panel-leave-active { transition: opacity 0.25s ease; }
+.branch-panel-leave-active { transition: transform 0.24s ease, opacity 0.24s ease; }
 .branch-panel-enter-from,
-.branch-panel-leave-to { opacity: 0; }
+.branch-panel-leave-to { transform: translateX(12px); opacity: 0; }
 </style>

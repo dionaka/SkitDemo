@@ -10,6 +10,11 @@
         @click="togglePlay"
       />
       <EffectOverlay :type="effectType" :active="showEffect" />
+      <div v-if="overlayVisible" class="player-overlay-mask" @click="$emit('overlay-dismiss')">
+        <div class="player-overlay" @click.stop>
+          <slot name="overlay" />
+        </div>
+      </div>
     </div>
 
     <div class="controls">
@@ -77,9 +82,10 @@ const props = defineProps({
   highlights: { type: Array, default: () => [] },
   branchPoints: { type: Array, default: () => [] },
   startTime: { type: Number, default: 0 },
+  overlayVisible: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['highlight-reached', 'branch-reached', 'timeupdate', 'pause']);
+const emit = defineEmits(['highlight-reached', 'branch-reached', 'timeupdate', 'pause', 'overlay-dismiss']);
 
 const speedOptions = [0.75, 1, 1.25, 1.5, 2];
 
@@ -390,6 +396,23 @@ defineExpose({
 .video-player.is-fullscreen .player-wrapper { flex: 1; min-height: 0; display: flex; align-items: center; }
 .video-player.is-fullscreen video { max-height: 100%; height: 100%; width: 100%; object-fit: contain; }
 .player-wrapper { position: relative; }
+.player-overlay-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.08);
+}
+.player-overlay {
+  max-width: min(300px, 42%);
+  max-height: calc(100% - 16px);
+  display: flex;
+  pointer-events: auto;
+}
 video { width: 100%; max-height: min(480px, 80vh); display: block; cursor: pointer; object-fit: contain; }
 .controls {
   display: flex; align-items: center; gap: 12px;

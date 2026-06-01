@@ -8,20 +8,55 @@
         <h2>{{ video.series_title }} · 第 {{ video.episode_number }} 集</h2>
         <p class="ep-subtitle">{{ video.title }}</p>
         <p v-if="resumeHint" class="resume-hint">{{ resumeHint }}</p>
+        <div class="play-prefs">
+          <label class="pref-item">
+            <input v-model="prefs.highlightEnabled" type="checkbox" @change="savePrefs" />
+            <span>高光互动</span>
+          </label>
+          <label class="pref-item">
+            <input v-model="prefs.branchEnabled" type="checkbox" @change="savePrefs" />
+            <span>剧情分支</span>
+          </label>
+        </div>
       </div>
 
       <VideoPlayer
         v-show="!branchSegmentVisible"
         ref="playerRef"
         :src="videoUrl"
-        :highlights="highlights"
-        :branch-points="branchPoints"
+        :highlights="effectiveHighlights"
+        :branch-points="effectiveBranchPoints"
         :start-time="startTime"
+        :overlay-visible="panelVisible || branchPanelVisible"
         @highlight-reached="onHighlightReached"
         @branch-reached="onBranchReached"
         @timeupdate="onTimeUpdate"
         @pause="onPause"
-      />
+        @overlay-dismiss="onOverlayDismiss"
+      >
+        <template #overlay>
+          <InteractionPanel
+            v-if="panelVisible"
+            :visible="panelVisible"
+            :highlight="currentHighlight"
+            :stats="interactionStats"
+            :selected="hasSelected"
+            :mode="panelMode"
+            @select="onSelectOption"
+            @dismiss="closePanel"
+          />
+          <BranchChoicePanel
+            v-if="branchPanelVisible"
+            :visible="branchPanelVisible"
+            :title="currentBranchPoint?.title || '剧情分叉'"
+            :choices="branchChoices"
+            :stats="branchStats"
+            :loading="branchChoosing"
+            @select="onBranchSelect"
+            @dismiss="closeBranchPanel"
+          />
+        </template>
+      </VideoPlayer>
 
       <div v-if="branchSegmentVisible" class="branch-segment-wrap">
         <BranchSegmentPlayer
@@ -30,7 +65,7 @@
         />
       </div>
 
-      <div class="highlight-list">
+      <div v-if="highlights.length" class="highlight-list">
         <h3>高光点时间轴</h3>
         <div class="hl-items">
           <div
@@ -68,23 +103,6 @@
       <PageBackBar label="返回" @back="goBack" />
       <p>{{ loadError || '视频不存在或未发布' }}</p>
     </div>
-
-    <InteractionPanel
-      :visible="panelVisible"
-      :highlight="currentHighlight"
-      :stats="interactionStats"
-      :selected="hasSelected"
-      @select="onSelectOption"
-    />
-
-    <BranchChoicePanel
-      :visible="branchPanelVisible"
-      :title="currentBranchPoint?.title || '剧情分叉'"
-      :choices="branchChoices"
-      :stats="branchStats"
-      :loading="branchChoosing"
-      @select="onBranchSelect"
-    />
   </div>
 </template>
 
@@ -104,6 +122,7 @@ import { getWatchProgress, saveWatchProgress } from '@/api/watchProgress';
 import { useSessionStore } from '@/stores/session';
 import { smartBack } from '@/utils/navigation';
 import { getLocalProgress, setLocalProgress, formatProgressLabel } from '@/utils/watchProgress';
+import { getPlayPreferences, savePlayPreferences } from '@/utils/playPreferences';
 
 const route = useRoute();
 const router = useRouter();
@@ -127,13 +146,17 @@ const panelVisible = ref(false);
 const currentHighlight = ref(null);
 const interactionStats = ref(null);
 const hasSelected = ref(false);
+const panelMode = ref('options');
 const startTime = ref(0);
 const resumeHint = ref('');
+const prefs = ref(getPlayPreferences());
 let lastSaveAt = 0;
 
 const videoUrl = computed(() => video.value?.video_url || '');
 const videoId = computed(() => Number(route.params.id));
 const backLabel = computed(() => (video.value?.series_id ? '返回选集' : '返回列表'));
+const effectiveHighlights = computed(() => (prefs.value.highlightEnabled ? highlights.value : []));
+const effectiveBranchPoints = computed(() => (prefs.value.branchEnabled ? branchPoints.value : []));
 
 onMounted(loadVideo);
 
@@ -169,6 +192,12 @@ async function loadVideo() {
 onBeforeUnmount(() => {
   flushProgress(playerRef.value?.getCurrentTime() || 0);
 });
+
+function savePrefs() {
+  savePlayPreferences(prefs.value);
+  if (!prefs.value.highlightEnabled && panelVisible.value) closePanel();
+  if (!prefs.value.branchEnabled && branchPanelVisible.value) closeBranchPanel();
+}
 
 async function goBack() {
   const t = playerRef.value?.getCurrentTime?.();
@@ -212,28 +241,29 @@ function onPause(seconds) {
 function onHighlightReached(highlight) {
   if (branchPanelVisible.value || branchSegmentVisible.value) return;
   playerRef.value?.confirmHighlight(highlight.id);
-  playerRef.value?.pause();
   currentHighlight.value = highlight;
   panelVisible.value = true;
   hasSelected.value = false;
+  panelMode.value = 'options';
   loadStats(highlight.id);
 }
 
-function resumeMainVideo() {
-  if (branchPanelVisible.value || branchSegmentVisible.value) return;
-  playerRef.value?.play?.();
+function closePanel() {
+  panelVisible.value = false;
+  if (currentHighlight.value?.id) {
+    playerRef.value?.clearHighlightTrigger?.(currentHighlight.value.id);
+  }
 }
 
-function closeHighlightPanel() {
-  panelVisible.value = false;
-  resumeMainVideo();
+function onOverlayDismiss() {
+  if (panelVisible.value) closePanel();
+  else if (branchPanelVisible.value) closeBranchPanel();
 }
 
 async function onBranchReached(point) {
   if (branchSegmentVisible.value || branchPanelVisible.value) return;
-  if (panelVisible.value) panelVisible.value = false;
+  if (panelVisible.value) closePanel();
   playerRef.value?.confirmBranch(point.id);
-  playerRef.value?.pause();
   resumeAfterBranch.value = playerRef.value?.getCurrentTime?.() || point.timestamp;
   currentBranchPoint.value = point;
   branchPanelVisible.value = true;
@@ -258,9 +288,17 @@ async function onBranchSelect(choice) {
     branchPanelVisible.value = false;
     branchPlayback.value = { asset: result.asset };
     branchSegmentVisible.value = true;
+    playerRef.value?.pause?.();
     ElMessage.success(`已选择「${result.choice.option_label}」`);
   } finally {
     branchChoosing.value = false;
+  }
+}
+
+function closeBranchPanel() {
+  branchPanelVisible.value = false;
+  if (currentBranchPoint.value?.id) {
+    playerRef.value?.clearBranchTrigger(currentBranchPoint.value.id);
   }
 }
 
@@ -279,6 +317,7 @@ function seekBranchPoint(b) {
 }
 
 async function onSelectOption(option) {
+  if (!currentHighlight.value || hasSelected.value) return;
   try {
     await recordInteraction({
       highlight_id: currentHighlight.value.id,
@@ -286,10 +325,11 @@ async function onSelectOption(option) {
       selected_option: option,
     });
     hasSelected.value = true;
+    panelMode.value = 'result';
     playerRef.value?.playEffect(currentHighlight.value.category);
     await loadStats(currentHighlight.value.id);
     ElMessage.success(`你选择了「${option}」`);
-    setTimeout(closeHighlightPanel, 3000);
+    setTimeout(closePanel, 3000);
   } catch { /* handled by interceptor */ }
 }
 
@@ -315,6 +355,22 @@ function categoryLabel(c) { return labels[c] || c; }
 .play-empty p { margin-top: 12px; }
 .ep-subtitle { color: #666; font-size: 14px; margin-top: 4px; }
 .resume-hint { color: #e94560; font-size: 13px; margin-top: 8px; }
+.play-prefs {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.pref-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+  user-select: none;
+}
+.pref-item input { accent-color: #e94560; }
 .highlight-list { margin-top: 24px; background: #fff; border-radius: 12px; padding: 20px; }
 .highlight-list h3 { margin-bottom: 12px; font-size: 16px; }
 .hl-items { display: flex; flex-direction: column; gap: 8px; }

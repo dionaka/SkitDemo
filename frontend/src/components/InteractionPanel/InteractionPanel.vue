@@ -1,31 +1,47 @@
 <template>
-  <Transition name="slide-up">
+  <Transition name="panel-pop">
     <div v-if="visible" class="interaction-panel">
       <div class="panel-header">
-        <span class="tag" :class="highlight?.category">{{ categoryLabel }}</span>
-        <h3>{{ highlight?.title }}</h3>
-      </div>
-
-      <div class="options">
-        <button
-          v-for="opt in highlight?.options"
-          :key="opt"
-          class="option-btn"
-          :disabled="selected"
-          @click="$emit('select', opt)"
-        >
-          {{ opt }}
-        </button>
-      </div>
-
-      <div v-if="stats" class="stats">
-        <p class="stats-title">其他用户的选择</p>
-        <div v-for="s in stats.options" :key="s.option" class="stat-row">
-          <span>{{ s.option }}</span>
-          <div class="stat-bar-wrap">
-            <div class="stat-bar" :style="{ width: s.percentage + '%' }" />
+        <div class="panel-header-left">
+          <div class="title-row">
+            <span class="tag" :class="highlight?.category">{{ categoryLabel }}</span>
+            <h3>{{ highlight?.title }}</h3>
           </div>
-          <span class="pct">{{ s.percentage }}%</span>
+        </div>
+        <button type="button" class="close-btn" aria-label="关闭" @click="$emit('dismiss')">×</button>
+      </div>
+
+      <div class="flip-wrap">
+        <div class="flip" :class="{ flipped: mode === 'result' }">
+          <div class="face face-front">
+            <div class="options">
+              <button
+                v-for="opt in highlight?.options"
+                :key="opt"
+                class="option-btn"
+                :disabled="selected"
+                @click="$emit('select', opt)"
+              >
+                <span class="option-text">{{ opt }}</span>
+                <span class="option-pct option-pct--placeholder">00%</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="face face-back">
+            <div class="options">
+              <button
+                v-for="opt in highlight?.options"
+                :key="opt"
+                class="option-btn option-btn--result"
+                disabled
+                :style="{ '--pct': percentageFor(opt) }"
+              >
+                <span class="option-text">{{ opt }}</span>
+                <span class="option-pct">{{ percentageFor(opt) }}%</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -40,45 +56,203 @@ const props = defineProps({
   highlight: Object,
   stats: Object,
   selected: Boolean,
+  mode: { type: String, default: 'options' },
 });
 
-defineEmits(['select']);
+defineEmits(['select', 'dismiss']);
 
 const labels = { conflict: '冲突', reversal: '反转', sweet: '撒糖', scene: '名场面' };
 const categoryLabel = computed(() => labels[props.highlight?.category] || '高光');
+
+const percentageMap = computed(() => {
+  const m = new Map();
+  (props.stats?.options || []).forEach((s) => {
+    if (typeof s?.option === 'string') m.set(s.option, Number(s.percentage || 0));
+  });
+  return m;
+});
+
+function percentageFor(option) {
+  const v = percentageMap.value.get(option);
+  return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 0;
+}
 </script>
 
 <style scoped>
 .interaction-panel {
-  position: fixed; bottom: 0; left: 0; right: 0;
-  background: rgba(26, 26, 46, 0.95); color: #fff;
-  padding: 20px 24px 32px; z-index: 100;
-  backdrop-filter: blur(10px);
+  background: rgba(18, 18, 28, 0.96);
+  color: #fff;
+  padding: 10px 10px 12px;
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  max-height: 100%;
+  overflow: hidden;
+  width: clamp(200px, 28vw, 300px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
-.panel-header { margin-bottom: 16px; }
+
+.panel-header {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.panel-header-left { min-width: 0; flex: 1; }
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.close-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.close-btn:hover { background: rgba(255, 255, 255, 0.16); }
+
 .tag {
-  display: inline-block; padding: 2px 10px; border-radius: 12px;
-  font-size: 12px; margin-bottom: 8px;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
 }
-.tag.conflict { background: #ff4757; }
-.tag.reversal { background: #ffa502; }
-.tag.sweet { background: #ff6b81; }
-.tag.scene { background: #5352ed; }
-.panel-header h3 { font-size: 18px; }
-.options { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.tag.conflict { background: rgba(255, 71, 87, 0.85); }
+.tag.reversal { background: rgba(255, 165, 2, 0.85); }
+.tag.sweet { background: rgba(255, 107, 129, 0.85); }
+.tag.scene { background: rgba(83, 82, 237, 0.85); }
+
+.panel-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flip-wrap {
+  perspective: 900px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.flip {
+  display: grid;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+  width: 100%;
+}
+
+.flip.flipped { transform: rotateY(180deg); }
+
+.face {
+  grid-area: 1 / 1;
+  backface-visibility: hidden;
+  min-height: 0;
+  display: flex;
+  width: 100%;
+}
+
+.face-back { transform: rotateY(180deg); }
+
+.options {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
 .option-btn {
-  padding: 10px 24px; border: 2px solid #e94560; border-radius: 24px;
-  background: transparent; color: #fff; font-size: 15px; cursor: pointer;
-  transition: all 0.2s;
+  padding: 10px 8px;
+  border: 1.5px solid rgba(233, 69, 96, 0.5);
+  border-radius: 12px;
+  background: rgba(233, 69, 96, 0.08);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  min-height: 40px;
 }
-.option-btn:hover:not(:disabled) { background: #e94560; }
-.option-btn:disabled { opacity: 0.5; cursor: default; }
-.stats { margin-top: 16px; }
-.stats-title { font-size: 13px; color: #aaa; margin-bottom: 8px; }
-.stat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
-.stat-bar-wrap { flex: 1; height: 6px; background: #333; border-radius: 3px; }
-.stat-bar { height: 100%; background: #e94560; border-radius: 3px; transition: width 0.5s; }
-.pct { width: 40px; text-align: right; color: #aaa; }
-.slide-up-enter-active, .slide-up-leave-active { transition: transform 0.3s ease; }
-.slide-up-enter-from, .slide-up-leave-to { transform: translateY(100%); }
+
+.option-btn:hover:not(:disabled) {
+  background: #e94560;
+  border-color: #e94560;
+}
+
+.option-btn:disabled { opacity: 0.45; cursor: default; }
+
+.option-text {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-pct {
+  position: relative;
+  z-index: 1;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.option-pct--placeholder { opacity: 0; }
+
+.option-btn--result {
+  opacity: 1;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.option-btn--result::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: calc(var(--pct) * 1%);
+  background: rgba(233, 69, 96, 0.26);
+}
+
+.panel-pop-enter-active,
+.panel-pop-leave-active {
+  transition: transform 0.24s ease, opacity 0.24s ease;
+}
+
+.panel-pop-enter-from,
+.panel-pop-leave-to {
+  transform: translateX(12px) scale(0.98);
+  opacity: 0;
+}
 </style>

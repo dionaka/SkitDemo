@@ -8,12 +8,15 @@
             <h3>{{ highlight?.title }}</h3>
           </div>
         </div>
-        <div
-          v-if="countdownSeconds > 0"
-          class="countdown"
-          :style="{ '--p': Math.round((countdownProgress || 0) * 100) }"
-        >
-          <span class="countdown-text">{{ countdownSeconds }}</span>
+        <div class="panel-header-right">
+          <div
+            v-if="countdownSeconds > 0"
+            class="countdown"
+            :style="{ '--p': Math.round((countdownProgress || 0) * 100) }"
+          >
+            <span class="countdown-text">{{ countdownSeconds }}</span>
+          </div>
+          <button type="button" class="close-btn" aria-label="关闭" @click="$emit('dismiss')">×</button>
         </div>
       </div>
 
@@ -68,7 +71,7 @@ const props = defineProps({
   countdownSeconds: { type: Number, default: 0 },
 });
 
-defineEmits(['select']);
+defineEmits(['select', 'dismiss']);
 
 const labels = { conflict: '冲突', reversal: '反转', sweet: '撒糖', scene: '名场面' };
 const categoryLabel = computed(() => labels[props.highlight?.category] || '高光');
@@ -120,6 +123,24 @@ function percentageFor(option) {
 .panel-header-left {
   min-width: 0;
   flex: 1;
+}
+
+.panel-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.close-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .title-row {
@@ -313,7 +334,7 @@ function percentageFor(option) {
 
 .panel-pop-enter-from,
 .panel-pop-leave-to {
-  transform: translateY(10px) scale(0.98);
+  transform: translateX(10px);
   opacity: 0;
 }
 </style>

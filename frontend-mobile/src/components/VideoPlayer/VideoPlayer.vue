@@ -10,6 +10,7 @@
     >
       <div class="player-stage">
         <video
+          v-show="!segmentVisible"
           ref="videoRef"
           :src="src"
           playsinline
@@ -22,15 +23,18 @@
           @click="togglePlay"
           @play="playing = true"
         />
-        <EffectOverlay :type="effectType" :active="showEffect" />
-        <div v-if="props.overlayVisible" class="player-overlay-mask" @click="$emit('overlay-dismiss')">
+        <EffectOverlay v-show="!segmentVisible" :type="effectType" :active="showEffect" />
+        <div v-if="segmentVisible" class="player-segment-layer">
+          <slot name="segment" />
+        </div>
+        <div v-if="props.overlayVisible && !segmentVisible" class="player-overlay-mask" @click="$emit('overlay-dismiss')">
           <div class="player-overlay" @click.stop>
             <slot name="overlay" />
           </div>
         </div>
       </div>
 
-      <div class="controls" :class="{ 'controls--overlay': cssFullscreen }">
+      <div v-show="!segmentVisible" class="controls" :class="{ 'controls--overlay': cssFullscreen }">
         <button type="button" class="ctrl-btn" aria-label="播放/暂停" @click="togglePlay">
           {{ playing ? '⏸' : '▶' }}
         </button>
@@ -44,6 +48,14 @@
               :highlight="h"
               :duration="duration"
               @click="jumpTo(h.timestamp)"
+            />
+            <div
+              v-for="b in branchPoints"
+              :key="'bp-' + b.id"
+              class="branch-marker"
+              :style="{ left: (duration ? (b.timestamp / duration) * 100 : 0) + '%' }"
+              :title="b.title"
+              @click.stop="jumpToBranch(b.timestamp, b.id)"
             />
           </div>
         </div>
@@ -97,6 +109,7 @@ const props = defineProps({
   branchPoints: { type: Array, default: () => [] },
   startTime: { type: Number, default: 0 },
   overlayVisible: { type: Boolean, default: false },
+  segmentVisible: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['highlight-reached', 'branch-reached', 'timeupdate', 'pause', 'fullscreen-change', 'overlay-dismiss']);
@@ -416,6 +429,34 @@ defineExpose({
   background: #000;
 }
 
+.player-segment-layer {
+  position: relative;
+  width: 100%;
+  max-height: 56vh;
+  background: #000;
+}
+
+.player-segment-layer :deep(.branch-segment) {
+  width: 100%;
+  max-height: 56vh;
+  aspect-ratio: unset;
+  min-height: 180px;
+}
+
+.player-segment-layer :deep(.segment-video),
+.player-segment-layer :deep(.composite-image) {
+  max-height: 56vh;
+  object-fit: contain;
+}
+
+.player-segment-layer :deep(.segment-composite) {
+  min-height: 180px;
+  max-height: 56vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .player-overlay-mask {
   position: absolute;
   inset: 0;
@@ -477,6 +518,36 @@ video {
   justify-content: center;
 }
 
+.video-player.is-fullscreen .player-segment-layer {
+  position: absolute;
+  inset: 0;
+  max-height: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-player.is-fullscreen .player-segment-layer :deep(.branch-segment) {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+}
+
+.video-player.is-fullscreen .player-segment-layer :deep(.segment-video),
+.video-player.is-fullscreen .player-segment-layer :deep(.composite-image) {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+}
+
+.video-player.is-fullscreen .player-segment-layer :deep(.segment-composite) {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+}
+
 .video-player.is-fullscreen video {
   width: 100%;
   height: 100%;
@@ -485,6 +556,13 @@ video {
 }
 
 .video-player.is-fullscreen.portrait-video video {
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+}
+
+.video-player.is-fullscreen.portrait-video .player-segment-layer :deep(.segment-video),
+.video-player.is-fullscreen.portrait-video .player-segment-layer :deep(.composite-image) {
   width: auto;
   height: 100%;
   max-width: 100%;
@@ -591,6 +669,19 @@ video {
   background: linear-gradient(90deg, #ff4d6d, #ff8fa3);
   border-radius: 4px;
   transition: width 0.1s;
+}
+
+.branch-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: #5352ed;
+  border: 2px solid #fff;
+  cursor: pointer;
+  z-index: 3;
 }
 
 .time {
