@@ -1,5 +1,6 @@
 <template>
   <div class="app-layout" :class="{ 'chrome-hidden': hideChrome }">
+    <AppBackgroundLayer v-if="!hideChrome" />
     <main class="app-main" :class="{ 'play-main': hideChrome, 'home-layout': isHomeLayout }">
       <router-view />
     </main>
@@ -20,6 +21,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
+import AppBackgroundLayer from '@/components/AppBackgroundLayer.vue';
 
 const route = useRoute();
 const hideChrome = computed(() => Boolean(route.meta.hideChrome));
@@ -30,10 +32,12 @@ const isSettings = computed(() => route.path === '/settings');
 
 <style scoped>
 .app-layout {
+  position: relative;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   background: var(--bg-base);
+  z-index: 1;
 }
 
 .app-layout.chrome-hidden {
@@ -41,6 +45,8 @@ const isSettings = computed(() => route.path === '/settings');
 }
 
 .app-main {
+  position: relative;
+  z-index: 1;
   flex: 1;
   padding: calc(16px + var(--safe-top)) 16px calc(var(--tab-height) + 16px + var(--safe-bottom));
   overflow-y: auto;

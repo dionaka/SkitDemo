@@ -147,6 +147,15 @@ function migrateSchema() {
     db.exec('ALTER TABLE app_user ADD COLUMN updated_at TEXT');
     db.exec("UPDATE app_user SET updated_at = COALESCE(created_at, datetime('now')) WHERE updated_at IS NULL");
   }
+  if (!userCols.includes('background_url')) {
+    db.exec('ALTER TABLE app_user ADD COLUMN background_url TEXT');
+  }
+  if (!userCols.includes('background_overlay')) {
+    db.exec('ALTER TABLE app_user ADD COLUMN background_overlay INTEGER NOT NULL DEFAULT 55');
+  }
+  if (!userCols.includes('background_blur')) {
+    db.exec('ALTER TABLE app_user ADD COLUMN background_blur INTEGER NOT NULL DEFAULT 0');
+  }
 }
 
 function seedDemoData() {

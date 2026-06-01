@@ -2,6 +2,7 @@
   <div class="home">
     <HomeTopNav
       :scroll-y="scrollY"
+      :theme="navTheme"
       @profile="onProfileTap"
       @search="onSearchTap"
     />
@@ -110,6 +111,7 @@ import { homeTheme, homeCategories } from '@/config/homeTheme';
 import { getSeriesList } from '@/api/series';
 import { getContinueWatching } from '@/api/watchProgress';
 import { useSessionStore } from '@/stores/session';
+import { useAppBackgroundStore } from '@/stores/appBackground';
 import { formatProgressLabel } from '@/utils/watchProgress';
 import { useHomeScroll } from '@/composables/useHomeScroll';
 import { useCategorySwiper } from '@/composables/useCategorySwiper';
@@ -118,6 +120,7 @@ import HomeTopNav from '@/components/home/HomeTopNav.vue';
 import HomeCategoryBar from '@/components/home/HomeCategoryBar.vue';
 
 const session = useSessionStore();
+const backgroundStore = useAppBackgroundStore();
 const router = useRouter();
 const { scrollY } = useHomeScroll();
 const seriesList = ref([]);
@@ -130,6 +133,14 @@ const categoryBarRef = ref(null);
 const { swiperRef, scrollToCategory, initSwiper } = useCategorySwiper(homeCategories, activeCategory);
 
 const hasServer = computed(() => Boolean(getApiBaseUrl()));
+
+const navTheme = computed(() => {
+  const theme = { ...homeTheme };
+  if (backgroundStore.navBackgroundImage) {
+    theme.navBackgroundImage = backgroundStore.navBackgroundImage;
+  }
+  return theme;
+});
 
 function seriesFor(categoryId) {
   const list = [...seriesList.value];

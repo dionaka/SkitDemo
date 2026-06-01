@@ -18,17 +18,18 @@
         />
         <div class="hero-overlay" />
         <div class="hero-content">
-          <h1 class="hero-name">{{ series.title }}</h1>
-          <p class="hero-ep-count">全 {{ episodes.length }} 集</p>
+          <div class="hero-info">
+            <h1 class="hero-name">{{ series.title }}</h1>
+            <p class="hero-ep-count">全 {{ episodes.length }} 集</p>
+          </div>
+          <SeriesEngagementBar
+            v-if="series.id"
+            :series-id="series.id"
+            variant="hero"
+            @toast="showToast"
+          />
         </div>
       </div>
-
-      <SeriesEngagementBar
-        v-if="series.id"
-        :series-id="series.id"
-        class="series-engagement"
-        @toast="showToast"
-      />
 
       <div v-if="toast" class="toast">{{ toast }}</div>
 
@@ -164,10 +165,6 @@ function formatDuration(sec) {
   box-shadow: var(--shadow-card);
 }
 
-.series-engagement {
-  margin-bottom: 20px;
-}
-
 .hero-cover {
   position: absolute;
   inset: 0;
@@ -184,10 +181,17 @@ function formatDuration(sec) {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 20px;
+  padding: 16px 18px;
   display: flex;
   align-items: flex-end;
-  gap: 14px;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 1;
+}
+
+.hero-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .hero-name {
@@ -196,6 +200,10 @@ function formatDuration(sec) {
   color: #fff;
   line-height: 1.3;
   letter-spacing: -0.3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .hero-ep-count {

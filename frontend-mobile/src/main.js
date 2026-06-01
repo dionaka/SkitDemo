@@ -4,9 +4,14 @@ import { Capacitor } from '@capacitor/core';
 import App from './App.vue';
 import router from './router';
 import { initSafeArea } from './utils/safeArea';
+import { useAppBackgroundStore } from './stores/appBackground';
 import './assets/styles/main.css';
 
-const app = createApp(App).use(createPinia()).use(router);
+const app = createApp(App);
+const pinia = createPinia();
+
+app.use(pinia).use(router);
+await useAppBackgroundStore(pinia).hydrate();
 
 if (Capacitor.isNativePlatform()) {
   initSafeArea();

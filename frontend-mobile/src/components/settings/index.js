@@ -13,7 +13,7 @@ export const settingsSections = [
   { id: 'history', component: HistorySection, enabled: false },
   { id: 'account', component: AccountSection, enabled: true },
   { id: 'offline', component: OfflineCacheSection, enabled: false },
-  { id: 'appearance', component: AppearanceSection, enabled: false },
+  { id: 'appearance', component: AppearanceSection, enabled: true },
 ];
 
 export {

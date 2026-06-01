@@ -11,12 +11,19 @@
       <PageBackBar v-show="!playerFullscreen" :label="backLabel" @back="goBack" />
 
       <div v-show="!playerFullscreen" class="play-header">
-
-        <h2>{{ video.series_title }} · 第 {{ video.episode_number }} 集</h2>
-
-        <p class="ep-subtitle">{{ video.title }}</p>
-
-        <p v-if="resumeHint" class="resume-hint">{{ resumeHint }}</p>
+        <div class="play-header-top">
+          <div class="play-header-info">
+            <h2>{{ video.series_title }} · 第 {{ video.episode_number }} 集</h2>
+            <p class="ep-subtitle">{{ video.title }}</p>
+            <p v-if="resumeHint" class="resume-hint">{{ resumeHint }}</p>
+          </div>
+          <SeriesEngagementBar
+            v-if="video.series_id"
+            :series-id="video.series_id"
+            variant="inline"
+            @toast="showToast"
+          />
+        </div>
 
         <div class="play-prefs">
           <label class="pref-item">
@@ -28,14 +35,6 @@
             <span>剧情分支</span>
           </label>
         </div>
-
-        <SeriesEngagementBar
-          v-if="video.series_id"
-          :series-id="video.series_id"
-          class="play-engagement"
-          @toast="showToast"
-        />
-
       </div>
 
 
@@ -670,6 +669,18 @@ function categoryLabel(c) { return labels[c] || c; }
 
 .play-header { margin-bottom: 14px; }
 
+.play-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.play-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
 .play-header h2 {
   font-size: 17px;
   font-weight: 700;
@@ -724,10 +735,6 @@ function categoryLabel(c) { return labels[c] || c; }
 }
 
 .pref-item input { accent-color: var(--accent); }
-
-.play-engagement {
-  margin-top: 14px;
-}
 
 .highlight-list {
   margin-top: 20px;

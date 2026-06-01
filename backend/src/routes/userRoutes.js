@@ -6,6 +6,7 @@ const watchProgressController = require('../controllers/user/watchProgressContro
 const authController = require('../controllers/user/authController');
 const searchController = require('../controllers/user/searchController');
 const engagementController = require('../controllers/user/engagementController');
+const backgroundController = require('../controllers/user/backgroundController');
 const upload = require('../middleware/upload');
 
 const router = express.Router();
@@ -14,6 +15,10 @@ router.post('/auth/register', authController.register);
 router.post('/auth/login', authController.login);
 router.get('/auth/me', authController.me);
 router.post('/auth/avatar', upload.imageSingle('avatar_file'), authController.uploadAvatar);
+router.get('/user/background', backgroundController.getBackground);
+router.put('/user/background', backgroundController.updateBackground);
+router.post('/user/background/image', upload.imageSingle('background_file'), backgroundController.uploadBackground);
+router.delete('/user/background', backgroundController.clearBackground);
 router.get('/search', searchController.search);
 
 router.get('/series', seriesController.list);
