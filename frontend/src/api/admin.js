@@ -1,6 +1,6 @@
 import request from './request';
 
-export const adminLogin = (data) => request.post('/api/admin/login', data);
+export const adminLogin = (data, config) => request.post('/api/admin/login', data, config);
 
 export const getAdminVideos = () => request.get('/api/admin/videos');
 

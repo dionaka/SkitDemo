@@ -26,10 +26,11 @@ request.interceptors.response.use(
     return data;
   },
   (err) => {
+    const message = err.response?.data?.message || '网络错误';
     if (!err.config?.silent) {
-      ElMessage.error(err.response?.data?.message || '网络错误');
+      ElMessage.error(message);
     }
-    return Promise.reject(err);
+    return Promise.reject(new Error(message));
   }
 );
 
