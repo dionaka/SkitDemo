@@ -82,8 +82,15 @@ async function handleSubmit() {
 
   loading.value = true;
   try {
+    const payload = {
+      username,
+      password,
+    };
+    if (session.isAnonymousSession) {
+      payload.merge_session_id = session.userSessionId;
+    }
     const fn = mode.value === 'login' ? login : register;
-    const data = await fn({ username, password });
+    const data = await fn(payload);
     session.setUser(data);
     router.replace('/profile');
   } catch (e) {

@@ -32,6 +32,21 @@ class WatchProgressService {
     return map;
   }
 
+  mergeSession(fromSessionId, toSessionId) {
+    if (!fromSessionId || !toSessionId || fromSessionId === toSessionId) return;
+    const rows = db.prepare(
+      'SELECT video_id, position_seconds FROM watch_progress WHERE user_session_id = ?'
+    ).all(fromSessionId);
+
+    rows.forEach((row) => {
+      const existing = this.get(toSessionId, row.video_id);
+      const nextPosition = existing
+        ? Math.max(Number(existing.position_seconds) || 0, Number(row.position_seconds) || 0)
+        : Number(row.position_seconds) || 0;
+      this.save(toSessionId, row.video_id, nextPosition);
+    });
+  }
+
   getContinueList(userSessionId, limit = 10) {
     const list = db.prepare(`
       SELECT wp.position_seconds, wp.updated_at,

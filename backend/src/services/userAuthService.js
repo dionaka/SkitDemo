@@ -1,13 +1,70 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const db = require('../db');
+const config = require('../config');
+const watchProgressService = require('./watchProgressService');
 
 function createSessionId(userId) {
   return `user_${userId}_${crypto.randomBytes(8).toString('hex')}`;
 }
 
+function toAbsoluteUploadPath(relativeUrl) {
+  if (!relativeUrl?.startsWith('/uploads/')) return null;
+  return path.join(config.uploadBasePath, relativeUrl.replace(/^\/uploads\//, ''));
+}
+
+function formatUser(user) {
+  if (!user) return null;
+  return {
+    user_id: user.id,
+    username: user.username,
+    user_session_id: user.session_id,
+    avatar_url: user.avatar_url || null,
+    created_at: user.created_at,
+  };
+}
+
+function getBySessionId(sessionId) {
+  if (!sessionId) return null;
+  return db.prepare('SELECT * FROM app_user WHERE session_id = ?').get(sessionId);
+}
+
+function requireUserBySessionId(sessionId) {
+  const user = getBySessionId(sessionId);
+  if (!user) throw new Error('账号无效，请重新登录');
+  return user;
+}
+
+function mergeAnonymousSession(fromSessionId, toSessionId) {
+  if (!fromSessionId || !toSessionId || fromSessionId === toSessionId) return;
+  if (!fromSessionId.startsWith('session_')) return;
+  watchProgressService.mergeSession(fromSessionId, toSessionId);
+}
+
+function saveAvatarFile(file) {
+  const avatarsDir = path.join(config.uploadBasePath, 'avatars');
+  fs.mkdirSync(avatarsDir, { recursive: true });
+  const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+  const allowed = ['.jpg', '.jpeg', '.png', '.webp'];
+  const safeExt = allowed.includes(ext) ? ext : '.jpg';
+  const filename = `avatar_${Date.now()}${safeExt}`;
+  const dest = path.join(avatarsDir, filename);
+  fs.renameSync(file.path, dest);
+  return `/uploads/avatars/${filename}`;
+}
+
+function removeAvatarFile(avatarUrl) {
+  const abs = toAbsoluteUploadPath(avatarUrl);
+  if (!abs || !avatarUrl.includes('/uploads/avatars/')) return;
+  try {
+    if (fs.existsSync(abs)) fs.unlinkSync(abs);
+  } catch { /* ignore */ }
+}
+
 class UserAuthService {
-  register(username, password) {
+  register(username, password, mergeSessionId) {
     const name = String(username || '').trim();
     const pwd = String(password || '');
 
@@ -26,12 +83,18 @@ class UserAuthService {
 
     const userId = result.lastInsertRowid;
     const sessionId = createSessionId(userId);
-    db.prepare('UPDATE app_user SET session_id = ? WHERE id = ?').run(sessionId, userId);
+    db.prepare(`
+      UPDATE app_user
+      SET session_id = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(sessionId, userId);
 
-    return { username: name, user_session_id: sessionId };
+    mergeAnonymousSession(mergeSessionId, sessionId);
+
+    return formatUser(getBySessionId(sessionId));
   }
 
-  login(username, password) {
+  login(username, password, mergeSessionId) {
     const name = String(username || '').trim();
     const pwd = String(password || '');
 
@@ -42,7 +105,27 @@ class UserAuthService {
       throw new Error('用户名或密码错误');
     }
 
-    return { username: user.username, user_session_id: user.session_id };
+    mergeAnonymousSession(mergeSessionId, user.session_id);
+
+    return formatUser(user);
+  }
+
+  getProfile(sessionId) {
+    return formatUser(requireUserBySessionId(sessionId));
+  }
+
+  updateAvatar(sessionId, file) {
+    const user = requireUserBySessionId(sessionId);
+    const avatarUrl = saveAvatarFile(file);
+    if (user.avatar_url) removeAvatarFile(user.avatar_url);
+
+    db.prepare(`
+      UPDATE app_user
+      SET avatar_url = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(avatarUrl, user.id);
+
+    return formatUser(getBySessionId(sessionId));
   }
 }
 

@@ -13,26 +13,50 @@ function getOrCreateSessionId() {
   return id;
 }
 
+function persistUserProfile(profile) {
+  if (!profile) return;
+  if (profile.username) localStorage.setItem('app_username', profile.username);
+  else localStorage.removeItem('app_username');
+  if (profile.user_id != null) localStorage.setItem('app_user_id', String(profile.user_id));
+  else localStorage.removeItem('app_user_id');
+  if (profile.avatar_url) localStorage.setItem('app_avatar_url', profile.avatar_url);
+  else localStorage.removeItem('app_avatar_url');
+  if (profile.user_session_id) {
+    localStorage.setItem('user_session_id', profile.user_session_id);
+  }
+}
+
 export const useSessionStore = defineStore('session', {
   state: () => ({
     userSessionId: getOrCreateSessionId(),
     username: localStorage.getItem('app_username') || '',
+    userId: Number(localStorage.getItem('app_user_id') || 0) || null,
+    avatarUrl: localStorage.getItem('app_avatar_url') || '',
   }),
   getters: {
     isLoggedIn: (state) => Boolean(state.username),
+    isAnonymousSession: (state) => state.userSessionId.startsWith('session_'),
   },
   actions: {
-    setUser({ username, user_session_id: sessionId }) {
-      this.username = username;
-      if (sessionId) {
-        this.userSessionId = sessionId;
-        localStorage.setItem('user_session_id', sessionId);
-      }
-      localStorage.setItem('app_username', username);
+    setUser(profile) {
+      this.username = profile.username || '';
+      this.userId = profile.user_id ?? null;
+      this.avatarUrl = profile.avatar_url || '';
+      if (profile.user_session_id) this.userSessionId = profile.user_session_id;
+      persistUserProfile(profile);
+    },
+    updateAvatar(avatarUrl) {
+      this.avatarUrl = avatarUrl || '';
+      if (avatarUrl) localStorage.setItem('app_avatar_url', avatarUrl);
+      else localStorage.removeItem('app_avatar_url');
     },
     logout() {
       this.username = '';
+      this.userId = null;
+      this.avatarUrl = '';
       localStorage.removeItem('app_username');
+      localStorage.removeItem('app_user_id');
+      localStorage.removeItem('app_avatar_url');
       const nextId = createAnonymousSessionId();
       this.userSessionId = nextId;
       localStorage.setItem('user_session_id', nextId);

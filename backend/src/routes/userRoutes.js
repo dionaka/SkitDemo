@@ -5,11 +5,14 @@ const interactionController = require('../controllers/user/interactionController
 const watchProgressController = require('../controllers/user/watchProgressController');
 const authController = require('../controllers/user/authController');
 const searchController = require('../controllers/user/searchController');
+const upload = require('../middleware/upload');
 
 const router = express.Router();
 
 router.post('/auth/register', authController.register);
 router.post('/auth/login', authController.login);
+router.get('/auth/me', authController.me);
+router.post('/auth/avatar', upload.imageSingle('avatar_file'), authController.uploadAvatar);
 router.get('/search', searchController.search);
 
 router.get('/series', seriesController.list);

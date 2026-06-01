@@ -5,7 +5,11 @@
   >
     <div v-if="session.isLoggedIn" class="card account-card">
       <div class="account-row">
-        <div class="account-avatar">{{ avatarLetter }}</div>
+        <UserAvatar
+          :username="session.username"
+          :avatar-url="session.avatarUrl"
+          size="md"
+        />
         <div class="account-info">
           <div class="account-name">{{ session.username }}</div>
           <div class="account-status">已登录</div>
@@ -26,18 +30,13 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsSection from './SettingsSection.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
 import { useSessionStore } from '@/stores/session';
 
 const router = useRouter();
 const session = useSessionStore();
-
-const avatarLetter = computed(() => {
-  const name = session.username || '';
-  return name.slice(0, 1).toUpperCase() || 'U';
-});
 </script>
 
 <style scoped>
@@ -51,20 +50,6 @@ const avatarLetter = computed(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.account-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--accent-gradient);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: 800;
-  color: #fff;
-  flex-shrink: 0;
 }
 
 .account-name {

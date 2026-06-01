@@ -17,7 +17,13 @@
           <span class="search-placeholder">搜索剧名、分集</span>
         </div>
         <button type="button" class="avatar-btn" aria-label="个人中心" @click="$emit('profile')">
-          <span class="avatar-ring">
+          <UserAvatar
+            v-if="loggedIn"
+            :username="username"
+            :avatar-url="avatarUrl"
+            size="sm"
+          />
+          <span v-else class="avatar-ring">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v1.2h19.2v-1.2c0-3.2-6.4-4.8-9.6-4.8z" />
             </svg>
@@ -31,6 +37,8 @@
 <script setup>
 import { computed } from 'vue';
 import { homeTheme } from '@/config/homeTheme';
+import UserAvatar from '@/components/UserAvatar.vue';
+import { useSessionStore } from '@/stores/session';
 
 const props = defineProps({
   scrollY: { type: Number, default: 0 },
@@ -38,6 +46,11 @@ const props = defineProps({
 });
 
 defineEmits(['profile', 'search']);
+
+const session = useSessionStore();
+const loggedIn = computed(() => session.isLoggedIn);
+const username = computed(() => session.username);
+const avatarUrl = computed(() => session.avatarUrl);
 
 const collapseStart = 16;
 const collapseEnd = 100;

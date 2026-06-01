@@ -77,7 +77,9 @@ function initDatabase() {
       username TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       session_id TEXT UNIQUE NOT NULL,
-      created_at TEXT DEFAULT (datetime('now'))
+      avatar_url TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
     );
   `);
 
@@ -118,6 +120,15 @@ function migrateSchema() {
       UPDATE video SET series_id = ?, episode_number = COALESCE(episode_number, 1) WHERE id = ?
     `).run(seriesId, v.id);
   });
+
+  const userCols = db.prepare('PRAGMA table_info(app_user)').all().map((c) => c.name);
+  if (!userCols.includes('avatar_url')) {
+    db.exec('ALTER TABLE app_user ADD COLUMN avatar_url TEXT');
+  }
+  if (!userCols.includes('updated_at')) {
+    db.exec('ALTER TABLE app_user ADD COLUMN updated_at TEXT');
+    db.exec("UPDATE app_user SET updated_at = COALESCE(created_at, datetime('now')) WHERE updated_at IS NULL");
+  }
 }
 
 function seedDemoData() {
