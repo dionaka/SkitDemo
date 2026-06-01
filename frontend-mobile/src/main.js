@@ -11,22 +11,27 @@ const app = createApp(App);
 const pinia = createPinia();
 
 app.use(pinia).use(router);
-await useAppBackgroundStore(pinia).hydrate();
 
-if (Capacitor.isNativePlatform()) {
-  initSafeArea();
+async function bootstrap() {
+  await useAppBackgroundStore(pinia).hydrate();
 
-  import('@capacitor/app').then(({ App: CapApp }) => {
-    CapApp.addListener('backButton', async () => {
-      const { handleAppBackButton } = await import('./utils/playerFullscreen');
-      if (handleAppBackButton()) return;
-      if (router.options.history.state.back) {
-        router.back();
-      } else {
-        CapApp.exitApp();
-      }
-    });
-  }).catch(() => {});
+  if (Capacitor.isNativePlatform()) {
+    initSafeArea();
+
+    import('@capacitor/app').then(({ App: CapApp }) => {
+      CapApp.addListener('backButton', async () => {
+        const { handleAppBackButton } = await import('./utils/playerFullscreen');
+        if (handleAppBackButton()) return;
+        if (router.options.history.state.back) {
+          router.back();
+        } else {
+          CapApp.exitApp();
+        }
+      });
+    }).catch(() => {});
+  }
+
+  app.mount('#app');
 }
 
-app.mount('#app');
+bootstrap();
