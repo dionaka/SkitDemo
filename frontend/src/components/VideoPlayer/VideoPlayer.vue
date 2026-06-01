@@ -100,8 +100,62 @@ const branchTriggeredIds = ref(new Set());
 const effectType = ref('');
 const showEffect = ref(false);
 const hasAppliedStart = ref(false);
+const pendingHighlightIds = ref(new Set());
+const pendingBranchIds = ref(new Set());
+
+const TRIGGER_WINDOW = 0.8;
+const CONFLICT_GAP = 3;
 
 watch(volume, (v) => { if (videoRef.value) videoRef.value.volume = v; });
+
+function isInTriggerWindow(time, timestamp) {
+  return Math.abs(time - timestamp) < TRIGGER_WINDOW;
+}
+
+function findTriggerCandidate(items, triggeredSet, time) {
+  return items.find((item) => !triggeredSet.value.has(item.id) && isInTriggerWindow(time, item.timestamp));
+}
+
+function cleanStalePending(time) {
+  [...pendingHighlightIds.value].forEach((id) => {
+    const h = props.highlights.find((item) => item.id === id);
+    if (!h || !isInTriggerWindow(time, h.timestamp)) pendingHighlightIds.value.delete(id);
+  });
+  [...pendingBranchIds.value].forEach((id) => {
+    const b = props.branchPoints.find((item) => item.id === id);
+    if (!b || !isInTriggerWindow(time, b.timestamp)) pendingBranchIds.value.delete(id);
+  });
+}
+
+function tryEmitHighlight(highlight) {
+  if (!highlight) {
+    cleanStalePending(currentTime.value);
+    return;
+  }
+  if (!isInTriggerWindow(currentTime.value, highlight.timestamp)) {
+    pendingHighlightIds.value.delete(highlight.id);
+    return;
+  }
+  if (!pendingHighlightIds.value.has(highlight.id)) {
+    pendingHighlightIds.value.add(highlight.id);
+    emit('highlight-reached', highlight);
+  }
+}
+
+function tryEmitBranch(branch) {
+  if (!branch) {
+    cleanStalePending(currentTime.value);
+    return;
+  }
+  if (!isInTriggerWindow(currentTime.value, branch.timestamp)) {
+    pendingBranchIds.value.delete(branch.id);
+    return;
+  }
+  if (!pendingBranchIds.value.has(branch.id)) {
+    pendingBranchIds.value.add(branch.id);
+    emit('branch-reached', branch);
+  }
+}
 
 function togglePlay() {
   if (!videoRef.value) return;
@@ -133,19 +187,21 @@ function onTimeUpdate() {
   progressPercent.value = duration.value ? (currentTime.value / duration.value) * 100 : 0;
   emit('timeupdate', currentTime.value);
 
-  props.highlights.forEach((h) => {
-    if (!triggeredIds.value.has(h.id) && Math.abs(currentTime.value - h.timestamp) < 0.8) {
-      triggeredIds.value.add(h.id);
-      emit('highlight-reached', h);
-    }
-  });
+  const t = currentTime.value;
+  cleanStalePending(t);
+  const branch = findTriggerCandidate(props.branchPoints, branchTriggeredIds, t);
+  const highlight = findTriggerCandidate(props.highlights, triggeredIds, t);
+  const conflict = branch && highlight
+    && Math.abs(branch.timestamp - highlight.timestamp) < CONFLICT_GAP;
 
-  props.branchPoints.forEach((b) => {
-    if (!branchTriggeredIds.value.has(b.id) && Math.abs(currentTime.value - b.timestamp) < 0.8) {
-      branchTriggeredIds.value.add(b.id);
-      emit('branch-reached', b);
-    }
-  });
+  if (conflict) {
+    tryEmitBranch(branch);
+    if (highlight) pendingHighlightIds.value.delete(highlight.id);
+    return;
+  }
+
+  tryEmitHighlight(highlight);
+  tryEmitBranch(branch);
 }
 
 function seek(e) {
@@ -243,6 +299,29 @@ function playEffect(type) {
 
 function resetTriggers() {
   triggeredIds.value.clear();
+  branchTriggeredIds.value.clear();
+  pendingHighlightIds.value.clear();
+  pendingBranchIds.value.clear();
+}
+
+function confirmHighlight(id) {
+  triggeredIds.value.add(id);
+  pendingHighlightIds.value.delete(id);
+}
+
+function confirmBranch(id) {
+  branchTriggeredIds.value.add(id);
+  pendingBranchIds.value.delete(id);
+}
+
+function clearBranchTrigger(id) {
+  branchTriggeredIds.value.delete(id);
+  pendingBranchIds.value.delete(id);
+}
+
+function clearHighlightTrigger(id) {
+  triggeredIds.value.delete(id);
+  pendingHighlightIds.value.delete(id);
 }
 
 function getCurrentTime() {
@@ -281,6 +360,10 @@ defineExpose({
   jumpTo,
   jumpToBranch,
   resetTriggers,
+  confirmHighlight,
+  confirmBranch,
+  clearBranchTrigger,
+  clearHighlightTrigger,
   getCurrentTime,
   pause,
   play,

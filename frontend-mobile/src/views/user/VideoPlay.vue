@@ -384,7 +384,11 @@ function showToast(msg) {
 
 
 async function onBranchReached(point) {
-  if (panelVisible.value || branchSegmentVisible.value) return;
+  if (branchSegmentVisible.value || branchPanelVisible.value) return;
+  if (panelVisible.value) {
+    closePanel();
+  }
+  playerRef.value?.confirmBranch(point.id);
   stopCountdown();
   playerRef.value?.pause();
   resumeAfterBranch.value = playerRef.value?.getCurrentTime?.() || point.timestamp;
@@ -418,6 +422,9 @@ async function onBranchSelect(choice) {
 
 function closeBranchPanel() {
   branchPanelVisible.value = false;
+  if (currentBranchPoint.value?.id) {
+    playerRef.value?.clearBranchTrigger(currentBranchPoint.value.id);
+  }
 }
 
 function onBranchSegmentEnded() {
@@ -430,6 +437,8 @@ function onBranchSegmentEnded() {
 function onHighlightReached(highlight) {
   if (branchPanelVisible.value || branchSegmentVisible.value) return;
 
+  playerRef.value?.confirmHighlight(highlight.id);
+  playerRef.value?.pause();
   currentHighlight.value = highlight;
 
   interactionStats.value = null;
@@ -509,6 +518,12 @@ async function loadStats(highlightId) {
 function closePanel() {
   panelVisible.value = false;
   stopCountdown();
+  resumeMainVideo();
+}
+
+function resumeMainVideo() {
+  if (branchPanelVisible.value || branchSegmentVisible.value) return;
+  playerRef.value?.play?.();
 }
 
 function stopCountdown() {

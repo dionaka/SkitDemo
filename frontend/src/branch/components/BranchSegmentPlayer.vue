@@ -8,6 +8,7 @@
       playsinline
       @timeupdate="onVideoTime"
       @loadedmetadata="onVideoLoaded"
+      @canplay="onVideoCanPlay"
       @ended="onSegmentEnded"
       @error="onVideoError"
     />
@@ -19,6 +20,8 @@
         v-if="asset.audio_url"
         ref="audioRef"
         :src="asset.audio_url"
+        @loadedmetadata="onAudioReady"
+        @canplay="onAudioReady"
         @ended="onSegmentEnded"
         @error="onAudioError"
       />
@@ -33,7 +36,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 
 const props = defineProps({
   asset: { type: Object, default: null },
@@ -47,10 +50,14 @@ const videoRef = ref(null);
 const audioRef = ref(null);
 const loading = ref(false);
 const branchTriggered = ref(false);
+const pendingVideoPlay = ref(false);
+const pendingAudioPlay = ref(false);
 let compositeTimer = null;
 
 watch(() => props.asset, () => {
   branchTriggered.value = false;
+  pendingVideoPlay.value = false;
+  pendingAudioPlay.value = false;
   clearCompositeTimer();
   startSegment();
 }, { deep: true });
@@ -65,10 +72,29 @@ function clearCompositeTimer() {
   }
 }
 
+function isPrecutClip(asset) {
+  if (!asset?.video_url) return false;
+  if (asset.generator === 'video_synth') return true;
+  if (asset.source_video_url && asset.video_url !== asset.source_video_url) return true;
+  return false;
+}
+
+function getClipDuration(asset) {
+  if (asset?.duration != null) return Number(asset.duration);
+  if (asset?.start_at != null && asset?.end_at != null) {
+    return Math.max(0.5, asset.end_at - asset.start_at);
+  }
+  return null;
+}
+
 async function startSegment() {
   clearCompositeTimer();
   branchTriggered.value = false;
+  pendingVideoPlay.value = false;
+  pendingAudioPlay.value = false;
   if (!props.asset) return;
+
+  await nextTick();
 
   if (props.asset.type === 'video') {
     await playVideo();
@@ -82,36 +108,79 @@ async function startSegment() {
 
 async function playVideo() {
   const video = videoRef.value;
-  if (!video) return;
+  if (!video) {
+    pendingVideoPlay.value = true;
+    return;
+  }
+
   loading.value = true;
   try {
-    video.currentTime = props.asset.start_at || 0;
+    const precut = isPrecutClip(props.asset);
+    video.currentTime = precut ? 0 : (props.asset.start_at || 0);
     if (props.autoPlay) await video.play();
   } catch {
     emit('error');
     emit('segment-ended');
   } finally {
     loading.value = false;
+    pendingVideoPlay.value = false;
   }
 }
 
+function waitForMediaReady(media) {
+  return new Promise((resolve, reject) => {
+    if (!media) {
+      reject(new Error('media missing'));
+      return;
+    }
+    if (media.readyState >= 2) {
+      resolve();
+      return;
+    }
+    const onReady = () => {
+      cleanup();
+      resolve();
+    };
+    const onErr = () => {
+      cleanup();
+      reject(new Error('media load failed'));
+    };
+    const cleanup = () => {
+      media.removeEventListener('loadedmetadata', onReady);
+      media.removeEventListener('canplay', onReady);
+      media.removeEventListener('error', onErr);
+    };
+    media.addEventListener('loadedmetadata', onReady);
+    media.addEventListener('canplay', onReady);
+    media.addEventListener('error', onErr);
+  });
+}
+
 async function playComposite() {
-  loading.value = false;
+  loading.value = true;
+  await nextTick();
   const audio = audioRef.value;
   if (audio && props.asset.audio_url) {
     try {
+      if (!audio.readyState) pendingAudioPlay.value = true;
+      await waitForMediaReady(audio);
       audio.currentTime = 0;
       if (props.autoPlay) await audio.play();
+      loading.value = false;
+      pendingAudioPlay.value = false;
     } catch {
+      loading.value = false;
+      pendingAudioPlay.value = false;
       scheduleCompositeEnd();
     }
     return;
   }
+  loading.value = false;
   scheduleCompositeEnd();
 }
 
 function scheduleCompositeEnd() {
-  const ms = (props.branchAt ?? props.asset.duration ?? 5) * 1000;
+  const ms = Math.max(1000, (props.asset?.duration ?? props.branchAt ?? 5) * 1000);
   compositeTimer = setTimeout(() => {
     if (props.branchAt != null && !branchTriggered.value) {
       triggerBranchPoint();
@@ -123,13 +192,29 @@ function scheduleCompositeEnd() {
 
 function onVideoLoaded() {
   loading.value = false;
+  if (pendingVideoPlay.value) playVideo();
+}
+
+function onVideoCanPlay() {
+  if (pendingVideoPlay.value) playVideo();
+}
+
+async function onAudioReady() {
+  if (!pendingAudioPlay.value) return;
+  pendingAudioPlay.value = false;
+  await playComposite();
 }
 
 function onVideoTime() {
   const video = videoRef.value;
   if (!video) return;
 
-  const endAt = props.asset.end_at ?? props.branchAt;
+  const precut = isPrecutClip(props.asset);
+  const clipDuration = getClipDuration(props.asset);
+  const endAt = precut
+    ? clipDuration
+    : (props.asset.end_at ?? props.branchAt);
+
   if (endAt != null && video.currentTime >= endAt - 0.05) {
     video.pause();
     if (props.branchAt != null && !branchTriggered.value) {
@@ -140,7 +225,7 @@ function onVideoTime() {
     return;
   }
 
-  if (props.branchAt != null && video.currentTime >= props.branchAt - 0.05 && !branchTriggered.value) {
+  if (!precut && props.branchAt != null && video.currentTime >= props.branchAt - 0.05 && !branchTriggered.value) {
     video.pause();
     triggerBranchPoint();
   }

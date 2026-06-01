@@ -11,6 +11,7 @@
       </div>
 
       <VideoPlayer
+        v-show="!branchSegmentVisible"
         ref="playerRef"
         :src="videoUrl"
         :highlights="highlights"
@@ -210,14 +211,28 @@ function onPause(seconds) {
 
 function onHighlightReached(highlight) {
   if (branchPanelVisible.value || branchSegmentVisible.value) return;
+  playerRef.value?.confirmHighlight(highlight.id);
+  playerRef.value?.pause();
   currentHighlight.value = highlight;
   panelVisible.value = true;
   hasSelected.value = false;
   loadStats(highlight.id);
 }
 
+function resumeMainVideo() {
+  if (branchPanelVisible.value || branchSegmentVisible.value) return;
+  playerRef.value?.play?.();
+}
+
+function closeHighlightPanel() {
+  panelVisible.value = false;
+  resumeMainVideo();
+}
+
 async function onBranchReached(point) {
-  if (panelVisible.value || branchSegmentVisible.value) return;
+  if (branchSegmentVisible.value || branchPanelVisible.value) return;
+  if (panelVisible.value) panelVisible.value = false;
+  playerRef.value?.confirmBranch(point.id);
   playerRef.value?.pause();
   resumeAfterBranch.value = playerRef.value?.getCurrentTime?.() || point.timestamp;
   currentBranchPoint.value = point;
@@ -274,7 +289,7 @@ async function onSelectOption(option) {
     playerRef.value?.playEffect(currentHighlight.value.category);
     await loadStats(currentHighlight.value.id);
     ElMessage.success(`你选择了「${option}」`);
-    setTimeout(() => { panelVisible.value = false; }, 3000);
+    setTimeout(closeHighlightPanel, 3000);
   } catch { /* handled by interceptor */ }
 }
 
