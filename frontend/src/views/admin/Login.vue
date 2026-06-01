@@ -88,15 +88,16 @@ async function handleLogin() {
   padding: 2rem;
 }
 
-/* 整体缩放到约 62%，避免占满屏幕 */
+/* 与原站一致：不做移动端单独改布局；按视口等比缩放，开/关桌面版结构相同 */
 .box-wrap {
-  width: 55.8rem;
-  height: 31rem;
+  --login-scale: min(0.62, calc((100vw - 4rem) / 90rem));
+  width: calc(90rem * var(--login-scale));
+  height: calc(50rem * var(--login-scale));
   flex-shrink: 0;
 }
 
 .box-wrap .box {
-  transform: scale(0.62);
+  transform: scale(var(--login-scale));
   transform-origin: top left;
   margin: 0;
 }
@@ -233,49 +234,5 @@ async function handleLogin() {
 
 .fn .hint {
   color: #666;
-}
-
-@media (max-width: 768px) {
-  .login-page {
-    font-size: 8px;
-    padding: 1rem;
-  }
-
-  .box-wrap {
-    width: calc(90vw / 0.62);
-    max-width: 55.8rem;
-    height: auto;
-  }
-
-  .box-wrap .box {
-    transform: scale(0.62);
-    width: 90rem;
-    max-width: none;
-  }
-
-  .box {
-    flex-direction: column;
-    height: auto;
-  }
-
-  .box .left {
-    width: 100%;
-    height: 18rem;
-  }
-
-  .box .right {
-    width: 100%;
-    padding-bottom: 3rem;
-  }
-
-  .box .right h2 {
-    font-size: 3rem;
-    margin-top: 2rem;
-  }
-
-  .acc {
-    font-size: 3rem;
-    line-height: calc(4.2rem - 2px);
-  }
 }
 </style>
