@@ -36,10 +36,10 @@
           <div class="field-hint">{{ ttsHint }}</div>
         </el-form-item>
 
-        <el-form-item v-if="genOptions.tts_provider === 'doubao_tts'" label="音色">
+        <el-form-item v-if="genOptions.tts_provider === 'doubao_tts' || genOptions.tts_provider === 'siliconflow_tts'" label="音色">
           <el-select v-model="genOptions.tts_voice" style="width: 100%; margin-bottom: 8px">
             <el-option
-              v-for="item in catalog.voice_presets"
+              v-for="item in activeVoicePresets(genOptions.tts_provider)"
               :key="item.id"
               :label="item.label"
               :value="item.id"
@@ -48,7 +48,7 @@
           <el-input
             v-if="genOptions.tts_voice === 'custom'"
             v-model="genOptions.tts_voice_custom"
-            placeholder="输入复刻/训练音色 voice_type"
+            :placeholder="genOptions.tts_provider === 'siliconflow_tts' ? '输入克隆 voice ID（speech:xinnai:…）' : '输入复刻/训练音色 voice_type'"
           />
         </el-form-item>
 
@@ -193,10 +193,10 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="choiceForm.tts_provider === 'doubao_tts'" label="音色">
+        <el-form-item v-if="choiceForm.tts_provider === 'doubao_tts' || choiceForm.tts_provider === 'siliconflow_tts'" label="音色">
           <el-select v-model="choiceForm.tts_voice" style="width: 100%; margin-bottom: 8px">
             <el-option
-              v-for="item in catalog.voice_presets"
+              v-for="item in activeVoicePresets(choiceForm.tts_provider)"
               :key="item.id"
               :label="item.label"
               :value="item.id"
@@ -205,7 +205,7 @@
           <el-input
             v-if="choiceForm.tts_voice === 'custom'"
             v-model="choiceForm.tts_voice_custom"
-            placeholder="自定义 voice_type"
+            :placeholder="choiceForm.tts_provider === 'siliconflow_tts' ? '克隆 voice ID' : '自定义 voice_type'"
           />
         </el-form-item>
         <el-form-item label="旁白文案">
@@ -280,6 +280,7 @@ const catalog = ref({
   drama_genres: [],
   visual_generators: [],
   voice_presets: [],
+  siliconflow_voice_presets: [],
   defaults: {},
 });
 
@@ -342,6 +343,13 @@ function defaultOptions() {
   };
 }
 
+function activeVoicePresets(providerId) {
+  if (providerId === 'siliconflow_tts') {
+    return catalog.value.siliconflow_voice_presets || [];
+  }
+  return catalog.value.voice_presets || [];
+}
+
 async function loadCatalog() {
   const data = await getBranchGenerationOptions();
   catalog.value = {
@@ -351,6 +359,7 @@ async function loadCatalog() {
     drama_genres: data.drama_genres || [],
     visual_generators: data.visual_generators || [],
     voice_presets: data.voice_presets || [],
+    siliconflow_voice_presets: data.siliconflow_voice_presets || [],
     defaults: data.defaults || {},
   };
   if (data.defaults) {

@@ -42,4 +42,9 @@ router.put('/settings/tts', settingsController.saveTtsSettings);
 router.post('/settings/tts/test', settingsController.testTtsSettings);
 router.delete('/settings/tts', settingsController.deleteTtsSettings);
 
+router.get('/settings/siliconflow-tts', settingsController.getSiliconflowTtsSettings);
+router.put('/settings/siliconflow-tts', settingsController.saveSiliconflowTtsSettings);
+router.post('/settings/siliconflow-tts/test', settingsController.testSiliconflowTtsSettings);
+router.delete('/settings/siliconflow-tts', settingsController.deleteSiliconflowTtsSettings);
+
 module.exports = router;

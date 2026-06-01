@@ -15,6 +15,7 @@ const execFileAsync = promisify(execFile);
 const providers = {
   windows_sapi: synthesizeWindowsSapi,
   doubao_tts: synthesizeDoubaoTts,
+  siliconflow_tts: synthesizeSiliconflowTts,
   file: async (_text, { audio_url: audioUrl }) => audioUrl || null,
 };
 
@@ -28,6 +29,11 @@ const PROVIDER_META = {
     id: 'doubao_tts',
     label: '豆包语音合成',
     description: '火山 openspeech HTTP 接口',
+  },
+  siliconflow_tts: {
+    id: 'siliconflow_tts',
+    label: '硅基流动 CosyVoice2',
+    description: 'SiliconFlow /audio/speech，支持克隆音色',
   },
   file: {
     id: 'file',
@@ -47,7 +53,9 @@ function listProviderCatalog() {
       ? os.platform() === 'win32'
       : id === 'doubao_tts'
         ? !!secretsService.getTtsCredentials()
-        : true,
+        : id === 'siliconflow_tts'
+          ? !!secretsService.getSiliconflowTtsCredentials()
+          : true,
   }));
 }
 
@@ -163,6 +171,126 @@ async function synthesizeDoubaoTts(text, { voice } = {}) {
   return null;
 }
 
+async function synthesizeSiliconflowTts(text, { voice, speed } = {}) {
+  const creds = secretsService.getSiliconflowTtsCredentials();
+  if (!creds?.apiKey) {
+    console.warn('[branch-tts] 未配置硅基流动 TTS 密钥');
+    return null;
+  }
+
+  const voiceId = voice && voice !== 'default' ? voice : creds.voice;
+  if (!voiceId) {
+    console.warn('[branch-tts] 未配置硅基流动默认克隆音色 voice');
+    return null;
+  }
+
+  const effSpeed = speed != null ? Number(speed) : creds.speed;
+  const ext = creds.format === 'wav' ? '.wav' : creds.format === 'opus' ? '.opus' : '.mp3';
+  const cacheKey = branchAssetService.hashKey(['tts', 'siliconflow_tts', voiceId, effSpeed, text]);
+  const outputPath = branchAssetService.generatedTtsPath(cacheKey, ext);
+
+  if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
+    return toPublicUploadUrl(outputPath);
+  }
+
+  const url = `${creds.baseUrl}/audio/speech`;
+  const body = {
+    model: creds.model,
+    voice: voiceId,
+    input: String(text),
+    response_format: creds.format,
+    speed: effSpeed,
+    gain: creds.gain,
+  };
+  if (creds.sampleRate) {
+    body.sample_rate = creds.sampleRate;
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${creds.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const errJson = await res.json();
+        detail = errJson.error?.message || errJson.message || JSON.stringify(errJson);
+      } catch {
+        detail = await res.text().catch(() => detail);
+      }
+      throw new Error(detail);
+    }
+
+    if (!contentType.startsWith('audio/') && !contentType.startsWith('application/octet-stream')) {
+      const errText = await res.text();
+      throw new Error(errText.slice(0, 200) || '返回非音频内容');
+    }
+
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.length === 0) {
+      throw new Error('TTS 返回空音频');
+    }
+
+    fs.writeFileSync(outputPath, buffer);
+    return toPublicUploadUrl(outputPath);
+  } catch (err) {
+    console.warn('[branch-tts] 硅基流动 TTS 合成失败:', err.message);
+  }
+
+  return null;
+}
+
+async function testSiliconflowTts(overrideCreds, sampleText = '你好，这是 SkitDemo 分支旁白测试。') {
+  const creds = overrideCreds || secretsService.getSiliconflowTtsCredentials();
+  if (!creds?.apiKey) {
+    throw new Error('请先配置硅基流动 API Key');
+  }
+  if (!creds.voice) {
+    throw new Error('请先配置默认克隆音色 voice');
+  }
+
+  const url = `${(creds.baseUrl || 'https://api.siliconflow.cn/v1').replace(/\/$/, '')}/audio/speech`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${creds.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: creds.model || 'FunAudioLLM/CosyVoice2-0.5B',
+      voice: creds.voice,
+      input: sampleText,
+      response_format: creds.format || 'mp3',
+      speed: creds.speed ?? 1.0,
+      gain: creds.gain ?? 0,
+      ...(creds.sampleRate ? { sample_rate: creds.sampleRate } : {}),
+    }),
+  });
+
+  const contentType = res.headers.get('content-type') || '';
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const errJson = await res.json();
+      detail = errJson.error?.message || errJson.message || JSON.stringify(errJson);
+    } catch {
+      detail = await res.text().catch(() => detail);
+    }
+    throw new Error(detail);
+  }
+  if (!contentType.startsWith('audio/') && !contentType.startsWith('application/octet-stream')) {
+    throw new Error('TTS 返回非音频内容');
+  }
+  return true;
+}
+
 async function testDoubaoTts(overrideCreds, sampleText = '你好，这是 SkitDemo 分支旁白测试。') {
   const creds = overrideCreds || secretsService.getTtsCredentials();
   if (!creds?.appId || !creds?.accessToken) {
@@ -250,4 +378,5 @@ module.exports = {
   registerProvider,
   estimateDuration,
   testDoubaoTts,
+  testSiliconflowTts,
 };

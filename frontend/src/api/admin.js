@@ -53,3 +53,11 @@ export const saveTtsSettings = (data) => request.put('/api/admin/settings/tts', 
 export const testTtsSettings = (data) => request.post('/api/admin/settings/tts/test', data);
 
 export const deleteTtsSettings = () => request.delete('/api/admin/settings/tts');
+
+export const getSiliconflowTtsSettings = () => request.get('/api/admin/settings/siliconflow-tts');
+
+export const saveSiliconflowTtsSettings = (data) => request.put('/api/admin/settings/siliconflow-tts', data);
+
+export const testSiliconflowTtsSettings = (data) => request.post('/api/admin/settings/siliconflow-tts/test', data);
+
+export const deleteSiliconflowTtsSettings = () => request.delete('/api/admin/settings/siliconflow-tts');

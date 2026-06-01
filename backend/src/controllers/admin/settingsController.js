@@ -158,3 +158,67 @@ exports.deleteTtsSettings = (_req, res) => {
   secretsService.clearTtsCredentials();
   res.json(success(null, 'TTS 配置已清除'));
 };
+
+exports.getSiliconflowTtsSettings = (_req, res) => {
+  res.json(success(secretsService.getSiliconflowTtsSettingsMasked()));
+};
+
+exports.saveSiliconflowTtsSettings = (req, res) => {
+  try {
+    const { api_key, base_url, model, format, speed, gain, sample_rate, voice } = req.body;
+    const current = secretsService.getSiliconflowTtsCredentials();
+    if (!api_key && !current?.apiKey) {
+      return res.status(400).json(fail(400, '首次配置必须填写 API Key'));
+    }
+
+    const data = secretsService.saveSiliconflowTtsCredentials({
+      apiKey: api_key || undefined,
+      baseUrl: base_url,
+      model,
+      format,
+      speed,
+      gain,
+      sampleRate: sample_rate,
+      voice,
+    });
+
+    res.json(success(data, '硅基流动 TTS 配置已加密保存到本地'));
+  } catch (err) {
+    res.status(500).json(fail(500, err.message));
+  }
+};
+
+exports.testSiliconflowTtsSettings = async (req, res) => {
+  try {
+    const { api_key, base_url, model, format, speed, gain, sample_rate, voice } = req.body || {};
+    const current = secretsService.getSiliconflowTtsCredentials();
+
+    const creds = {
+      apiKey: api_key || current?.apiKey,
+      baseUrl: base_url || current?.baseUrl || 'https://api.siliconflow.cn/v1',
+      model: model || current?.model || 'FunAudioLLM/CosyVoice2-0.5B',
+      format: format || current?.format || 'mp3',
+      speed: speed != null ? Number(speed) : (current?.speed ?? 1.0),
+      gain: gain != null ? Number(gain) : (current?.gain ?? 0),
+      sampleRate: sample_rate != null ? Number(sample_rate) : (current?.sampleRate ?? 44100),
+      voice: voice || current?.voice,
+    };
+
+    if (!creds.apiKey) {
+      return res.status(400).json(fail(400, '请先配置 API Key'));
+    }
+    if (!creds.voice) {
+      return res.status(400).json(fail(400, '请先配置默认克隆音色 voice'));
+    }
+
+    await branchTtsService.testSiliconflowTts(creds);
+    res.json(success({ connected: true }, '硅基流动 TTS 连接测试成功'));
+  } catch (err) {
+    res.status(400).json(fail(400, `连接测试失败: ${err.message}`));
+  }
+};
+
+exports.deleteSiliconflowTtsSettings = (_req, res) => {
+  secretsService.clearSiliconflowTtsCredentials();
+  res.json(success(null, '硅基流动 TTS 配置已清除'));
+};

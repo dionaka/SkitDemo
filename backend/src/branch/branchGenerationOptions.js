@@ -33,6 +33,12 @@ const TTS_PROVIDERS = [
     requires_config: 'tts',
   },
   {
+    id: 'siliconflow_tts',
+    label: '硅基流动 CosyVoice2（克隆音色）',
+    description: 'SiliconFlow /audio/speech，兼容 astrbot 克隆 voice ID',
+    requires_config: 'siliconflow_tts',
+  },
+  {
     id: 'file',
     label: '上传音频文件',
     description: '使用已上传的 MP3/WAV，不调用合成 API',
@@ -91,7 +97,7 @@ const DOUBAO_VOICE_PRESETS = [
 function normalizeGenerationOptions(input = {}) {
   return {
     narration_api: input.narration_api === 'manual' ? 'manual' : 'doubao',
-    tts_provider: ['windows_sapi', 'doubao_tts', 'file'].includes(input.tts_provider)
+    tts_provider: ['windows_sapi', 'doubao_tts', 'siliconflow_tts', 'file'].includes(input.tts_provider)
       ? input.tts_provider
       : 'windows_sapi',
     tts_voice: String(input.tts_voice || 'default'),
@@ -126,10 +132,26 @@ function isTtsProviderAvailable(providerId) {
   if (providerId === 'doubao_tts') {
     return !!secretsService.getTtsCredentials();
   }
+  if (providerId === 'siliconflow_tts') {
+    return !!secretsService.getSiliconflowTtsCredentials();
+  }
   if (providerId === 'file') {
     return true;
   }
   return false;
+}
+
+function buildSiliconflowVoicePresets() {
+  const creds = secretsService.getSiliconflowTtsCredentials();
+  const presets = [
+    { id: 'default', label: '使用配置页默认克隆音色' },
+  ];
+  if (creds?.voice) {
+    const short = creds.voice.length > 36 ? `${creds.voice.slice(0, 36)}…` : creds.voice;
+    presets.push({ id: creds.voice, label: `已配置克隆音色 (${short})` });
+  }
+  presets.push({ id: 'custom', label: '自定义 voice ID' });
+  return presets;
 }
 
 function isNarrationApiAvailable(apiId) {
@@ -148,6 +170,7 @@ function isImageApiAvailable(apiId) {
 function getCatalog() {
   const aiConfigured = !!secretsService.getAiCredentials();
   const ttsConfigured = !!secretsService.getTtsCredentials();
+  const siliconflowConfigured = !!secretsService.getSiliconflowTtsCredentials();
   const imageConfigured = !!secretsService.getImageCredentials();
 
   return {
@@ -158,7 +181,11 @@ function getCatalog() {
     })),
     tts_providers: TTS_PROVIDERS.map((item) => ({
       ...item,
-      configured: item.requires_config === 'tts' ? ttsConfigured : true,
+      configured: item.requires_config === 'tts'
+        ? ttsConfigured
+        : item.requires_config === 'siliconflow_tts'
+          ? siliconflowConfigured
+          : true,
       available: isTtsProviderAvailable(item.id),
     })),
     image_apis: IMAGE_APIS.map((item) => ({
@@ -169,6 +196,7 @@ function getCatalog() {
     visual_generators: VISUAL_GENERATORS,
     drama_genres: DRAMA_GENRES,
     voice_presets: DOUBAO_VOICE_PRESETS,
+    siliconflow_voice_presets: buildSiliconflowVoicePresets(),
     defaults: normalizeGenerationOptions({}),
     fallback_image_url: DEFAULT_FALLBACK_IMAGE,
   };

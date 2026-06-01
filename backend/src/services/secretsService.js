@@ -226,6 +226,82 @@ class SecretsService {
       this._encrypt(current);
     }
   }
+
+  saveSiliconflowTtsCredentials({ apiKey, baseUrl, model, format, speed, gain, sampleRate, voice }) {
+    const current = this._decrypt() || {};
+    const prev = current.siliconflowTts || {};
+    const next = {
+      ...current,
+      siliconflowTts: {
+        apiKey: apiKey || prev.apiKey || '',
+        baseUrl: baseUrl || prev.baseUrl || 'https://api.siliconflow.cn/v1',
+        model: model || prev.model || 'FunAudioLLM/CosyVoice2-0.5B',
+        format: format || prev.format || 'mp3',
+        speed: speed != null ? Number(speed) : (prev.speed ?? 1.0),
+        gain: gain != null ? Number(gain) : (prev.gain ?? 0),
+        sampleRate: sampleRate != null ? Number(sampleRate) : (prev.sampleRate ?? 44100),
+        voice: voice || prev.voice || '',
+        updatedAt: new Date().toISOString(),
+      },
+    };
+    this._encrypt(next);
+    return this.getSiliconflowTtsSettingsMasked();
+  }
+
+  getSiliconflowTtsCredentials() {
+    const data = this._decrypt();
+    if (!data?.siliconflowTts?.apiKey) return null;
+    return {
+      apiKey: data.siliconflowTts.apiKey,
+      baseUrl: (data.siliconflowTts.baseUrl || 'https://api.siliconflow.cn/v1').replace(/\/$/, ''),
+      model: data.siliconflowTts.model || 'FunAudioLLM/CosyVoice2-0.5B',
+      format: data.siliconflowTts.format || 'mp3',
+      speed: Number(data.siliconflowTts.speed ?? 1.0),
+      gain: Number(data.siliconflowTts.gain ?? 0),
+      sampleRate: Number(data.siliconflowTts.sampleRate ?? 44100),
+      voice: data.siliconflowTts.voice || '',
+    };
+  }
+
+  getSiliconflowTtsSettingsMasked() {
+    const creds = this.getSiliconflowTtsCredentials();
+    if (!creds) {
+      return {
+        configured: false,
+        api_key_masked: '',
+        base_url: 'https://api.siliconflow.cn/v1',
+        model: 'FunAudioLLM/CosyVoice2-0.5B',
+        format: 'mp3',
+        speed: 1.0,
+        gain: 0,
+        sample_rate: 44100,
+        voice: '',
+        storage_path: 'backend/data/secrets.vault (AES-256-GCM 加密)',
+      };
+    }
+    return {
+      configured: true,
+      api_key_masked: this.maskSecret(creds.apiKey),
+      base_url: creds.baseUrl,
+      model: creds.model,
+      format: creds.format,
+      speed: creds.speed,
+      gain: creds.gain,
+      sample_rate: creds.sampleRate,
+      voice: creds.voice,
+      storage_path: 'backend/data/secrets.vault (AES-256-GCM 加密)',
+    };
+  }
+
+  clearSiliconflowTtsCredentials() {
+    const current = this._decrypt() || {};
+    delete current.siliconflowTts;
+    if (Object.keys(current).length === 0) {
+      if (fs.existsSync(SECRETS_PATH)) fs.unlinkSync(SECRETS_PATH);
+    } else {
+      this._encrypt(current);
+    }
+  }
 }
 
 module.exports = new SecretsService();
