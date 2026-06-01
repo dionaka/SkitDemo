@@ -4,33 +4,33 @@
       <div class="box">
         <div class="left"></div>
         <div class="right">
-          <h2>娆㈣繋鐧诲綍鍠?/h2>
+          <h2>欢迎登录喵</h2>
           <form id="loginForm" class="login-form" @submit.prevent="handleLogin">
             <input
               v-model="form.username"
               class="acc"
               type="text"
-              placeholder="鐢ㄦ埛鍚?閭鐧诲綍"
+              placeholder="用户名/邮箱登录"
               required
             />
             <input
               v-model="form.password"
               class="acc"
               type="password"
-              placeholder="瀵嗙爜"
+              placeholder="密码"
               required
             />
             <div v-show="errorMsg" class="error-message">{{ errorMsg }}</div>
             <input
-              id="鐧诲綍"
+              id="登录"
               type="submit"
               :class="{ 'after-error': errorMsg }"
-              :value="loading ? '鐧诲綍涓?..' : '鐧诲綍'"
+              :value="loading ? '登录中...' : '登录'"
               :disabled="loading"
             />
           </form>
           <div class="fn">
-            <span class="hint">榛樿璐﹀彿: admin / admin123</span>
+            <span class="hint">默认账号: admin / admin123</span>
           </div>
         </div>
       </div>
@@ -56,7 +56,7 @@ async function handleLogin() {
   const password = form.value.password;
 
   if (!username || !password) {
-    errorMsg.value = '鐢ㄦ埛鍚嶅拰瀵嗙爜涓嶈兘涓虹┖';
+    errorMsg.value = '用户名和密码不能为空';
     return;
   }
 
@@ -69,7 +69,7 @@ async function handleLogin() {
     session.setAdmin(data.token, data.username);
     router.push('/admin/videos');
   } catch (err) {
-    errorMsg.value = err.message || '鐧诲綍澶辫触';
+    errorMsg.value = err.message || '登录失败';
   } finally {
     loading.value = false;
   }
@@ -77,7 +77,7 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-/* 涓庡師绔?index.css 涓€鑷达細html font-size 涓?10px锛宺em 鎵嶇瓑浜庤璁＄灏哄 */
+/* 与原站 index.css 一致：html font-size 为 10px，rem 才等于设计稿尺寸 */
 .login-page {
   min-height: 100vh;
   position: relative;
@@ -88,7 +88,7 @@ async function handleLogin() {
   padding: 2rem;
 }
 
-/* 鏁翠綋缂╂斁鍒扮害 62%锛岄伩鍏嶅崰婊″睆骞?*/
+/* 整体缩放到约 62%，避免占满屏幕 */
 .box-wrap {
   width: 55.8rem;
   height: 31rem;
@@ -151,7 +151,7 @@ async function handleLogin() {
 
 .box .right h2 {
   color: black;
-  font-family: 浠垮畫, FangSong, serif;
+  font-family: 仿宋, FangSong, serif;
   font-weight: 300;
   font-size: 3.5rem;
   margin-top: 5rem;
@@ -174,7 +174,7 @@ async function handleLogin() {
   padding: 0 1.2rem;
   font-size: 3.5rem;
   font-weight: 400;
-  font-family: 妤蜂綋, KaiTi, serif;
+  font-family: 楷体, KaiTi, serif;
   line-height: calc(4.2rem - 2px);
   color: #333;
   background: #fff;
@@ -186,7 +186,7 @@ async function handleLogin() {
 
 .acc::placeholder {
   color: #999;
-  font-family: 妤蜂綋, KaiTi, serif;
+  font-family: 楷体, KaiTi, serif;
   font-weight: 200;
 }
 
@@ -197,7 +197,7 @@ async function handleLogin() {
   padding: 0 calc(1.2rem - 1px);
 }
 
-#鐧诲綍 {
+#登录 {
   width: 37.8rem;
   max-width: 85%;
   height: 4.2rem;
@@ -210,11 +210,11 @@ async function handleLogin() {
   border-radius: 0.2rem;
 }
 
-#鐧诲綍.after-error {
+#登录.after-error {
   margin-top: 0;
 }
 
-#鐧诲綍:disabled {
+#登录:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
