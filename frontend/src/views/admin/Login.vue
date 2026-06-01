@@ -125,9 +125,10 @@ async function handleLogin() {
   top: 0;
   left: 0;
   z-index: -1;
-  background: linear-gradient(45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab),
-    url('/login-assets/3.gif');
-  background-blend-mode: multiply;
+  /* 壁纸：将你的图片放到 public/login-assets/bg.jpg（或改下面文件名） */
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.35)),
+    url('/login-assets/bg.jpg') center / cover no-repeat;
 }
 
 /* ========== 桌面端 ========== */

@@ -34,6 +34,12 @@ router.delete('/highlights/:id', highlightController.remove);
 router.get('/settings/ai', settingsController.getAiSettings);
 router.put('/settings/ai', settingsController.saveAiSettings);
 router.post('/settings/ai/test', settingsController.testAiSettings);
+router.post('/settings/ai/test-image', settingsController.testImageSettings);
 router.delete('/settings/ai', settingsController.deleteAiSettings);
+
+router.get('/settings/tts', settingsController.getTtsSettings);
+router.put('/settings/tts', settingsController.saveTtsSettings);
+router.post('/settings/tts/test', settingsController.testTtsSettings);
+router.delete('/settings/tts', settingsController.deleteTtsSettings);
 
 module.exports = router;

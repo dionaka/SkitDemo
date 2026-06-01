@@ -27,6 +27,14 @@
             :duration="duration"
             @click="jumpTo(h.timestamp)"
           />
+          <div
+            v-for="b in branchPoints"
+            :key="'bp-' + b.id"
+            class="branch-marker"
+            :style="{ left: (duration ? (b.timestamp / duration) * 100 : 0) + '%' }"
+            :title="b.title"
+            @click.stop="jumpToBranch(b.timestamp, b.id)"
+          />
         </div>
       </div>
 
@@ -67,10 +75,11 @@ import EffectOverlay from '../effects/EffectOverlay.vue';
 const props = defineProps({
   src: String,
   highlights: { type: Array, default: () => [] },
+  branchPoints: { type: Array, default: () => [] },
   startTime: { type: Number, default: 0 },
 });
 
-const emit = defineEmits(['highlight-reached', 'timeupdate', 'pause']);
+const emit = defineEmits(['highlight-reached', 'branch-reached', 'timeupdate', 'pause']);
 
 const speedOptions = [0.75, 1, 1.25, 1.5, 2];
 
@@ -87,6 +96,7 @@ const speedMenuOpen = ref(false);
 const isFullscreen = ref(false);
 const cssFullscreen = ref(false);
 const triggeredIds = ref(new Set());
+const branchTriggeredIds = ref(new Set());
 const effectType = ref('');
 const showEffect = ref(false);
 const hasAppliedStart = ref(false);
@@ -129,6 +139,13 @@ function onTimeUpdate() {
       emit('highlight-reached', h);
     }
   });
+
+  props.branchPoints.forEach((b) => {
+    if (!branchTriggeredIds.value.has(b.id) && Math.abs(currentTime.value - b.timestamp) < 0.8) {
+      branchTriggeredIds.value.add(b.id);
+      emit('branch-reached', b);
+    }
+  });
 }
 
 function seek(e) {
@@ -141,9 +158,15 @@ function seek(e) {
 function jumpTo(time) {
   if (videoRef.value) {
     videoRef.value.currentTime = time;
-    triggeredIds.value.delete(
-      props.highlights.find((h) => h.timestamp === time)?.id
-    );
+    const h = props.highlights.find((item) => item.timestamp === time);
+    if (h) triggeredIds.value.delete(h.id);
+  }
+}
+
+function jumpToBranch(time, id) {
+  if (videoRef.value) {
+    videoRef.value.currentTime = time;
+    if (id) branchTriggeredIds.value.delete(id);
   }
 }
 
@@ -239,7 +262,30 @@ onUnmounted(() => {
   if (cssFullscreen.value) document.body.style.overflow = '';
 });
 
-defineExpose({ playEffect, jumpTo, resetTriggers, getCurrentTime });
+function pause() {
+  if (videoRef.value && !videoRef.value.paused) {
+    videoRef.value.pause();
+    playing.value = false;
+  }
+}
+
+function play() {
+  if (videoRef.value?.paused) {
+    videoRef.value.play();
+    playing.value = true;
+  }
+}
+
+defineExpose({
+  playEffect,
+  jumpTo,
+  jumpToBranch,
+  resetTriggers,
+  getCurrentTime,
+  pause,
+  play,
+  togglePlay,
+});
 </script>
 
 <style scoped>
@@ -311,6 +357,18 @@ video { width: 100%; max-height: min(480px, 80vh); display: block; cursor: point
   position: relative; height: 6px; background: #444; border-radius: 3px;
 }
 .progress-fill { height: 100%; background: #e94560; border-radius: 3px; transition: width 0.1s; }
+.branch-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: #5352ed;
+  border: 2px solid #fff;
+  cursor: pointer;
+  z-index: 3;
+}
 .time { font-size: 12px; white-space: nowrap; }
 .volume { width: 60px; accent-color: #e94560; }
 </style>

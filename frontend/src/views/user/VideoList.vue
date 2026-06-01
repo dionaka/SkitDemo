@@ -30,7 +30,7 @@
 
     <div v-if="loading" v-loading="true" style="height:200px" />
     <div v-else-if="seriesList.length === 0" class="empty">暂无短剧，请先在管理后台上传</div>
-    <div v-else class="video-grid">
+    <div v-else-if="seriesList.length" class="video-grid">
       <div
         v-for="s in seriesList"
         :key="s.id"

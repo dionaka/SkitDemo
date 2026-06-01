@@ -323,4 +323,5 @@ function onProfileTap() {
   color: var(--accent);
   margin-top: 2px;
 }
+
 </style>

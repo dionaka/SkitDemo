@@ -14,11 +14,20 @@
         ref="playerRef"
         :src="videoUrl"
         :highlights="highlights"
+        :branch-points="branchPoints"
         :start-time="startTime"
         @highlight-reached="onHighlightReached"
+        @branch-reached="onBranchReached"
         @timeupdate="onTimeUpdate"
         @pause="onPause"
       />
+
+      <div v-if="branchSegmentVisible" class="branch-segment-wrap">
+        <BranchSegmentPlayer
+          :asset="branchPlayback.asset"
+          @segment-ended="onBranchSegmentEnded"
+        />
+      </div>
 
       <div class="highlight-list">
         <h3>高光点时间轴</h3>
@@ -36,6 +45,22 @@
           </div>
         </div>
       </div>
+
+      <div v-if="branchPoints.length" class="highlight-list branch-list">
+        <h3>剧情分支点</h3>
+        <div class="hl-items">
+          <div
+            v-for="b in branchPoints"
+            :key="b.id"
+            class="hl-item branch-item"
+            @click="seekBranchPoint(b)"
+          >
+            <span class="hl-time">{{ formatTime(b.timestamp) }}</span>
+            <span class="hl-title">{{ b.title }}</span>
+            <span class="hl-tag branch-tag">分支</span>
+          </div>
+        </div>
+      </div>
     </template>
 
     <div v-else-if="!loading" class="play-empty">
@@ -50,6 +75,15 @@
       :selected="hasSelected"
       @select="onSelectOption"
     />
+
+    <BranchChoicePanel
+      :visible="branchPanelVisible"
+      :title="currentBranchPoint?.title || '剧情分叉'"
+      :choices="branchChoices"
+      :stats="branchStats"
+      :loading="branchChoosing"
+      @select="onBranchSelect"
+    />
   </div>
 </template>
 
@@ -59,7 +93,10 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import VideoPlayer from '@/components/VideoPlayer/VideoPlayer.vue';
 import InteractionPanel from '@/components/InteractionPanel/InteractionPanel.vue';
+import BranchChoicePanel from '@/branch/components/BranchChoicePanel.vue';
+import BranchSegmentPlayer from '@/branch/components/BranchSegmentPlayer.vue';
 import PageBackBar from '@/components/PageBackBar.vue';
+import { getBranchPointDetail, chooseBranchPoint, getBranchPointStats } from '@/api/branchPoint';
 import { getVideoDetail } from '@/api/video';
 import { recordInteraction, getInteractionStats } from '@/api/interaction';
 import { getWatchProgress, saveWatchProgress } from '@/api/watchProgress';
@@ -75,7 +112,16 @@ const loading = ref(true);
 const loadError = ref('');
 const video = ref(null);
 const highlights = ref([]);
+const branchPoints = ref([]);
 const playerRef = ref(null);
+const branchPanelVisible = ref(false);
+const branchSegmentVisible = ref(false);
+const currentBranchPoint = ref(null);
+const branchChoices = ref([]);
+const branchStats = ref(null);
+const branchChoosing = ref(false);
+const branchPlayback = ref({ asset: null });
+const resumeAfterBranch = ref(0);
 const panelVisible = ref(false);
 const currentHighlight = ref(null);
 const interactionStats = ref(null);
@@ -98,6 +144,7 @@ async function loadVideo() {
     const data = await getVideoDetail(route.params.id);
     video.value = data.video;
     highlights.value = data.highlights || [];
+    branchPoints.value = data.branch_points || [];
 
     const local = getLocalProgress(videoId.value);
     let remote = 0;
@@ -162,10 +209,58 @@ function onPause(seconds) {
 }
 
 function onHighlightReached(highlight) {
+  if (branchPanelVisible.value || branchSegmentVisible.value) return;
   currentHighlight.value = highlight;
   panelVisible.value = true;
   hasSelected.value = false;
   loadStats(highlight.id);
+}
+
+async function onBranchReached(point) {
+  if (panelVisible.value || branchSegmentVisible.value) return;
+  playerRef.value?.pause();
+  resumeAfterBranch.value = playerRef.value?.getCurrentTime?.() || point.timestamp;
+  currentBranchPoint.value = point;
+  branchPanelVisible.value = true;
+  branchChoosing.value = false;
+  try {
+    const data = await getBranchPointDetail(point.id);
+    currentBranchPoint.value = data.branch_point;
+    branchChoices.value = data.branch_point.choices || [];
+    branchStats.value = await getBranchPointStats(point.id);
+  } catch {
+    branchChoices.value = [];
+  }
+}
+
+async function onBranchSelect(choice) {
+  branchChoosing.value = true;
+  try {
+    const result = await chooseBranchPoint(currentBranchPoint.value.id, {
+      choice_id: choice.id,
+      user_session_id: session.userSessionId,
+    });
+    branchPanelVisible.value = false;
+    branchPlayback.value = { asset: result.asset };
+    branchSegmentVisible.value = true;
+    ElMessage.success(`已选择「${result.choice.option_label}」`);
+  } finally {
+    branchChoosing.value = false;
+  }
+}
+
+function onBranchSegmentEnded() {
+  branchSegmentVisible.value = false;
+  branchPlayback.value = { asset: null };
+  const t = resumeAfterBranch.value;
+  if (playerRef.value?.jumpTo) {
+    playerRef.value.jumpTo(t);
+  }
+  playerRef.value?.play?.();
+}
+
+function seekBranchPoint(b) {
+  playerRef.value?.jumpToBranch?.(b.timestamp, b.id);
 }
 
 async function onSelectOption(option) {
@@ -220,4 +315,13 @@ function categoryLabel(c) { return labels[c] || c; }
 .hl-item.reversal .hl-tag { background: #ffa502; }
 .hl-item.sweet .hl-tag { background: #ff6b81; }
 .hl-item.scene .hl-tag { background: #5352ed; }
+.branch-list { margin-top: 16px; }
+.branch-item { border-left: 3px solid #5352ed; }
+.branch-tag { background: #5352ed !important; }
+.branch-segment-wrap {
+  margin: 16px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(83, 82, 237, 0.2);
+}
 </style>

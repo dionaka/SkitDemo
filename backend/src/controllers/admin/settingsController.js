@@ -1,5 +1,8 @@
 const secretsService = require('../../services/secretsService');
 const aiModelService = require('../../services/aiModelService');
+const branchTtsService = require('../../branch/branchTtsService');
+const branchImageService = require('../../branch/branchImageService');
+const { explainImageApiError } = require('../../branch/branchImageErrors');
 const { success, fail } = require('../../utils/response');
 
 exports.getAiSettings = (_req, res) => {
@@ -8,9 +11,15 @@ exports.getAiSettings = (_req, res) => {
 
 exports.saveAiSettings = (req, res) => {
   try {
-    const { endpoint, api_key, base_url, video_fps } = req.body;
+    const { endpoint, api_key, base_url, video_fps, image_model, image_endpoint, image_size, image_api_key } = req.body;
     if (!endpoint) {
       return res.status(400).json(fail(400, 'Endpoint ID 不能为空'));
+    }
+    if (image_endpoint && !String(image_endpoint).startsWith('ep-')) {
+      return res.status(400).json(fail(400, '图生图 Endpoint 必须以 ep- 开头（Seedream 推理接入点，不是模型名）'));
+    }
+    if (image_endpoint && image_endpoint === endpoint) {
+      return res.status(400).json(fail(400, '图生图 Endpoint 不能与视频分析 Endpoint 相同，请为 Seedream 单独创建接入点'));
     }
 
     const current = secretsService.getAiCredentials();
@@ -23,6 +32,10 @@ exports.saveAiSettings = (req, res) => {
       endpoint,
       baseUrl: base_url,
       videoFps: video_fps != null ? Number(video_fps) : undefined,
+      imageModel: image_model,
+      imageEndpoint: image_endpoint,
+      imageApiKey: image_api_key,
+      imageSize: image_size,
     });
 
     res.json(success(data, 'AI 配置已加密保存到本地'));
@@ -33,7 +46,7 @@ exports.saveAiSettings = (req, res) => {
 
 exports.testAiSettings = async (req, res) => {
   try {
-    const { endpoint, api_key, base_url, video_fps } = req.body || {};
+    const { endpoint, api_key, base_url, video_fps, image_model, image_endpoint, image_size } = req.body || {};
     const current = secretsService.getAiCredentials();
 
     const creds = {
@@ -41,6 +54,9 @@ exports.testAiSettings = async (req, res) => {
       endpoint: endpoint || current?.endpoint,
       baseUrl: base_url || current?.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3',
       videoFps: Number(video_fps ?? current?.videoFps ?? 1),
+      imageModel: image_model || current?.imageModel,
+      imageEndpoint: image_endpoint || current?.imageEndpoint,
+      imageSize: image_size || current?.imageSize || '1280x720',
     };
 
     if (!creds.apiKey || !creds.endpoint) {
@@ -54,7 +70,91 @@ exports.testAiSettings = async (req, res) => {
   }
 };
 
+exports.testImageSettings = async (req, res) => {
+  try {
+    const { api_key, base_url, image_endpoint, image_size, image_api_key } = req.body || {};
+    const current = secretsService.getAiCredentials();
+    const imageEndpoint = image_endpoint || current?.imageEndpoint;
+
+    if (!imageEndpoint?.startsWith('ep-')) {
+      return res.status(400).json(fail(400, '请先填写 Seedream 图生图 Endpoint（ep- 开头）'));
+    }
+
+    const creds = {
+      apiKey: image_api_key || api_key || current?.imageApiKey || current?.apiKey,
+      model: imageEndpoint,
+      baseUrl: base_url || current?.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3',
+      size: image_size || current?.imageSize || '2K',
+    };
+
+    if (!creds.apiKey) {
+      return res.status(400).json(fail(400, '请先配置 API Key'));
+    }
+
+    await branchImageService.testConnection(creds);
+    res.json(success({ connected: true, endpoint: imageEndpoint }, '图生图连接测试成功'));
+  } catch (err) {
+    const detail = explainImageApiError(err.message);
+    res.status(400).json(fail(400, detail));
+  }
+};
+
 exports.deleteAiSettings = (_req, res) => {
   secretsService.clearAiCredentials();
   res.json(success(null, 'AI 配置已清除'));
+};
+
+exports.getTtsSettings = (_req, res) => {
+  res.json(success(secretsService.getTtsSettingsMasked()));
+};
+
+exports.saveTtsSettings = (req, res) => {
+  try {
+    const { app_id, access_token, cluster, voice_type, base_url } = req.body;
+    if (!app_id) {
+      return res.status(400).json(fail(400, 'App ID 不能为空'));
+    }
+
+    const current = secretsService.getTtsCredentials();
+    if (!access_token && !current?.accessToken) {
+      return res.status(400).json(fail(400, '首次配置必须填写 Access Token'));
+    }
+
+    const data = secretsService.saveTtsCredentials({
+      appId: app_id,
+      accessToken: access_token || undefined,
+      cluster,
+      voiceType: voice_type,
+      baseUrl: base_url,
+    });
+
+    res.json(success(data, 'TTS 配置已加密保存到本地'));
+  } catch (err) {
+    res.status(500).json(fail(500, err.message));
+  }
+};
+
+exports.testTtsSettings = async (req, res) => {
+  try {
+    const { app_id, access_token, cluster, voice_type, base_url } = req.body || {};
+    const current = secretsService.getTtsCredentials();
+
+    const creds = {
+      appId: app_id || current?.appId,
+      accessToken: access_token || current?.accessToken,
+      cluster: cluster || current?.cluster || 'volcano_tts',
+      voiceType: voice_type || current?.voiceType || 'BV700_streaming',
+      baseUrl: base_url || current?.baseUrl || 'https://openspeech.bytedance.com/api/v1/tts',
+    };
+
+    await branchTtsService.testDoubaoTts(creds);
+    res.json(success({ connected: true }, 'TTS 连接测试成功'));
+  } catch (err) {
+    res.status(400).json(fail(400, `连接测试失败: ${err.message}`));
+  }
+};
+
+exports.deleteTtsSettings = (_req, res) => {
+  secretsService.clearTtsCredentials();
+  res.json(success(null, 'TTS 配置已清除'));
 };

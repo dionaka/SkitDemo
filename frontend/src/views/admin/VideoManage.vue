@@ -68,6 +68,9 @@
       <el-table-column prop="title" label="单集标题" min-width="120" />
       <el-table-column prop="total_duration" label="时长(秒)" width="100" />
       <el-table-column prop="highlight_count" label="高光点" width="80" />
+      <el-table-column label="分支点" width="80">
+        <template #default="{ row }">{{ row.branch_point_count ?? 0 }}</template>
+      </el-table-column>
       <el-table-column label="状态" width="80">
         <template #default="{ row }">
           <el-tag :type="row.status === 1 ? 'success' : 'info'">
@@ -86,6 +89,9 @@
           </el-button>
           <el-button size="small" @click="$router.push(`/admin/highlights/${row.id}`)">
             管理高光
+          </el-button>
+          <el-button size="small" type="warning" @click="$router.push(`/admin/branch-points/${row.id}`)">
+            管理分支
           </el-button>
           <el-button
             v-if="row.status !== 1"

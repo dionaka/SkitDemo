@@ -42,4 +42,14 @@ export const saveAiSettings = (data) => request.put('/api/admin/settings/ai', da
 
 export const testAiSettings = (data) => request.post('/api/admin/settings/ai/test', data);
 
+export const testImageSettings = (data) => request.post('/api/admin/settings/ai/test-image', data);
+
 export const deleteAiSettings = () => request.delete('/api/admin/settings/ai');
+
+export const getTtsSettings = () => request.get('/api/admin/settings/tts');
+
+export const saveTtsSettings = (data) => request.put('/api/admin/settings/tts', data);
+
+export const testTtsSettings = (data) => request.post('/api/admin/settings/tts/test', data);
+
+export const deleteTtsSettings = () => request.delete('/api/admin/settings/tts');

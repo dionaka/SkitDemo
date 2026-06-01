@@ -29,11 +29,12 @@
         :src="videoUrl"
 
         :highlights="highlights"
-
+        :branch-points="branchPoints"
         :start-time="startTime"
-        :overlay-visible="panelVisible"
+        :overlay-visible="panelVisible || branchPanelVisible"
 
         @highlight-reached="onHighlightReached"
+        @branch-reached="onBranchReached"
 
         @timeupdate="onTimeUpdate"
 
@@ -45,6 +46,7 @@
       >
         <template #overlay>
           <InteractionPanel
+            v-if="panelVisible"
             :visible="panelVisible"
             :highlight="currentHighlight"
             :stats="interactionStats"
@@ -55,8 +57,22 @@
             :countdown-seconds="countdownSeconds"
             @select="onSelectOption"
           />
+          <BranchChoicePanel
+            v-if="branchPanelVisible"
+            :visible="branchPanelVisible"
+            :title="currentBranchPoint?.title"
+            :choices="branchChoices"
+            :stats="branchStats"
+            :loading="branchChoosing"
+            @select="onBranchSelect"
+            @dismiss="closeBranchPanel"
+          />
         </template>
       </VideoPlayer>
+
+      <div v-if="branchSegmentVisible" class="branch-segment-mobile">
+        <BranchSegmentPlayer :asset="branchPlayback.asset" @segment-ended="onBranchSegmentEnded" />
+      </div>
 
 
 
@@ -124,6 +140,9 @@ import { useRoute, useRouter } from 'vue-router';
 import VideoPlayer from '@/components/VideoPlayer/VideoPlayer.vue';
 
 import InteractionPanel from '@/components/InteractionPanel/InteractionPanel.vue';
+import BranchChoicePanel from '@/branch/components/BranchChoicePanel.vue';
+import BranchSegmentPlayer from '@/branch/components/BranchSegmentPlayer.vue';
+import { getBranchPointDetail, chooseBranchPoint, getBranchPointStats } from '@/api/branchPoint';
 
 import PageBackBar from '@/components/PageBackBar.vue';
 
@@ -158,6 +177,15 @@ const loadError = ref('');
 const video = ref(null);
 
 const highlights = ref([]);
+const branchPoints = ref([]);
+const branchPanelVisible = ref(false);
+const branchSegmentVisible = ref(false);
+const currentBranchPoint = ref(null);
+const branchChoices = ref([]);
+const branchStats = ref(null);
+const branchChoosing = ref(false);
+const branchPlayback = ref({ asset: null });
+const resumeAfterBranch = ref(0);
 
 const playerRef = ref(null);
 
@@ -220,6 +248,7 @@ async function loadVideo() {
     video.value = data.video;
 
     highlights.value = data.highlights || [];
+    branchPoints.value = data.branch_points || [];
 
 
 
@@ -354,7 +383,52 @@ function showToast(msg) {
 
 
 
+async function onBranchReached(point) {
+  if (panelVisible.value || branchSegmentVisible.value) return;
+  stopCountdown();
+  playerRef.value?.pause();
+  resumeAfterBranch.value = playerRef.value?.getCurrentTime?.() || point.timestamp;
+  currentBranchPoint.value = point;
+  branchPanelVisible.value = true;
+  try {
+    const data = await getBranchPointDetail(point.id);
+    currentBranchPoint.value = data.branch_point;
+    branchChoices.value = data.branch_point.choices || [];
+    branchStats.value = await getBranchPointStats(point.id);
+  } catch {
+    branchChoices.value = [];
+  }
+}
+
+async function onBranchSelect(choice) {
+  branchChoosing.value = true;
+  try {
+    const result = await chooseBranchPoint(currentBranchPoint.value.id, {
+      choice_id: choice.id,
+      user_session_id: session.userSessionId,
+    });
+    branchPanelVisible.value = false;
+    branchPlayback.value = { asset: result.asset };
+    branchSegmentVisible.value = true;
+    showToast(`已选择「${result.choice.option_label}」`);
+  } finally {
+    branchChoosing.value = false;
+  }
+}
+
+function closeBranchPanel() {
+  branchPanelVisible.value = false;
+}
+
+function onBranchSegmentEnded() {
+  branchSegmentVisible.value = false;
+  branchPlayback.value = { asset: null };
+  playerRef.value?.jumpTo?.(resumeAfterBranch.value);
+  playerRef.value?.play?.();
+}
+
 function onHighlightReached(highlight) {
+  if (branchPanelVisible.value || branchSegmentVisible.value) return;
 
   currentHighlight.value = highlight;
 
@@ -569,6 +643,12 @@ function categoryLabel(c) { return labels[c] || c; }
 .hl-item.reversal .hl-tag { background: #ffa502; }
 .hl-item.sweet .hl-tag { background: #ff6b81; }
 .hl-item.scene .hl-tag { background: #5352ed; }
+
+.branch-segment-mobile {
+  margin: 12px 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
 
 </style>
 

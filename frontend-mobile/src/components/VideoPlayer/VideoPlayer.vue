@@ -94,11 +94,12 @@ import {
 const props = defineProps({
   src: String,
   highlights: { type: Array, default: () => [] },
+  branchPoints: { type: Array, default: () => [] },
   startTime: { type: Number, default: 0 },
   overlayVisible: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['highlight-reached', 'timeupdate', 'pause', 'fullscreen-change', 'overlay-dismiss']);
+const emit = defineEmits(['highlight-reached', 'branch-reached', 'timeupdate', 'pause', 'fullscreen-change', 'overlay-dismiss']);
 
 const speedOptions = [0.75, 1, 1.25, 1.5, 2];
 
@@ -115,6 +116,7 @@ const isFullscreen = ref(false);
 const cssFullscreen = ref(false);
 const videoIsPortrait = ref(true);
 const triggeredIds = ref(new Set());
+const branchTriggeredIds = ref(new Set());
 const effectType = ref('');
 const showEffect = ref(false);
 const hasAppliedStart = ref(false);
@@ -164,6 +166,13 @@ function onTimeUpdate() {
     if (!triggeredIds.value.has(h.id) && Math.abs(currentTime.value - h.timestamp) < 0.8) {
       triggeredIds.value.add(h.id);
       emit('highlight-reached', h);
+    }
+  });
+
+  props.branchPoints.forEach((b) => {
+    if (!branchTriggeredIds.value.has(b.id) && Math.abs(currentTime.value - b.timestamp) < 0.8) {
+      branchTriggeredIds.value.add(b.id);
+      emit('branch-reached', b);
     }
   });
 }
@@ -299,7 +308,26 @@ onUnmounted(() => {
   }
 });
 
-defineExpose({ playEffect, jumpTo, resetTriggers, getCurrentTime });
+function pause() {
+  videoRef.value?.pause();
+  playing.value = false;
+}
+
+function play() {
+  videoRef.value?.play().catch(() => {});
+  playing.value = true;
+}
+
+function jumpToBranch(time, id) {
+  if (videoRef.value) {
+    videoRef.value.currentTime = time;
+    if (id) branchTriggeredIds.value.delete(id);
+  }
+}
+
+defineExpose({
+  playEffect, jumpTo, jumpToBranch, resetTriggers, getCurrentTime, pause, play,
+});
 </script>
 
 <style scoped>

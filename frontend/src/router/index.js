@@ -23,6 +23,12 @@ const routes = [
     component: () => import('@/views/admin/ApiSettings.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/admin/branch-points/:videoId',
+    name: 'BranchPointManage',
+    component: () => import('@/views/admin/BranchPointManage.vue'),
+    meta: { requiresAuth: true },
+  },
 ];
 
 const router = createRouter({ history: createWebHistory(), routes });
