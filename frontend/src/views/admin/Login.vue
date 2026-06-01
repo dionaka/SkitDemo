@@ -81,12 +81,16 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-/* 布局完全对齐 smartai/index.css + 登陆页面.html，无 scale、无 @media */
+/* 布局对齐原站；窄屏通过 rem 根字号等比缩小，保持左右分栏比例不变 */
 .login-page {
   min-height: 100vh;
   position: relative;
-  font-size: 10px;
+  /* 90rem 卡片宽 = 90 × 根字号；窄屏根字号缩小使整卡 fit 屏宽，避免手机默认放大到左上角 */
+  font-size: min(10px, calc((100vw - 2rem) / 90));
   box-sizing: border-box;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .login-page::before {
@@ -146,7 +150,7 @@ async function handleLogin() {
 }
 
 .acc {
-  font-size: 35px;
+  font-size: 3.5rem;
   font-weight: 400;
   font-family: 楷体, KaiTi, serif;
   color: #333;
@@ -168,8 +172,8 @@ async function handleLogin() {
 }
 
 #登录 {
-  width: 378px;
-  height: 42px;
+  width: 37.8rem;
+  height: 4.2rem;
   background: #ffc028;
   border: 2px dashed pink;
   color: white;
@@ -189,7 +193,7 @@ async function handleLogin() {
 }
 
 .fn {
-  font-size: 13px;
+  font-size: 1.3rem;
 }
 
 .fn .hint {
