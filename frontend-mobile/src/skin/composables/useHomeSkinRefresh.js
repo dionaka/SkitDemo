@@ -1,16 +1,18 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 
-const PULL_THRESHOLD = 64;
-const MAX_PULL = 100;
+const PULL_THRESHOLD = 56;
+const MAX_PULL = 96;
 
-function isHomeRoute() {
-  return window.location.pathname === '/' || window.location.pathname === '';
+/** Capacitor / Vue 使用 Hash 路由，不能用 pathname 判断首页 */
+export function isHomeHashRoute() {
+  const hash = window.location.hash || '#/';
+  return hash === '#/' || hash === '' || hash.startsWith('#/?');
 }
 
 /**
- * 仅在首页顶栏遮罩区（顶栏 + 分类栏分界上方）触发下拉刷新。
+ * 首页下拉刷新：在顶栏 + 分类栏区域下拉，从分界处展开动效。
  */
-export function useHomeSkinRefresh(onRefresh) {
+export function useHomeSkinRefresh(onRefresh, pullAnchorRef) {
   const pullDistance = ref(0);
   const isRefreshing = ref(false);
   const isPulling = ref(false);
@@ -21,22 +23,34 @@ export function useHomeSkinRefresh(onRefresh) {
 
   function isInPullZone(clientY) {
     const topNav = document.querySelector('.home-top-nav');
-    if (!topNav) return false;
+    let top = 0;
+    let bottom = 160;
 
-    const navRect = topNav.getBoundingClientRect();
-    let bottom = navRect.bottom;
+    if (topNav) {
+      const navRect = topNav.getBoundingClientRect();
+      top = navRect.top;
+      bottom = navRect.bottom;
+    }
 
     const spacer = document.querySelector('.home .nav-spacer');
     if (spacer) {
-      bottom = spacer.getBoundingClientRect().bottom;
+      bottom = Math.max(bottom, spacer.getBoundingClientRect().bottom);
     }
 
-    return clientY >= navRect.top && clientY <= bottom + 8;
+    const anchor = pullAnchorRef?.value;
+    if (anchor) {
+      const anchorRect = anchor.getBoundingClientRect();
+      top = Math.min(top, anchorRect.top);
+      bottom = anchorRect.bottom;
+    }
+
+    return clientY >= top && clientY <= bottom + 16;
   }
 
   async function runRefresh() {
     if (isRefreshing.value) return;
     isRefreshing.value = true;
+    pullDistance.value = PULL_THRESHOLD;
     try {
       await onRefresh?.();
     } finally {
@@ -44,12 +58,12 @@ export function useHomeSkinRefresh(onRefresh) {
         isRefreshing.value = false;
         pullDistance.value = 0;
         isPulling.value = false;
-      }, 520);
+      }, 600);
     }
   }
 
   function onTouchStart(event) {
-    if (!isHomeRoute()) return;
+    if (!isHomeHashRoute()) return;
     if (!scrollEl || scrollEl.scrollTop > 2 || isRefreshing.value) return;
     if (!isInPullZone(event.touches[0].clientY)) return;
 
@@ -68,8 +82,8 @@ export function useHomeSkinRefresh(onRefresh) {
     }
 
     isPulling.value = true;
-    pullDistance.value = Math.min(MAX_PULL, delta * 0.5);
-    if (pullDistance.value > 6) event.preventDefault();
+    pullDistance.value = Math.min(MAX_PULL, delta * 0.55);
+    if (pullDistance.value > 4) event.preventDefault();
   }
 
   function onTouchEnd() {

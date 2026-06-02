@@ -13,10 +13,11 @@
     >
       <span class="skin-tab-icon-wrap">
         <img
-          v-if="tab.iconSrc"
+          v-if="tab.showIcon"
           :src="tab.iconSrc"
           :alt="tab.label"
           class="skin-tab-icon-img"
+          @error="onIconError(tab.id)"
         />
         <span v-else class="skin-tab-icon-fallback">{{ tab.fallbackIcon }}</span>
       </span>
@@ -33,6 +34,7 @@ import { useSkinStore } from '../store/skinStore';
 const route = useRoute();
 const skin = useSkinStore();
 const bounceId = ref('');
+const brokenIcons = ref(new Set());
 
 const fallbackTabs = [
   { id: 'home', to: '/', label: '首页', fallbackIcon: '🏠' },
@@ -58,9 +60,11 @@ const tabs = computed(() => {
     const iconSrc = active
       ? (match?.iconActive || match?.icon || '')
       : (match?.icon || match?.iconActive || '');
+    const showIcon = Boolean(iconSrc) && !brokenIcons.value.has(fallback.id);
     return {
       ...fallback,
       iconSrc,
+      showIcon,
       fallbackIcon: match?.fallbackIcon || fallback.fallbackIcon,
       active,
       animate: tabBar.value?.animateIcons,
@@ -68,30 +72,37 @@ const tabs = computed(() => {
   });
 });
 
+function onIconError(tabId) {
+  brokenIcons.value.add(tabId);
+}
+
 function itemStyle(active) {
   return { color: active ? 'var(--skin-tab-active)' : 'var(--skin-tab-inactive)' };
 }
 
 function onTabClick(tab) {
-  if (!tabBar.value?.animateIcons) return;
-
   const isHomeRefresh = tab.id === 'home' && route.path === '/';
   if (isHomeRefresh) {
     skin.triggerHomeRefresh();
   }
 
-  bounceId.value = tab.id;
-  setTimeout(() => {
-    if (bounceId.value === tab.id) bounceId.value = '';
-  }, 520);
+  if (tabBar.value?.animateIcons) {
+    bounceId.value = tab.id;
+    setTimeout(() => {
+      if (bounceId.value === tab.id) bounceId.value = '';
+    }, 520);
+  }
 }
 
 watch(() => skin.refreshToken, () => {
-  if (!tabBar.value?.animateIcons) return;
   bounceId.value = 'home';
   setTimeout(() => {
     if (bounceId.value === 'home') bounceId.value = '';
   }, 520);
+});
+
+watch(() => skin.tabBarTheme, () => {
+  brokenIcons.value = new Set();
 });
 </script>
 
@@ -141,12 +152,15 @@ watch(() => skin.refreshToken, () => {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
 }
 
 .skin-tab-icon-img {
   width: 34px;
   height: 34px;
   object-fit: contain;
+  display: block;
+  background: transparent;
 }
 
 .skin-tab-icon-fallback {

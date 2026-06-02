@@ -20,24 +20,26 @@
     </div>
 
     <template v-else>
-      <div
-        class="home-refresh-reveal"
-        :class="{ pulling: isPulling, refreshing: isRefreshing }"
-        :style="{ height: `${refreshRevealHeight}px` }"
-      >
-        <SkinRefreshEffect
-          :pull-distance="pullDistance"
-          :is-pulling="isPulling"
-          :is-refreshing="isRefreshing"
+      <div ref="pullAnchorRef" class="home-pull-anchor">
+        <div
+          class="home-refresh-reveal"
+          :class="{ pulling: isPulling, refreshing: isRefreshing }"
+          :style="{ height: `${refreshRevealHeight}px` }"
+        >
+          <SkinRefreshEffect
+            :pull-distance="pullDistance"
+            :is-pulling="isPulling"
+            :is-refreshing="isRefreshing"
+          />
+        </div>
+
+        <HomeCategoryBar
+          ref="categoryBarRef"
+          :model-value="activeCategory"
+          :pinned="scrollY > 56"
+          @update:model-value="onCategoryPick"
         />
       </div>
-
-      <HomeCategoryBar
-        ref="categoryBarRef"
-        :model-value="activeCategory"
-        :pinned="scrollY > 56"
-        @update:model-value="onCategoryPick"
-      />
 
       <section v-if="continueList.length" class="section continue-section">
         <div class="section-header">
@@ -144,6 +146,7 @@ const loading = ref(true);
 const error = ref('');
 const activeCategory = ref('hot');
 const categoryBarRef = ref(null);
+const pullAnchorRef = ref(null);
 
 const { swiperRef, scrollToCategory, initSwiper } = useCategorySwiper(homeCategories, activeCategory);
 
@@ -177,10 +180,11 @@ const {
   pullDistance,
   isPulling,
   isRefreshing,
-} = useHomeSkinRefresh(loadData);
+  runRefresh,
+} = useHomeSkinRefresh(loadData, pullAnchorRef);
 
 const refreshRevealHeight = computed(() => {
-  if (isRefreshing.value) return 52;
+  if (isRefreshing.value) return 56;
   return Math.max(0, Math.round(pullDistance.value));
 });
 
@@ -231,7 +235,7 @@ function titleFor(categoryId) {
 onMounted(loadData);
 
 watch(() => skinStore.refreshToken, () => {
-  if (skinStore.isActive) loadData();
+  runRefresh();
 });
 
 function onCategoryPick(id) {
@@ -257,6 +261,11 @@ function onProfileTap() {
 .home {
   --home-chrome-top: calc(76px + var(--safe-top) + 54px);
   padding-bottom: 8px;
+}
+
+.home-pull-anchor {
+  position: relative;
+  z-index: 55;
 }
 
 .home-refresh-reveal {

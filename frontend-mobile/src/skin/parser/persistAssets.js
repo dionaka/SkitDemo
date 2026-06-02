@@ -43,7 +43,7 @@ async function loadImageFromUrl(url) {
   return loadImageFromBlob(blob);
 }
 
-async function compressToDataUrl(source, maxWidth, quality, maxBytes) {
+async function compressToDataUrl(source, maxWidth, quality, maxBytes, mime = 'image/jpeg') {
   try {
     const img = isDataUrl(source)
       ? await loadImageFromUrl(source)
@@ -63,8 +63,13 @@ async function compressToDataUrl(source, maxWidth, quality, maxBytes) {
       canvas.height = h;
       const ctx = canvas.getContext('2d');
       if (!ctx) return '';
+      if (mime === 'image/png') {
+        ctx.clearRect(0, 0, w, h);
+      }
       ctx.drawImage(img, 0, 0, w, h);
-      const dataUrl = canvas.toDataURL('image/jpeg', q);
+      const dataUrl = mime === 'image/png'
+        ? canvas.toDataURL('image/png')
+        : canvas.toDataURL('image/jpeg', q);
       if (dataUrlByteSize(dataUrl) <= maxBytes) return dataUrl;
       width = Math.round(width * 0.75);
       q = Math.max(0.5, q - 0.08);
@@ -75,17 +80,30 @@ async function compressToDataUrl(source, maxWidth, quality, maxBytes) {
   }
 }
 
-async function normalizeAsset(url, { maxWidth, quality, maxBytes }) {
+async function normalizeAsset(url, { maxWidth, quality, maxBytes, preserveAlpha = false }) {
   if (!url) return '';
   if (isRemoteUrl(url)) return url;
+  const mime = preserveAlpha ? 'image/png' : 'image/jpeg';
   if (isDataUrl(url)) {
-    if (dataUrlByteSize(url) <= maxBytes) return url;
-    return compressToDataUrl(url, maxWidth, quality, maxBytes);
+    if (preserveAlpha && url.startsWith('data:image/png') && dataUrlByteSize(url) <= maxBytes) {
+      return url;
+    }
+    if (!preserveAlpha && dataUrlByteSize(url) <= maxBytes) return url;
+    return compressToDataUrl(url, maxWidth, quality, maxBytes, mime);
   }
   if (isBlobUrl(url)) {
-    return compressToDataUrl(url, maxWidth, quality, maxBytes);
+    return compressToDataUrl(url, maxWidth, quality, maxBytes, mime);
   }
   return url;
+}
+
+async function normalizeIcon(url) {
+  return normalizeAsset(url, {
+    maxWidth: 72,
+    quality: 0.9,
+    maxBytes: MAX_ICON_BYTES,
+    preserveAlpha: true,
+  });
 }
 
 function estimateThemeBytes(theme) {
@@ -155,26 +173,14 @@ export async function prepareThemeForCloud(theme) {
   };
   next.refresh = {
     ...next.refresh,
-    icon: await normalizeAsset(next.refresh?.icon, {
-      maxWidth: 96,
-      quality: 0.82,
-      maxBytes: MAX_ICON_BYTES,
-    }),
+    icon: await normalizeIcon(next.refresh?.icon),
   };
 
   if (Array.isArray(next.tabBar?.tabs)) {
     next.tabBar.tabs = await Promise.all(next.tabBar.tabs.map(async (tab) => ({
       ...tab,
-      icon: await normalizeAsset(tab.icon, {
-        maxWidth: 80,
-        quality: 0.82,
-        maxBytes: MAX_ICON_BYTES,
-      }),
-      iconActive: await normalizeAsset(tab.iconActive, {
-        maxWidth: 80,
-        quality: 0.82,
-        maxBytes: MAX_ICON_BYTES,
-      }),
+      icon: await normalizeIcon(tab.icon),
+      iconActive: await normalizeIcon(tab.iconActive),
     })));
   }
 

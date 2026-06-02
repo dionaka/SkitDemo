@@ -47,6 +47,9 @@ export const useSessionStore = defineStore('session', {
       import('./appBackground').then(({ useAppBackgroundStore }) => {
         useAppBackgroundStore().fetchFromCloud().catch(() => {});
       });
+      import('@/skin').then(({ useSkinStore }) => {
+        useSkinStore().fetchFromCloud().catch(() => {});
+      });
     },
     updateAvatar(avatarUrl) {
       this.avatarUrl = avatarUrl || '';
@@ -65,6 +68,9 @@ export const useSessionStore = defineStore('session', {
       localStorage.setItem('user_session_id', nextId);
       import('./appBackground').then(({ useAppBackgroundStore }) => {
         useAppBackgroundStore().resetLocal();
+      });
+      import('@/skin').then(({ useSkinStore }) => {
+        useSkinStore().resetLocal();
       });
     },
   },

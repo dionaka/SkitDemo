@@ -62,6 +62,10 @@ export const useSkinStore = defineStore('bilibiliSkin', {
       this.theme = theme || EMPTY_THEME;
     },
 
+    resetLocal() {
+      this.theme = EMPTY_THEME;
+    },
+
     applyPayload(data = {}) {
       if (!data.skin_data) {
         this.theme = EMPTY_THEME;
