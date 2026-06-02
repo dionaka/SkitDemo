@@ -4,7 +4,8 @@ import { useRoute } from 'vue-router';
 const PULL_THRESHOLD = 56;
 const MAX_PULL = 88;
 const FLOAT_TRAVEL = 56;
-const SCROLL_AT_TOP = 12;
+/** 仅允许真正在顶部时下拉刷新（容差 1px，用于子像素舍入） */
+const SCROLL_AT_TOP = 1;
 
 /** Capacitor / Vue 使用 Hash 路由 */
 export function isHomeHashRoute() {
@@ -72,7 +73,10 @@ export function useHomeSkinRefresh(onRefresh) {
 
   let scrollEl = null;
   let startY = 0;
+  let startScrollTop = 0;
+  let touchTracking = false;
   let pulling = false;
+  let startedAtTop = false;
 
   function isOnHome() {
     return route.path === '/' && isHomeRoute();
@@ -82,10 +86,30 @@ export function useHomeSkinRefresh(onRefresh) {
     return scrollEl || getHomeScrollEl();
   }
 
-  function isAtScrollTop() {
-    const el = getScrollEl();
-    if (!el) return true;
-    return el.scrollTop <= SCROLL_AT_TOP;
+  /** 所有可能滚动的容器都必须在顶部 */
+  function getMaxScrollTop() {
+    const targets = getScrollTargets();
+    if (!targets.length) return 0;
+    return Math.max(...targets.map((el) => el.scrollTop || 0));
+  }
+
+  function isStrictAtTop() {
+    return getMaxScrollTop() <= SCROLL_AT_TOP;
+  }
+
+  function resetPullState() {
+    touchTracking = false;
+    pulling = false;
+    startedAtTop = false;
+    pullDistance.value = 0;
+    isPulling.value = false;
+  }
+
+  function onScrollWhileTracking() {
+    if (!touchTracking) return;
+    if (!isStrictAtTop() || getMaxScrollTop() > startScrollTop + SCROLL_AT_TOP) {
+      resetPullState();
+    }
   }
 
   /** 在顶部时排除底栏区域即可下拉（动效仍从顶栏底滑出） */
@@ -122,45 +146,63 @@ export function useHomeSkinRefresh(onRefresh) {
 
   function onTouchStart(event) {
     if (!isOnHome() || isRefreshing.value) return;
-    if (!isAtScrollTop()) return;
+    if (!isStrictAtTop()) return;
 
     const touch = event.touches[0];
     if (!isTouchInPullArea(touch.clientY)) return;
 
     startY = touch.clientY;
-    pulling = true;
+    startScrollTop = getMaxScrollTop();
+    startedAtTop = true;
+    touchTracking = true;
+    pulling = false;
   }
 
   function onTouchMove(event) {
-    if (!pulling || !isOnHome() || !isAtScrollTop()) return;
+    if (!touchTracking || !isOnHome()) return;
+
+    // 列表已离开顶部（例如在中部「往下拉」想往上滚）则不再走刷新
+    if (!startedAtTop || !isStrictAtTop() || getMaxScrollTop() > startScrollTop + SCROLL_AT_TOP) {
+      resetPullState();
+      return;
+    }
 
     const delta = event.touches[0].clientY - startY;
     if (delta <= 0) {
+      pulling = false;
       pullDistance.value = 0;
       isPulling.value = false;
       return;
     }
 
+    pulling = true;
     isPulling.value = true;
     pullDistance.value = Math.min(MAX_PULL, delta * 0.65);
     if (pullDistance.value > 4) event.preventDefault();
   }
 
   function onTouchEnd() {
-    if (!pulling) return;
-    pulling = false;
+    if (!touchTracking) return;
 
-    if (pullDistance.value >= PULL_THRESHOLD) {
+    const canRefresh = pulling
+      && startedAtTop
+      && isStrictAtTop()
+      && getMaxScrollTop() <= startScrollTop + SCROLL_AT_TOP
+      && pullDistance.value >= PULL_THRESHOLD;
+
+    resetPullState();
+
+    if (canRefresh) {
       runRefresh();
-      return;
     }
-
-    pullDistance.value = 0;
-    isPulling.value = false;
   }
 
   onMounted(() => {
     scrollEl = getHomeScrollEl();
+    const scrollTargets = getScrollTargets();
+    for (const el of scrollTargets) {
+      el.addEventListener('scroll', onScrollWhileTracking, { passive: true });
+    }
     document.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
     document.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
     document.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
@@ -168,6 +210,10 @@ export function useHomeSkinRefresh(onRefresh) {
   });
 
   onUnmounted(() => {
+    const scrollTargets = getScrollTargets();
+    for (const el of scrollTargets) {
+      el.removeEventListener('scroll', onScrollWhileTracking);
+    }
     document.removeEventListener('touchstart', onTouchStart, { capture: true });
     document.removeEventListener('touchmove', onTouchMove, { capture: true });
     document.removeEventListener('touchend', onTouchEnd, { capture: true });
