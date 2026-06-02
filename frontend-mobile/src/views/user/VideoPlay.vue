@@ -399,6 +399,8 @@ async function flushProgress(seconds) {
 
       position_seconds: seconds,
 
+      bump_time: true,
+
     });
 
   } catch { /* silent */ }
@@ -425,6 +427,8 @@ function persistProgress(seconds, force = false) {
     user_session_id: session.userSessionId,
 
     position_seconds: seconds,
+
+    bump_time: force,
 
   }).catch(() => {});
 

@@ -218,6 +218,7 @@ async function flushProgress(seconds) {
     await saveWatchProgress(videoId.value, {
       user_session_id: session.userSessionId,
       position_seconds: seconds,
+      bump_time: true,
     });
   } catch { /* silent */ }
 }
@@ -233,6 +234,7 @@ function persistProgress(seconds, force = false) {
   saveWatchProgress(videoId.value, {
     user_session_id: session.userSessionId,
     position_seconds: seconds,
+    bump_time: force,
   }).catch(() => {});
 }
 

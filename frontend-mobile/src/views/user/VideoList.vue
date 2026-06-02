@@ -261,9 +261,14 @@ watch(apiBaseUrl, (url) => {
 });
 
 onActivated(() => {
-  if (hasServer.value && seriesList.value.length === 0 && !loading.value) {
+  if (!hasServer.value) return;
+  if (seriesList.value.length === 0 && !loading.value) {
     loadData();
+    return;
   }
+  getContinueWatching(session.userSessionId)
+    .then((data) => { continueList.value = data.list || []; })
+    .catch(() => {});
 });
 
 watch(() => skinStore.refreshToken, (token, prev) => {

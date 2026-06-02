@@ -3,7 +3,7 @@ const videoService = require('../../services/videoService');
 const { success, fail } = require('../../utils/response');
 
 exports.save = (req, res) => {
-  const { user_session_id, position_seconds } = req.body;
+  const { user_session_id, position_seconds, bump_time } = req.body;
   const videoId = req.params.videoId;
 
   if (!user_session_id) {
@@ -18,7 +18,9 @@ exports.save = (req, res) => {
     return res.status(404).json(fail(404, '视频不存在'));
   }
 
-  const data = watchProgressService.save(user_session_id, videoId, position_seconds);
+  const data = watchProgressService.save(user_session_id, videoId, position_seconds, {
+    bumpTime: Boolean(bump_time),
+  });
   res.json(success(data, '进度已保存'));
 };
 

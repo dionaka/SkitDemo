@@ -15,14 +15,26 @@ function isEligibleForContinue(positionSeconds, totalDuration) {
 
   const total = Number(totalDuration) || 0;
   if (total <= 0) return true;
-  if (total <= SHORT_VIDEO_MAX_SECONDS) {
-    return pos < Math.max(total - 1, MIN_RESUME_SECONDS);
-  }
+  // 短视频看完仍保留在「继续观看」，便于最近看过排序
+  if (total <= SHORT_VIDEO_MAX_SECONDS) return true;
   return pos < total * COMPLETE_RATIO;
 }
 
+/** 过滤从未真正看过的脏记录（误触、预加载、旧版逻辑残留） */
+function hasMeaningfulWatch(positionSeconds, watchAnchorSeconds, totalDuration) {
+  const pos = Number(positionSeconds) || 0;
+  if (pos < MIN_NEW_ENTRY_SECONDS) return false;
+  const total = Number(totalDuration) || 0;
+  // 短视频看过 8 秒以上即视为有效观看
+  if (total > 0 && total <= SHORT_VIDEO_MAX_SECONDS) return true;
+  const anchor = Number(watchAnchorSeconds) || 0;
+  if (anchor <= MIN_NEW_ENTRY_SECONDS) return true;
+  return pos - anchor >= ADVANCE_SECONDS;
+}
+
 class WatchProgressService {
-  save(userSessionId, videoId, positionSeconds) {
+  save(userSessionId, videoId, positionSeconds, options = {}) {
+    const { bumpTime = false } = options;
     const position = Math.max(0, Number(positionSeconds) || 0);
     if (position < 1) {
       return { video_id: Number(videoId), position_seconds: 0 };
@@ -34,7 +46,7 @@ class WatchProgressService {
       ? Number(existing.watch_anchor_seconds ?? existing.position_seconds) || 0
       : 0;
     const nextPosition = Math.max(prev, position);
-    const shouldBumpTime = position - anchor >= ADVANCE_SECONDS;
+    const shouldBumpTime = bumpTime || position - anchor >= ADVANCE_SECONDS;
 
     if (existing) {
       if (shouldBumpTime) {
@@ -109,6 +121,7 @@ class WatchProgressService {
   }
 
   getContinueList(userSessionId, limit = 10) {
+    // 按剧集聚合：每部剧只取 updated_at 最新的一集，避免多集轮流顶到前面
     const rows = db.prepare(`
       SELECT wp.position_seconds, wp.updated_at, wp.watch_anchor_seconds,
         v.id as video_id, v.title, v.episode_number, v.total_duration, v.series_id,
@@ -116,14 +129,28 @@ class WatchProgressService {
       FROM watch_progress wp
       JOIN video v ON v.id = wp.video_id AND v.status = 1
       JOIN series s ON s.id = v.series_id
+      JOIN (
+        SELECT v2.series_id, MAX(wp2.updated_at) AS series_updated_at
+        FROM watch_progress wp2
+        JOIN video v2 ON v2.id = wp2.video_id AND v2.status = 1
+        WHERE wp2.user_session_id = ?
+          AND wp2.position_seconds >= ?
+        GROUP BY v2.series_id
+      ) latest ON latest.series_id = v.series_id AND latest.series_updated_at = wp.updated_at
       WHERE wp.user_session_id = ?
         AND wp.position_seconds >= ?
-      ORDER BY wp.updated_at DESC
-    `).all(userSessionId, MIN_RESUME_SECONDS);
+      ORDER BY wp.updated_at DESC, wp.id DESC
+    `).all(
+      userSessionId,
+      MIN_NEW_ENTRY_SECONDS,
+      userSessionId,
+      MIN_NEW_ENTRY_SECONDS,
+    );
 
     const seenSeries = new Set();
     const list = [];
     for (const item of rows) {
+      if (!hasMeaningfulWatch(item.position_seconds, item.watch_anchor_seconds, item.total_duration)) continue;
       if (!isEligibleForContinue(item.position_seconds, item.total_duration)) continue;
       if (seenSeries.has(item.series_id)) continue;
       seenSeries.add(item.series_id);

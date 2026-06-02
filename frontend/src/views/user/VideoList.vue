@@ -50,7 +50,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onActivated } from 'vue';
 import SeriesCover from '@/components/SeriesCover.vue';
 import { getSeriesList } from '@/api/series';
 import { getContinueWatching } from '@/api/watchProgress';
@@ -62,7 +62,16 @@ const seriesList = ref([]);
 const continueList = ref([]);
 const loading = ref(true);
 
-onMounted(async () => {
+onMounted(loadData);
+
+onActivated(() => {
+  getContinueWatching(session.userSessionId)
+    .then((data) => { continueList.value = data.list || []; })
+    .catch(() => {});
+});
+
+async function loadData() {
+  loading.value = true;
   try {
     const [seriesData, continueData] = await Promise.all([
       getSeriesList(),
@@ -73,7 +82,7 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-});
+}
 
 function formatProgress(item) {
   return formatProgressLabel(item.position_seconds, item.total_duration);
