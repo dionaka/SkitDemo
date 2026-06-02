@@ -91,7 +91,7 @@ const props = defineProps({
   segmentVisible: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['highlight-reached', 'branch-reached', 'timeupdate', 'pause', 'overlay-dismiss']);
+const emit = defineEmits(['highlight-reached', 'branch-reached', 'timeupdate', 'pause', 'overlay-dismiss', 'duration']);
 
 const speedOptions = [0.75, 1, 1.25, 1.5, 2];
 
@@ -185,6 +185,7 @@ function onLoaded() {
   duration.value = videoRef.value?.duration || 0;
   applyStartTime();
   if (videoRef.value) videoRef.value.playbackRate = playbackRate.value;
+  if (duration.value > 0) emit('duration', duration.value);
 }
 
 function applyStartTime() {

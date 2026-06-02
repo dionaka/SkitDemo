@@ -21,11 +21,17 @@ exports.upload = async (req, res) => {
     const coverUrl = await coverService.resolveCoverForUpload({ videoUrl, coverFile });
     const series = seriesService.findOrCreate(seriesName);
 
+    const { probeVideoDuration } = require('../../utils/videoProbe');
+    const absPath = videoService.toAbsoluteUploadPath(videoUrl);
+    const probedDuration = absPath ? await probeVideoDuration(absPath) : null;
+    const formDuration = parseInt(req.body.total_duration, 10) || 0;
+    const totalDuration = probedDuration || formDuration || 0;
+
     const video = videoService.create({
       title,
       coverUrl,
       videoUrl,
-      totalDuration: parseInt(req.body.total_duration, 10) || 300,
+      totalDuration,
       seriesId: series.id,
       episodeNumber,
     });

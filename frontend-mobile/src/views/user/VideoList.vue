@@ -44,7 +44,7 @@
       <section v-if="continueList.length" class="section continue-section">
         <div class="section-header continue-header">
           <h2 class="section-title">继续观看</h2>
-          <button type="button" class="continue-clear-btn" @click="clearAllContinue">清空</button>
+          <button type="button" class="continue-clear-btn" @click="clearAllContinue">清空记录</button>
         </div>
         <div class="continue-scroll">
           <div
@@ -360,14 +360,14 @@ function onContinueTouchEnd() {
 async function confirmRemoveContinue(item) {
   if (confirmOpen) return;
   confirmOpen = true;
-  const ok = window.confirm(`从继续观看中移除「${item.series_title}」？`);
+  const ok = window.confirm(`删除「${item.series_title}」的播放记录？`);
   confirmOpen = false;
   if (!ok) return;
   try {
     const data = await removeContinueSeries(item.series_id, session.userSessionId);
     clearLocalProgressBatch(data.video_ids);
     continueList.value = continueList.value.filter((row) => row.series_id !== item.series_id);
-    showToast('已移除');
+    showToast('播放记录已删除');
   } catch (e) {
     showToast(e.message || '移除失败');
   }
@@ -375,13 +375,13 @@ async function confirmRemoveContinue(item) {
 
 async function clearAllContinue() {
   if (!continueList.value.length) return;
-  const ok = window.confirm('确定清空全部继续观看记录？');
+  const ok = window.confirm('确定删除全部播放记录？');
   if (!ok) return;
   try {
     const data = await clearContinueWatching(session.userSessionId);
     clearLocalProgressBatch(data.video_ids);
     continueList.value = [];
-    showToast('已清空');
+    showToast('播放记录已清空');
   } catch (e) {
     showToast(e.message || '清空失败');
   }

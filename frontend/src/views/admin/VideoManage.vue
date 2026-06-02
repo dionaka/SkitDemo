@@ -36,7 +36,8 @@
           <el-input v-model="uploadForm.title" placeholder="默认取文件名" />
         </el-form-item>
         <el-form-item label="时长(秒)">
-          <el-input-number v-model="uploadForm.total_duration" :min="10" />
+          <el-input-number v-model="uploadForm.total_duration" :min="1" />
+          <span class="field-hint">选择视频后自动检测，无需手填</span>
         </el-form-item>
         <el-form-item label="视频文件">
           <input type="file" accept="video/*" @change="onVideoFileChange" />
@@ -49,7 +50,7 @@
         </el-form-item>
       </el-form>
       <p class="upload-hint">
-        不上传封面时，系统会自动从视频第 1 秒截取一帧作为封面；第 1 集封面会同步为剧集海报。
+        不上传封面时，系统会自动从视频第 1 秒截取一帧作为封面；第 1 集封面会同步为剧集海报。上传时会自动检测视频真实时长。
       </p>
     </el-card>
 
@@ -189,7 +190,7 @@ const uploadForm = ref({
   series_title: '',
   episode_number: 1,
   title: '',
-  total_duration: 300,
+  total_duration: 60,
   videoFile: null,
   coverFile: null,
 });
@@ -197,7 +198,7 @@ const editForm = ref({
   series_title: '',
   episode_number: 1,
   title: '',
-  total_duration: 300,
+  total_duration: 60,
   cover_url: '',
   coverFile: null,
   sync_series: true,
@@ -236,7 +237,29 @@ function onVideoFileChange(e) {
     if (!uploadForm.value.series_title) {
       uploadForm.value.series_title = name;
     }
+    probeLocalVideoDuration(file).then((sec) => {
+      if (sec) uploadForm.value.total_duration = sec;
+    });
   }
+}
+
+function probeLocalVideoDuration(file) {
+  return new Promise((resolve) => {
+    if (!file) return resolve(null);
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    const url = URL.createObjectURL(file);
+    video.onloadedmetadata = () => {
+      const sec = Math.round(video.duration);
+      URL.revokeObjectURL(url);
+      resolve(Number.isFinite(sec) && sec > 0 ? sec : null);
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    video.src = url;
+  });
 }
 
 function onCoverFileChange(e) {
@@ -253,7 +276,7 @@ function openEdit(row) {
     series_title: row.series_title || '',
     episode_number: row.episode_number || 1,
     title: row.title || '',
-    total_duration: row.total_duration || 300,
+    total_duration: row.total_duration || 60,
     cover_url: row.cover_url || '',
     coverFile: null,
     sync_series: row.episode_number === 1,
@@ -267,7 +290,7 @@ function resetEditForm() {
     series_title: '',
     episode_number: 1,
     title: '',
-    total_duration: 300,
+    total_duration: 60,
     cover_url: '',
     coverFile: null,
     sync_series: true,
@@ -327,7 +350,7 @@ async function handleUpload() {
       series_title: '',
       episode_number: 1,
       title: '',
-      total_duration: 300,
+      total_duration: 60,
       videoFile: null,
       coverFile: null,
     };
@@ -403,6 +426,7 @@ function logout() {
 .upload-card { margin-bottom: 8px; }
 .upload-card h3 { margin-bottom: 16px; }
 .upload-hint { font-size: 12px; color: #999; margin-top: 8px; line-height: 1.6; }
+.field-hint { margin-left: 8px; font-size: 12px; color: #999; }
 .edit-hint { font-size: 12px; color: #999; margin: 0; line-height: 1.5; }
 .cover-thumb {
   width: 48px;

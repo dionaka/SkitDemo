@@ -51,7 +51,7 @@ exports.removeBySeries = (req, res) => {
   if (!seriesId) return res.status(400).json(fail(400, '无效的 series_id'));
 
   const data = watchProgressService.removeBySeries(sessionId, seriesId);
-  res.json(success(data, '已从继续观看移除'));
+  res.json(success(data, '播放记录已删除'));
 };
 
 exports.clearAll = (req, res) => {
@@ -59,5 +59,5 @@ exports.clearAll = (req, res) => {
   if (!sessionId) return res.status(400).json(fail(400, '缺少 user_session_id'));
 
   const data = watchProgressService.clearAll(sessionId);
-  res.json(success(data, '已清空继续观看'));
+  res.json(success(data, '播放记录已清空'));
 };

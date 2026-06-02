@@ -83,6 +83,47 @@ class VideoService {
     return this.getById(result.lastInsertRowid);
   }
 
+  updateDuration(id, totalDuration, options = {}) {
+    const seconds = Math.max(1, Math.round(Number(totalDuration) || 0));
+    const existing = this.getById(id);
+    if (!existing) return null;
+    if (existing.total_duration === seconds) return existing;
+
+    db.prepare(`
+      UPDATE video SET total_duration = ?, updated_at = datetime('now') WHERE id = ?
+    `).run(seconds, id);
+
+    if (options.clampProgress !== false) {
+      const watchProgressService = require('./watchProgressService');
+      watchProgressService.clampProgressForVideo(id, seconds);
+    }
+
+    return this.getById(id);
+  }
+
+  async syncDurationFromFile(id) {
+    const video = this.getById(id);
+    if (!video?.video_url) return video;
+
+    const abs = this.toAbsoluteUploadPath(video.video_url);
+    if (!abs) return video;
+
+    const { probeVideoDuration } = require('../utils/videoProbe');
+    const probed = await probeVideoDuration(abs);
+    if (!probed || probed < 1) return video;
+
+    if (Math.abs(probed - (Number(video.total_duration) || 0)) <= 2) {
+      return video;
+    }
+
+    return this.updateDuration(id, probed, { clampProgress: true });
+  }
+
+  toAbsoluteUploadPath(relativeUrl) {
+    if (!relativeUrl?.startsWith('/uploads/')) return null;
+    return path.join(config.uploadBasePath, relativeUrl.replace(/^\/uploads\//, ''));
+  }
+
   publish(id) {
     db.prepare('UPDATE video SET status = 1, updated_at = datetime(\'now\') WHERE id = ?').run(id);
     const video = this.getById(id);

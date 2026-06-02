@@ -35,6 +35,7 @@ router.put('/watch-progress/:videoId', watchProgressController.save);
 
 router.get('/videos', videoController.list);
 router.get('/videos/:id', videoController.detail);
+router.post('/videos/:id/duration', videoController.syncDuration);
 router.post('/interactions', interactionController.record);
 router.get('/interactions/stats/:highlightId', interactionController.stats);
 

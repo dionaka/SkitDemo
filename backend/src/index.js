@@ -58,4 +58,9 @@ app.listen(config.port, host, () => {
   backfillMissingCovers().catch((err) => {
     console.warn('[cover] 启动时补生成封面失败:', err.message);
   });
+
+  const { backfillVideoDurations } = require('./services/durationBackfill');
+  backfillVideoDurations().catch((err) => {
+    console.warn('[duration] 启动时修正视频时长失败:', err.message);
+  });
 });

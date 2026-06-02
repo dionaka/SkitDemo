@@ -7,7 +7,7 @@
         <h2 class="section-title">继续观看</h2>
         <div class="section-actions">
           <span class="section-more">{{ continueList.length }} 部</span>
-          <button type="button" class="continue-clear-btn" @click="clearAllContinue">清空</button>
+          <button type="button" class="continue-clear-btn" @click="clearAllContinue">清空记录</button>
         </div>
       </div>
       <div class="continue-scroll">
@@ -110,14 +110,14 @@ function openPlay(videoId) {
 async function confirmRemoveContinue(item) {
   try {
     await ElMessageBox.confirm(
-      `从继续观看中移除「${item.series_title}」？`,
-      '移除记录',
-      { confirmButtonText: '移除', cancelButtonText: '取消', type: 'warning' },
+      `删除「${item.series_title}」的播放记录？`,
+      '删除播放记录',
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
     );
     const data = await removeContinueSeries(item.series_id, session.userSessionId);
     clearLocalProgressBatch(data.video_ids);
     continueList.value = continueList.value.filter((row) => row.series_id !== item.series_id);
-    ElMessage.success('已移除');
+    ElMessage.success('播放记录已删除');
   } catch { /* cancel or error */ }
 }
 
@@ -125,14 +125,14 @@ async function clearAllContinue() {
   if (!continueList.value.length) return;
   try {
     await ElMessageBox.confirm(
-      '确定清空全部继续观看记录？',
-      '清空继续观看',
+      '确定删除全部播放记录？',
+      '清空播放记录',
       { confirmButtonText: '清空', cancelButtonText: '取消', type: 'warning' },
     );
     const data = await clearContinueWatching(session.userSessionId);
     clearLocalProgressBatch(data.video_ids);
     continueList.value = [];
-    ElMessage.success('已清空');
+    ElMessage.success('播放记录已清空');
   } catch { /* cancel or error */ }
 }
 </script>

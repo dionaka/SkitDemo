@@ -5,18 +5,24 @@ const MIN_RESUME_SECONDS = 5;
 /** 首次写入继续观看至少要看这么多秒，避免误触产生脏数据 */
 const MIN_NEW_ENTRY_SECONDS = 5;
 const COMPLETE_RATIO = 0.95;
-const SHORT_VIDEO_MAX_SECONDS = 30;
-/** 只有相对「上次计时的进度锚点」往前看了这么多秒，才刷新最近观看时间 */
+/** 总时长不超过此值的短剧，看完后仍保留在继续观看 */
+const SHORT_FORM_MAX_SECONDS = 120;
 const ADVANCE_SECONDS = 3;
 
+function clampPosition(positionSeconds, totalDuration) {
+  const pos = Math.max(0, Number(positionSeconds) || 0);
+  const total = Number(totalDuration) || 0;
+  if (total > 0) return Math.min(pos, total);
+  return pos;
+}
+
 function isEligibleForContinue(positionSeconds, totalDuration) {
-  const pos = Number(positionSeconds) || 0;
+  const pos = clampPosition(positionSeconds, totalDuration);
   if (pos < MIN_RESUME_SECONDS) return false;
 
   const total = Number(totalDuration) || 0;
   if (total <= 0) return true;
-  // 短视频看完仍保留在「继续观看」，便于最近看过排序
-  if (total <= SHORT_VIDEO_MAX_SECONDS) return true;
+  if (total <= SHORT_FORM_MAX_SECONDS) return true;
   return pos < total * COMPLETE_RATIO;
 }
 
@@ -26,20 +32,40 @@ function hasMeaningfulWatch(positionSeconds) {
 }
 
 class WatchProgressService {
+  resolveVideoDuration(videoId) {
+    const videoService = require('./videoService');
+    const video = videoService.getById(videoId);
+    return Number(video?.total_duration) || 0;
+  }
+
+  clampProgressForVideo(videoId, totalDuration) {
+    const total = Math.max(1, Math.round(Number(totalDuration) || 0));
+    db.prepare(`
+      UPDATE watch_progress
+      SET position_seconds = MIN(position_seconds, ?),
+          watch_anchor_seconds = MIN(watch_anchor_seconds, ?)
+      WHERE video_id = ? AND position_seconds > ?
+    `).run(total, total, videoId, total);
+  }
+
   save(userSessionId, videoId, positionSeconds, options = {}) {
     const { bumpTime = false } = options;
-    const position = Math.max(0, Number(positionSeconds) || 0);
+    const totalDuration = this.resolveVideoDuration(videoId);
+    let position = clampPosition(positionSeconds, totalDuration);
     if (position < 1) {
       return { video_id: Number(videoId), position_seconds: 0 };
     }
 
     const existing = this.get(userSessionId, videoId);
-    const prev = existing ? Number(existing.position_seconds) || 0 : 0;
-    const anchor = existing
+    const prevRaw = existing ? Number(existing.position_seconds) || 0 : 0;
+    const prev = totalDuration > 0 ? Math.min(prevRaw, totalDuration) : prevRaw;
+    const anchorRaw = existing
       ? Number(existing.watch_anchor_seconds ?? existing.position_seconds) || 0
       : 0;
-    const nextPosition = Math.max(prev, position);
-    const shouldBumpTime = bumpTime || position - anchor >= ADVANCE_SECONDS;
+    const anchor = totalDuration > 0 ? Math.min(anchorRaw, totalDuration) : anchorRaw;
+    let nextPosition = prevRaw > (totalDuration || Infinity) ? position : Math.max(prev, position);
+    nextPosition = clampPosition(nextPosition, totalDuration);
+    const shouldBumpTime = bumpTime || nextPosition - anchor >= ADVANCE_SECONDS;
 
     if (existing) {
       if (shouldBumpTime) {
@@ -182,6 +208,8 @@ class WatchProgressService {
     const seenSeries = new Set();
     const list = [];
     for (const item of rows) {
+      const total = Number(item.total_duration) || 0;
+      item.position_seconds = clampPosition(item.position_seconds, total);
       if (!hasMeaningfulWatch(item.position_seconds)) continue;
       if (!isEligibleForContinue(item.position_seconds, item.total_duration)) continue;
       if (seenSeries.has(item.series_id)) continue;

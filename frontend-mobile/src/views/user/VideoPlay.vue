@@ -58,6 +58,8 @@
 
         @pause="onPause"
 
+        @duration="onVideoDuration"
+
         @fullscreen-change="playerFullscreen = $event"
         @overlay-dismiss="onOverlayDismiss"
 
@@ -201,7 +203,7 @@ import SeriesEngagementBar from '@/components/SeriesEngagementBar.vue';
 
 import { resolveMediaUrl } from '@/config/server';
 
-import { getVideoDetail } from '@/api/video';
+import { getVideoDetail, syncVideoDuration } from '@/api/video';
 
 import { recordInteraction, getInteractionStats } from '@/api/interaction';
 
@@ -211,7 +213,7 @@ import { useSessionStore } from '@/stores/session';
 
 import { smartBack } from '@/utils/navigation';
 
-import { getLocalProgress, setLocalProgress, formatProgressLabel } from '@/utils/watchProgress';
+import { getLocalProgress, setLocalProgress, formatProgressLabel, clampProgressSeconds } from '@/utils/watchProgress';
 
 import { getPlayPreferences, savePlayPreferences } from '@/utils/playPreferences';
 
@@ -331,15 +333,16 @@ async function loadVideo() {
 
 
 
-    const resume = Math.max(local, remote);
+    const total = Number(video.value.total_duration) || 0;
+    const resume = clampProgressSeconds(Math.max(local, remote), total);
 
-    sessionBaselinePosition = resume >= 5 ? resume : 0;
+    sessionBaselinePosition = resume >= MIN_SAVE_SECONDS ? resume : 0;
 
-    if (resume >= 5) {
+    if (resume >= MIN_SAVE_SECONDS) {
 
       startTime.value = resume;
 
-      resumeHint.value = `将从 ${formatProgressLabel(resume, video.value.total_duration)} 继续播放`;
+      resumeHint.value = `将从 ${formatProgressLabel(resume, total)} 继续播放`;
 
     }
 
@@ -385,11 +388,13 @@ async function goBack() {
 
 
 async function flushProgress(seconds) {
-  if (!videoId.value || seconds < MIN_SAVE_SECONDS) return;
+  const total = Number(video.value?.total_duration) || 0;
+  const safeSeconds = clampProgressSeconds(seconds, total);
+  if (!videoId.value || safeSeconds < MIN_SAVE_SECONDS) return;
 
   lastSaveAt = Date.now();
 
-  setLocalProgress(videoId.value, seconds);
+  setLocalProgress(videoId.value, safeSeconds);
 
   try {
 
@@ -397,7 +402,7 @@ async function flushProgress(seconds) {
 
       user_session_id: session.userSessionId,
 
-      position_seconds: seconds,
+      position_seconds: safeSeconds,
 
       bump_time: true,
 
@@ -410,9 +415,11 @@ async function flushProgress(seconds) {
 
 
 function persistProgress(seconds, force = false) {
-  if (!videoId.value || seconds < 1) return;
+  const total = Number(video.value?.total_duration) || 0;
+  const safeSeconds = clampProgressSeconds(seconds, total);
+  if (!videoId.value || safeSeconds < 1) return;
 
-  const advanced = seconds - sessionBaselinePosition >= PROGRESS_ADVANCE_SECONDS;
+  const advanced = safeSeconds - sessionBaselinePosition >= PROGRESS_ADVANCE_SECONDS;
   if (!force && !advanced) return;
 
   const now = Date.now();
@@ -420,18 +427,41 @@ function persistProgress(seconds, force = false) {
 
   lastSaveAt = now;
 
-  setLocalProgress(videoId.value, seconds);
+  setLocalProgress(videoId.value, safeSeconds);
 
   saveWatchProgress(videoId.value, {
 
     user_session_id: session.userSessionId,
 
-    position_seconds: seconds,
+    position_seconds: safeSeconds,
 
     bump_time: force,
 
   }).catch(() => {});
 
+}
+
+
+
+async function onVideoDuration(durationSeconds) {
+  const rounded = Math.round(Number(durationSeconds) || 0);
+  if (!video.value || rounded < 1) return;
+
+  const stored = Number(video.value.total_duration) || 0;
+  if (Math.abs(rounded - stored) <= 2) return;
+
+  video.value.total_duration = rounded;
+
+  const resume = clampProgressSeconds(Math.max(getLocalProgress(videoId.value), startTime.value), rounded);
+  if (resume >= MIN_SAVE_SECONDS) {
+    startTime.value = resume;
+    sessionBaselinePosition = resume;
+    resumeHint.value = `将从 ${formatProgressLabel(resume, rounded)} 继续播放`;
+  }
+
+  try {
+    await syncVideoDuration(videoId.value, rounded);
+  } catch { /* silent */ }
 }
 
 

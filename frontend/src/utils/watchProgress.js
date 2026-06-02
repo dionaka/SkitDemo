@@ -20,10 +20,20 @@ export function clearLocalProgressBatch(videoIds) {
 }
 
 export function formatProgressLabel(seconds, total) {
-  if (!total || seconds < 5) return '';
-  const pct = Math.min(100, Math.round((seconds / total) * 100));
+  const raw = Number(seconds) || 0;
+  const maxTotal = Number(total) || 0;
+  const safeSeconds = maxTotal > 0 ? Math.min(raw, maxTotal) : raw;
+  if (!maxTotal || safeSeconds < 5) return '';
+  const pct = Math.min(100, Math.round((safeSeconds / maxTotal) * 100));
   if (pct >= 95) return '已看完';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
+  const m = Math.floor(safeSeconds / 60);
+  const s = Math.floor(safeSeconds % 60);
   return `看到 ${m}:${String(s).padStart(2, '0')} (${pct}%)`;
+}
+
+export function clampProgressSeconds(seconds, total) {
+  const pos = Math.max(0, Number(seconds) || 0);
+  const maxTotal = Number(total) || 0;
+  if (maxTotal > 0) return Math.min(pos, maxTotal);
+  return pos;
 }
