@@ -1,5 +1,5 @@
 const db = require('../db');
-const seriesService = require('./seriesService');
+const { getSeriesCoverUrlById } = require('../utils/seriesCover');
 
 const MIN_RESUME_SECONDS = 5;
 /** 首次写入继续观看至少要看这么多秒，避免误触产生脏数据 */
@@ -220,7 +220,7 @@ class WatchProgressService {
 
     return list.map((item) => ({
       ...item,
-      series_cover_url: seriesService.getById(item.series_id)?.cover_url || item.series_cover_url,
+      series_cover_url: getSeriesCoverUrlById(item.series_id) || item.series_cover_url,
     }));
   }
 }
