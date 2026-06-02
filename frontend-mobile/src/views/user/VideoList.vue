@@ -1,5 +1,5 @@
 <template>
-  <div class="home">
+  <div class="home" :style="{ '--home-nav-height': homeTheme.navHeight }">
     <HomeTopNav
       :scroll-y="scrollY"
       :theme="navTheme"
@@ -20,26 +20,26 @@
     </div>
 
     <template v-else>
-      <div ref="pullAnchorRef" class="home-pull-anchor">
-        <div
-          class="home-refresh-reveal"
-          :class="{ pulling: isPulling, refreshing: isRefreshing }"
-          :style="{ height: `${refreshRevealHeight}px` }"
-        >
-          <SkinRefreshEffect
-            :pull-distance="pullDistance"
-            :is-pulling="isPulling"
-            :is-refreshing="isRefreshing"
-          />
-        </div>
-
-        <HomeCategoryBar
-          ref="categoryBarRef"
-          :model-value="activeCategory"
-          :pinned="scrollY > 56"
-          @update:model-value="onCategoryPick"
+      <!-- 刷新动效：固定叠在「一」底与「二」顶之间，不挤占二三部分高度 -->
+      <div
+        class="home-refresh-float"
+        :class="{ pulling: isPulling, refreshing: isRefreshing }"
+        :style="refreshFloatStyle"
+      >
+        <SkinRefreshEffect
+          :pull-distance="pullDistance"
+          :is-pulling="isPulling"
+          :is-refreshing="isRefreshing"
+          :pull-threshold="pullThreshold"
         />
       </div>
+
+      <HomeCategoryBar
+        ref="categoryBarRef"
+        :model-value="activeCategory"
+        :pinned="scrollY > 56"
+        @update:model-value="onCategoryPick"
+      />
 
       <section v-if="continueList.length" class="section continue-section">
         <div class="section-header">
@@ -146,7 +146,6 @@ const loading = ref(true);
 const error = ref('');
 const activeCategory = ref('hot');
 const categoryBarRef = ref(null);
-const pullAnchorRef = ref(null);
 
 const { swiperRef, scrollToCategory, initSwiper } = useCategorySwiper(homeCategories, activeCategory);
 
@@ -180,12 +179,21 @@ const {
   pullDistance,
   isPulling,
   isRefreshing,
-  runRefresh,
-} = useHomeSkinRefresh(loadData, pullAnchorRef);
+  runRefreshFromTab,
+  floatTravel,
+} = useHomeSkinRefresh(loadData);
 
-const refreshRevealHeight = computed(() => {
-  if (isRefreshing.value) return 56;
-  return Math.max(0, Math.round(pullDistance.value));
+const pullThreshold = 56;
+
+const refreshFloatStyle = computed(() => {
+  const travel = floatTravel;
+  const offset = isRefreshing.value
+    ? travel
+    : Math.max(0, Math.min(travel, pullDistance.value));
+  return {
+    transform: `translateY(${offset - travel}px)`,
+    opacity: offset > 3 || isRefreshing.value ? 1 : 0,
+  };
 });
 
 const hasSkinNavBg = computed(() => Boolean(skinStore.topNavTheme?.navBackgroundImage));
@@ -235,7 +243,7 @@ function titleFor(categoryId) {
 onMounted(loadData);
 
 watch(() => skinStore.refreshToken, () => {
-  runRefresh();
+  runRefreshFromTab();
 });
 
 function onCategoryPick(id) {
@@ -263,28 +271,22 @@ function onProfileTap() {
   padding-bottom: 8px;
 }
 
-.home-pull-anchor {
-  position: relative;
+/* 叠在顶栏下缘，从「一」底滑出盖在「二」上；不占文档流高度 */
+.home-refresh-float {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: calc(var(--home-nav-height, 76px) + var(--safe-top));
   z-index: 55;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transition: opacity 0.12s ease;
 }
 
-.home-refresh-reveal {
-  overflow: hidden;
-  margin: 0 -16px;
-  background: linear-gradient(
-    to bottom,
-    rgba(7, 7, 13, 0.98) 0%,
-    rgba(7, 7, 13, 0.88) 100%
-  );
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  transition: height 0.18s ease-out;
-  will-change: height;
-}
-
-.home-refresh-reveal.pulling,
-.home-refresh-reveal.refreshing {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
+.home-refresh-float.pulling {
+  transition: none;
 }
 
 .setup-card {

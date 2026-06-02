@@ -4,7 +4,11 @@ export { parseSkinFile } from './parser/parseSkinFile';
 export { normalizeBilibiliSkin, isSkinActive } from './parser/normalizeTheme';
 export { useSkinStore } from './store/skinStore';
 export { useSkinCssVars } from './composables/useSkinCssVars';
-export { useHomeSkinRefresh } from './composables/useHomeSkinRefresh';
+export {
+  useHomeSkinRefresh,
+  scrollHomeMainToTop,
+  isHomeHashRoute,
+} from './composables/useHomeSkinRefresh';
 
 export { default as SkinProvider } from './components/SkinProvider.vue';
 export { default as SkinTabBar } from './components/SkinTabBar.vue';
