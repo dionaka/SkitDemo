@@ -5,94 +5,144 @@ function getHomeScrollEl() {
 }
 
 let savedScrollTop = 0;
-let restoreTimer = null;
+let savedScrollRatio = 0;
+let savedCategoryId = 'hot';
+let getCategoryId = () => 'hot';
+let scrollToCategoryFn = null;
+let resizeObserver = null;
+let restoreTimeouts = [];
 
 function isHomeRouteName(name) {
   return name === 'VideoList';
 }
 
-/** 离开首页前记录滚动位置（仅接受有效滚动值，避免被详情页覆盖） */
+function captureFromElement(el) {
+  const max = Math.max(0, el.scrollHeight - el.clientHeight);
+  savedScrollTop = el.scrollTop;
+  savedScrollRatio = max > 0 ? el.scrollTop / max : 0;
+  savedCategoryId = getCategoryId();
+}
+
+/** 离开首页 / 点击短剧前立即写入最新滚动 */
+export function flushHomeScrollCapture() {
+  const el = getHomeScrollEl();
+  if (el) captureFromElement(el);
+}
+
+export function registerHomeScrollContext(ctx = {}) {
+  if (typeof ctx.getCategoryId === 'function') getCategoryId = ctx.getCategoryId;
+  if (typeof ctx.scrollToCategory === 'function') scrollToCategoryFn = ctx.scrollToCategory;
+}
+
+/** @deprecated 使用 flushHomeScrollCapture */
 export function captureHomeScroll(force = false) {
   const el = getHomeScrollEl();
   if (!el) return;
-
-  const top = el.scrollTop;
-  if (force) {
-    savedScrollTop = top;
-    return;
-  }
-  // 详情页切换后 scrollTop 常接近 0，勿覆盖此前保存的首页位置
-  if (top >= savedScrollTop || savedScrollTop < 24) {
-    savedScrollTop = top;
+  if (force || el.scrollTop >= savedScrollTop || savedScrollTop < 24) {
+    captureFromElement(el);
   }
 }
 
-/** 点首页 Tab 回顶后清除快照 */
 export function clearHomeScrollSnapshot() {
   savedScrollTop = 0;
-  if (restoreTimer) {
-    clearTimeout(restoreTimer);
-    restoreTimer = null;
+  savedScrollRatio = 0;
+  stopRestoreWatchers();
+}
+
+function stopRestoreWatchers() {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+  restoreTimeouts.forEach((id) => clearTimeout(id));
+  restoreTimeouts = [];
+}
+
+function computeTarget(el) {
+  const max = Math.max(0, el.scrollHeight - el.clientHeight);
+  if (max <= 0) return 0;
+  const byRatio = Math.round(savedScrollRatio * max);
+  return Math.min(Math.max(savedScrollTop, byRatio), max);
+}
+
+function applyRestore() {
+  const el = getHomeScrollEl();
+  if (!el) return false;
+  if (savedScrollTop <= 8 && savedScrollRatio < 0.02) return true;
+
+  const want = computeTarget(el);
+  el.scrollTop = want;
+  scrollToCategoryFn?.(savedCategoryId, false);
+  return Math.abs(el.scrollTop - want) <= 8;
+}
+
+/** 回到首页后恢复滚动（等内容高度稳定，避免卡在「热门短剧」附近） */
+export function restoreHomeScroll() {
+  if (savedScrollTop <= 8 && savedScrollRatio < 0.02) return;
+
+  stopRestoreWatchers();
+
+  const run = () => applyRestore();
+
+  nextTick(() => {
+    run();
+    requestAnimationFrame(run);
+  });
+
+  restoreTimeouts = [50, 120, 280, 500, 900, 1500].map((ms) => setTimeout(run, ms));
+
+  const homeEl = document.querySelector('.home');
+  const observeTarget = homeEl || getHomeScrollEl();
+  if (observeTarget && typeof ResizeObserver !== 'undefined') {
+    let lastHeight = 0;
+    resizeObserver = new ResizeObserver(() => {
+      const main = getHomeScrollEl();
+      if (!main) return;
+      const h = main.scrollHeight;
+      const ok = applyRestore();
+      if (ok && Math.abs(h - lastHeight) < 3) {
+        stopRestoreWatchers();
+      }
+      lastHeight = h;
+    });
+    resizeObserver.observe(observeTarget);
+    restoreTimeouts.push(setTimeout(stopRestoreWatchers, 2800));
   }
 }
 
-function getRestoreTarget() {
-  const el = getHomeScrollEl();
-  if (!el) return 0;
-  const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
-  return Math.min(savedScrollTop, maxScroll);
-}
-
-/** 回到首页后恢复滚动位置（布局切换后多次重试） */
-export function restoreHomeScroll() {
-  if (savedScrollTop <= 0) return;
-
-  if (restoreTimer) clearTimeout(restoreTimer);
-
-  let attempts = 0;
-  const maxAttempts = 20;
-
-  const apply = () => {
-    const el = getHomeScrollEl();
-    if (!el) return false;
-    const want = getRestoreTarget();
-    el.scrollTop = want;
-    return Math.abs(el.scrollTop - want) <= 4;
-  };
-
-  const tick = () => {
-    attempts += 1;
-    const ok = apply();
-    if (!ok && attempts < maxAttempts) {
-      requestAnimationFrame(tick);
-    } else {
-      restoreTimer = null;
-    }
-  };
-
-  nextTick(() => {
-    requestAnimationFrame(tick);
-  });
-}
-
-/** 路由级保存/恢复，早于 keep-alive deactivated */
+/** 路由 + 实时滚动跟踪 */
 export function setupHomeScrollRouter(router) {
+  let scrollBound = false;
+
+  const bindLiveScroll = () => {
+    const el = getHomeScrollEl();
+    if (!el || scrollBound) return;
+    scrollBound = true;
+    el.addEventListener(
+      'scroll',
+      () => {
+        if (router.currentRoute.value.name === 'VideoList') {
+          captureFromElement(el);
+        }
+      },
+      { passive: true },
+    );
+  };
+
+  router.isReady().then(bindLiveScroll);
+
   router.beforeEach((to, from) => {
     if (isHomeRouteName(from.name)) {
-      captureHomeScroll(true);
+      flushHomeScrollCapture();
     }
   });
 
   router.afterEach((to) => {
     if (isHomeRouteName(to.name)) {
+      bindLiveScroll();
       restoreHomeScroll();
     }
   });
 }
 
-/**
- * 首页滚动位置记忆（配合 setupHomeScrollRouter 使用）
- */
 export function useHomeScrollRestore() {
   onActivated(() => {
     restoreHomeScroll();

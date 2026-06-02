@@ -50,7 +50,7 @@
             v-for="item in continueList"
             :key="item.video_id"
             class="continue-item"
-            @click="$router.push(`/play/${item.video_id}`)"
+            @click="openPlay(item.video_id)"
           >
             <SeriesCover
               class="continue-poster"
@@ -98,7 +98,7 @@
                 v-for="s in seriesFor(cat.id)"
                 :key="s.id"
                 class="poster-card"
-                @click="$router.push(`/series/${s.id}`)"
+                @click="openSeries(s.id)"
               >
                 <SeriesCover
                   class="poster-cover"
@@ -130,7 +130,11 @@ import { useAppBackgroundStore } from '@/stores/appBackground';
 import { useSkinStore, SkinRefreshEffect, useHomeSkinRefresh } from '@/skin';
 import { formatProgressLabel } from '@/utils/watchProgress';
 import { useHomeScroll } from '@/composables/useHomeScroll';
-import { useHomeScrollRestore } from '@/composables/useHomeScrollRestore';
+import {
+  useHomeScrollRestore,
+  registerHomeScrollContext,
+  flushHomeScrollCapture,
+} from '@/composables/useHomeScrollRestore';
 import { useCategorySwiper } from '@/composables/useCategorySwiper';
 
 defineOptions({ name: 'VideoList' });
@@ -143,7 +147,6 @@ const backgroundStore = useAppBackgroundStore();
 const skinStore = useSkinStore();
 const router = useRouter();
 const { scrollY } = useHomeScroll();
-useHomeScrollRestore();
 const seriesList = ref([]);
 const continueList = ref([]);
 const loading = ref(true);
@@ -152,6 +155,12 @@ const activeCategory = ref('hot');
 const categoryBarRef = ref(null);
 
 const { swiperRef, scrollToCategory, initSwiper } = useCategorySwiper(homeCategories, activeCategory);
+
+registerHomeScrollContext({
+  getCategoryId: () => activeCategory.value,
+  scrollToCategory: (id, smooth = false) => scrollToCategory(id, smooth),
+});
+useHomeScrollRestore();
 
 const hasServer = computed(() => Boolean(getApiBaseUrl()));
 
@@ -260,6 +269,16 @@ function onCategoryPick(id) {
 
 function formatProgress(item) {
   return formatProgressLabel(item.position_seconds, item.total_duration) || '继续播放';
+}
+
+function openSeries(id) {
+  flushHomeScrollCapture();
+  router.push(`/series/${id}`);
+}
+
+function openPlay(videoId) {
+  flushHomeScrollCapture();
+  router.push(`/play/${videoId}`);
 }
 
 function onSearchTap() {
