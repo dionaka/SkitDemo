@@ -211,6 +211,7 @@ async function goBack() {
 
 async function flushProgress(seconds) {
   if (!videoId.value || seconds < 1) return;
+  if (seconds - sessionBaselinePosition < 1) return;
   lastSaveAt = Date.now();
   setLocalProgress(videoId.value, seconds);
   try {

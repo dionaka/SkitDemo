@@ -8,6 +8,7 @@
         @timeupdate="onTimeUpdate"
         @loadedmetadata="onLoaded"
         @pause="onPause"
+        @play="onPlay"
         @click="togglePlay"
       />
       <EffectOverlay v-show="!segmentVisible" :type="effectType" :active="showEffect" />
@@ -111,6 +112,7 @@ const branchTriggeredIds = ref(new Set());
 const effectType = ref('');
 const showEffect = ref(false);
 const hasAppliedStart = ref(false);
+const playbackStarted = ref(false);
 const pendingHighlightIds = ref(new Set());
 const pendingBranchIds = ref(new Set());
 
@@ -170,8 +172,13 @@ function tryEmitBranch(branch) {
 
 function togglePlay() {
   if (!videoRef.value) return;
-  if (videoRef.value.paused) { videoRef.value.play(); playing.value = true; }
+  if (videoRef.value.paused) { videoRef.value.play(); }
   else { videoRef.value.pause(); playing.value = false; }
+}
+
+function onPlay() {
+  playing.value = true;
+  playbackStarted.value = true;
 }
 
 function onLoaded() {
@@ -188,12 +195,20 @@ function applyStartTime() {
   hasAppliedStart.value = true;
 }
 
+watch(() => props.src, () => {
+  playbackStarted.value = false;
+  hasAppliedStart.value = false;
+  currentTime.value = 0;
+  duration.value = 0;
+  progressPercent.value = 0;
+});
+
 function onPause() {
   emit('pause', videoRef.value?.currentTime || 0);
 }
 
 function onTimeUpdate() {
-  if (!videoRef.value) return;
+  if (!videoRef.value || !playbackStarted.value) return;
   currentTime.value = videoRef.value.currentTime;
   progressPercent.value = duration.value ? (currentTime.value / duration.value) * 100 : 0;
   emit('timeupdate', currentTime.value);

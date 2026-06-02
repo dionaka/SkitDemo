@@ -159,6 +159,12 @@ function migrateSchema() {
   if (!userCols.includes('skin_data')) {
     db.exec('ALTER TABLE app_user ADD COLUMN skin_data TEXT');
   }
+
+  const watchProgressCols = db.prepare('PRAGMA table_info(watch_progress)').all().map((c) => c.name);
+  if (!watchProgressCols.includes('watch_anchor_seconds')) {
+    db.exec('ALTER TABLE watch_progress ADD COLUMN watch_anchor_seconds REAL NOT NULL DEFAULT 0');
+    db.exec('UPDATE watch_progress SET watch_anchor_seconds = position_seconds');
+  }
 }
 
 function seedDemoData() {

@@ -21,7 +21,7 @@
           @loadedmetadata="onLoaded"
           @pause="onPause"
           @click="togglePlay"
-          @play="playing = true"
+          @play="onPlay"
         />
         <EffectOverlay v-show="!segmentVisible" :type="effectType" :active="showEffect" />
         <div v-if="segmentVisible" class="player-segment-layer">
@@ -92,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { Capacitor } from '@capacitor/core';
 import HighlightMarker from './HighlightMarker.vue';
 import EffectOverlay from '../effects/EffectOverlay.vue';
@@ -133,6 +133,7 @@ const branchTriggeredIds = ref(new Set());
 const effectType = ref('');
 const showEffect = ref(false);
 const hasAppliedStart = ref(false);
+const playbackStarted = ref(false);
 const pendingHighlightIds = ref(new Set());
 const pendingBranchIds = ref(new Set());
 
@@ -212,13 +213,26 @@ function applyStartTime() {
   hasAppliedStart.value = true;
 }
 
+watch(() => props.src, () => {
+  playbackStarted.value = false;
+  hasAppliedStart.value = false;
+  currentTime.value = 0;
+  duration.value = 0;
+  progressPercent.value = 0;
+});
+
+function onPlay() {
+  playing.value = true;
+  playbackStarted.value = true;
+}
+
 function onPause() {
   playing.value = false;
   emit('pause', videoRef.value?.currentTime || 0);
 }
 
 function onTimeUpdate() {
-  if (!videoRef.value) return;
+  if (!videoRef.value || !playbackStarted.value) return;
   currentTime.value = videoRef.value.currentTime;
   progressPercent.value = duration.value ? (currentTime.value / duration.value) * 100 : 0;
   emit('timeupdate', currentTime.value);
