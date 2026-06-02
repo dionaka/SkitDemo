@@ -4,6 +4,7 @@ import { useSessionStore } from '@/stores/session';
 import { parseSkinFile, cleanupParsedSkin } from '../parser/parseSkinFile';
 import { prepareThemeForCloud } from '../parser/persistAssets';
 import { isSkinActive } from '../parser/normalizeTheme';
+import { isHomeRoute, scrollHomeMainToTop } from '../composables/useHomeSkinRefresh';
 
 const EMPTY_THEME = null;
 
@@ -151,7 +152,10 @@ export const useSkinStore = defineStore('bilibiliSkin', {
       }
     },
 
-    triggerHomeRefresh() {
+    async triggerHomeRefresh() {
+      if (isHomeRoute()) {
+        await scrollHomeMainToTop('auto');
+      }
       this.refreshToken += 1;
     },
 

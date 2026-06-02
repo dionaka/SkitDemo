@@ -8,6 +8,8 @@ export {
   useHomeSkinRefresh,
   scrollHomeMainToTop,
   isHomeHashRoute,
+  isHomeRoute,
+  getHomeScrollEl,
 } from './composables/useHomeSkinRefresh';
 
 export { default as SkinProvider } from './components/SkinProvider.vue';

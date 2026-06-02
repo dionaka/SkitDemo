@@ -151,12 +151,13 @@ const { swiperRef, scrollToCategory, initSwiper } = useCategorySwiper(homeCatego
 
 const hasServer = computed(() => Boolean(getApiBaseUrl()));
 
-async function loadData() {
+async function loadData(options = {}) {
+  const { silent = false } = options;
   if (!hasServer.value) {
     loading.value = false;
     return;
   }
-  loading.value = true;
+  if (!silent) loading.value = true;
   error.value = '';
   try {
     const [seriesData, continueData] = await Promise.all([
@@ -168,7 +169,7 @@ async function loadData() {
   } catch (e) {
     error.value = e.message || '加载失败';
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
     if (hasServer.value) {
       nextTick(() => initSwiper());
     }
@@ -179,9 +180,9 @@ const {
   pullDistance,
   isPulling,
   isRefreshing,
-  runRefreshFromTab,
+  runRefresh,
   floatTravel,
-} = useHomeSkinRefresh(loadData);
+} = useHomeSkinRefresh(() => loadData({ silent: true }));
 
 const pullThreshold = 56;
 
@@ -242,8 +243,9 @@ function titleFor(categoryId) {
 
 onMounted(loadData);
 
-watch(() => skinStore.refreshToken, () => {
-  runRefreshFromTab();
+watch(() => skinStore.refreshToken, (token, prev) => {
+  if (token === prev || token === 0) return;
+  runRefresh();
 });
 
 function onCategoryPick(id) {

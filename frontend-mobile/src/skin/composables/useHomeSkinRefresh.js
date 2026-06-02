@@ -1,30 +1,60 @@
 import { ref, onMounted, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
 
 const PULL_THRESHOLD = 56;
 const MAX_PULL = 88;
 const FLOAT_TRAVEL = 56;
+const SCROLL_AT_TOP = 12;
 
 /** Capacitor / Vue 使用 Hash 路由 */
 export function isHomeHashRoute() {
-  const hash = window.location.hash || '#/';
-  return hash === '#/' || hash === '' || hash.startsWith('#/?');
+  const hash = window.location.hash || '';
+  if (!hash) {
+    const path = window.location.pathname || '/';
+    return path === '/' || path.endsWith('/index.html');
+  }
+  const path = hash.replace(/^#/, '') || '/';
+  return path === '/' || path.startsWith('/?');
 }
 
-function getScrollEl() {
-  return document.querySelector('.app-main');
+export function isHomeRoute() {
+  return isHomeHashRoute();
+}
+
+export function getHomeScrollEl() {
+  return document.querySelector('.app-main') || document.scrollingElement;
+}
+
+function getScrollTargets() {
+  const main = document.querySelector('.app-main');
+  const targets = [];
+  if (main) targets.push(main);
+  const root = document.scrollingElement;
+  if (root && !targets.includes(root)) targets.push(root);
+  return targets;
 }
 
 /** 先滚到顶部（点首页 Tab 时用） */
-export function scrollHomeMainToTop(behavior = 'smooth') {
-  const el = getScrollEl();
-  if (!el || el.scrollTop <= 2) return Promise.resolve();
+export function scrollHomeMainToTop(behavior = 'auto') {
+  const targets = getScrollTargets();
+  if (!targets.length) return Promise.resolve();
+
+  const needsScroll = targets.some((el) => el.scrollTop > SCROLL_AT_TOP);
+  if (!needsScroll) return Promise.resolve();
 
   return new Promise((resolve) => {
-    el.scrollTo({ top: 0, behavior });
+    for (const el of targets) {
+      if (behavior === 'auto') {
+        el.scrollTop = 0;
+      } else {
+        el.scrollTo({ top: 0, behavior });
+      }
+    }
     const started = Date.now();
-    const done = () => resolve();
+    const maxWait = behavior === 'smooth' ? 720 : 120;
     const tick = () => {
-      if (el.scrollTop <= 2 || Date.now() - started > 520) done();
+      const atTop = targets.every((el) => el.scrollTop <= SCROLL_AT_TOP);
+      if (atTop || Date.now() - started > maxWait) resolve();
       else requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -35,6 +65,7 @@ export function scrollHomeMainToTop(behavior = 'smooth') {
  * 首页下拉刷新：一二三部分布局不动，动效从第一部分底边滑出叠在第二部分上方。
  */
 export function useHomeSkinRefresh(onRefresh) {
+  const route = useRoute();
   const pullDistance = ref(0);
   const isRefreshing = ref(false);
   const isPulling = ref(false);
@@ -43,20 +74,28 @@ export function useHomeSkinRefresh(onRefresh) {
   let startY = 0;
   let pulling = false;
 
-  /** 仅第一部分（顶栏 + 占位）可触发下拉 */
-  function isInPullZone(clientY) {
-    const topNav = document.querySelector('.home-top-nav');
-    if (!topNav) return false;
+  function isOnHome() {
+    return route.path === '/' && isHomeRoute();
+  }
 
-    const navRect = topNav.getBoundingClientRect();
-    let bottom = navRect.bottom;
+  function getScrollEl() {
+    return scrollEl || getHomeScrollEl();
+  }
 
-    const spacer = document.querySelector('.home .nav-spacer');
-    if (spacer) {
-      bottom = spacer.getBoundingClientRect().bottom;
+  function isAtScrollTop() {
+    const el = getScrollEl();
+    if (!el) return true;
+    return el.scrollTop <= SCROLL_AT_TOP;
+  }
+
+  /** 在顶部时排除底栏区域即可下拉（动效仍从顶栏底滑出） */
+  function isTouchInPullArea(clientY) {
+    const tabBar = document.querySelector('.skin-tab-bar');
+    if (tabBar) {
+      const tabRect = tabBar.getBoundingClientRect();
+      if (clientY >= tabRect.top - 8) return false;
     }
-
-    return clientY >= navRect.top && clientY <= bottom + 12;
+    return true;
   }
 
   async function runRefresh() {
@@ -76,22 +115,24 @@ export function useHomeSkinRefresh(onRefresh) {
 
   /** 点底栏首页：先滚到顶再播放滑出刷新 */
   async function runRefreshFromTab() {
-    if (!isHomeHashRoute()) return;
-    await scrollHomeMainToTop('smooth');
+    if (!isOnHome()) return;
+    await scrollHomeMainToTop('auto');
     await runRefresh();
   }
 
   function onTouchStart(event) {
-    if (!isHomeHashRoute()) return;
-    if (!scrollEl || scrollEl.scrollTop > 2 || isRefreshing.value) return;
-    if (!isInPullZone(event.touches[0].clientY)) return;
+    if (!isOnHome() || isRefreshing.value) return;
+    if (!isAtScrollTop()) return;
 
-    startY = event.touches[0].clientY;
+    const touch = event.touches[0];
+    if (!isTouchInPullArea(touch.clientY)) return;
+
+    startY = touch.clientY;
     pulling = true;
   }
 
   function onTouchMove(event) {
-    if (!pulling || !scrollEl || scrollEl.scrollTop > 2) return;
+    if (!pulling || !isOnHome() || !isAtScrollTop()) return;
 
     const delta = event.touches[0].clientY - startY;
     if (delta <= 0) {
@@ -119,16 +160,18 @@ export function useHomeSkinRefresh(onRefresh) {
   }
 
   onMounted(() => {
-    scrollEl = getScrollEl();
-    scrollEl?.addEventListener('touchstart', onTouchStart, { passive: true });
-    scrollEl?.addEventListener('touchmove', onTouchMove, { passive: false });
-    scrollEl?.addEventListener('touchend', onTouchEnd, { passive: true });
+    scrollEl = getHomeScrollEl();
+    document.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
+    document.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+    document.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
+    document.addEventListener('touchcancel', onTouchEnd, { passive: true, capture: true });
   });
 
   onUnmounted(() => {
-    scrollEl?.removeEventListener('touchstart', onTouchStart);
-    scrollEl?.removeEventListener('touchmove', onTouchMove);
-    scrollEl?.removeEventListener('touchend', onTouchEnd);
+    document.removeEventListener('touchstart', onTouchStart, { capture: true });
+    document.removeEventListener('touchmove', onTouchMove, { capture: true });
+    document.removeEventListener('touchend', onTouchEnd, { capture: true });
+    document.removeEventListener('touchcancel', onTouchEnd, { capture: true });
   });
 
   return {

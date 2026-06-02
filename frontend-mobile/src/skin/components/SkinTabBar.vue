@@ -80,10 +80,10 @@ function itemStyle(active) {
   return { color: active ? 'var(--skin-tab-active)' : 'var(--skin-tab-inactive)' };
 }
 
-function onTabClick(tab) {
+async function onTabClick(tab) {
   const isHomeRefresh = tab.id === 'home' && route.path === '/';
   if (isHomeRefresh) {
-    skin.triggerHomeRefresh();
+    await skin.triggerHomeRefresh();
   }
 
   if (tabBar.value?.animateIcons) {
