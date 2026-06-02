@@ -1,5 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { clearHomeScrollSnapshot } from '@/composables/useHomeScrollRestore';
 
 const PULL_THRESHOLD = 56;
 const MAX_PULL = 88;
@@ -51,6 +52,7 @@ export function scrollHomeMainToTop(behavior = 'auto') {
         el.scrollTo({ top: 0, behavior });
       }
     }
+    clearHomeScrollSnapshot();
     const started = Date.now();
     const maxWait = behavior === 'smooth' ? 720 : 120;
     const tick = () => {

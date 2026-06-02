@@ -119,7 +119,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue';
+import { ref, computed, onMounted, nextTick, watch, defineOptions } from 'vue';
 import { useRouter } from 'vue-router';
 import { getApiBaseUrl } from '@/config/server';
 import { homeTheme, homeCategories } from '@/config/homeTheme';
@@ -130,7 +130,10 @@ import { useAppBackgroundStore } from '@/stores/appBackground';
 import { useSkinStore, SkinRefreshEffect, useHomeSkinRefresh } from '@/skin';
 import { formatProgressLabel } from '@/utils/watchProgress';
 import { useHomeScroll } from '@/composables/useHomeScroll';
+import { useHomeScrollRestore, restoreHomeScroll } from '@/composables/useHomeScrollRestore';
 import { useCategorySwiper } from '@/composables/useCategorySwiper';
+
+defineOptions({ name: 'VideoList' });
 import SeriesCover from '@/components/SeriesCover.vue';
 import HomeTopNav from '@/components/home/HomeTopNav.vue';
 import HomeCategoryBar from '@/components/home/HomeCategoryBar.vue';
@@ -140,6 +143,7 @@ const backgroundStore = useAppBackgroundStore();
 const skinStore = useSkinStore();
 const router = useRouter();
 const { scrollY } = useHomeScroll();
+useHomeScrollRestore();
 const seriesList = ref([]);
 const continueList = ref([]);
 const loading = ref(true);
@@ -242,6 +246,10 @@ function titleFor(categoryId) {
 }
 
 onMounted(loadData);
+
+watch(loading, (isLoading) => {
+  if (!isLoading) restoreHomeScroll();
+});
 
 watch(() => skinStore.refreshToken, (token, prev) => {
   if (token === prev || token === 0) return;

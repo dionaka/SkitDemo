@@ -3,7 +3,20 @@
     <div class="app-layout" :class="{ 'chrome-hidden': hideChrome }">
       <AppBackgroundLayer v-if="!hideChrome" />
       <main class="app-main" :class="{ 'play-main': hideChrome, 'home-layout': isHomeLayout }">
-        <router-view />
+        <router-view v-slot="{ Component, route: activeRoute }">
+          <keep-alive>
+            <component
+              v-if="activeRoute.meta.keepAlive"
+              :is="Component"
+              :key="activeRoute.name"
+            />
+          </keep-alive>
+          <component
+            v-if="!activeRoute.meta.keepAlive"
+            :is="Component"
+            :key="activeRoute.fullPath"
+          />
+        </router-view>
       </main>
 
       <SkinTabBar v-if="!hideChrome" />
