@@ -21,7 +21,6 @@
 
     <template v-else>
       <div
-        v-if="skinStore.isActive"
         class="home-refresh-reveal"
         :class="{ pulling: isPulling, refreshing: isRefreshing }"
         :style="{ height: `${refreshRevealHeight}px` }"

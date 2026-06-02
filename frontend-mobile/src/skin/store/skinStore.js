@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { getUserBackground, updateUserBackground, clearUserBackground } from '@/api/background';
 import { useSessionStore } from '@/stores/session';
 import { parseSkinFile, cleanupParsedSkin } from '../parser/parseSkinFile';
-import { persistThemeAssets } from '../parser/persistAssets';
+import { prepareThemeForCloud } from '../parser/persistAssets';
 import { isSkinActive } from '../parser/normalizeTheme';
 
 const EMPTY_THEME = null;
@@ -122,10 +122,11 @@ export const useSkinStore = defineStore('bilibiliSkin', {
       this.syncing = true;
       try {
         parsed = await parseSkinFile(file);
-        const persisted = await persistThemeAssets(parsed.theme);
-        this.applyTheme(persisted);
+        this.applyTheme(parsed.theme);
+        const forCloud = await prepareThemeForCloud(parsed.theme);
+        this.applyTheme(forCloud);
         await this.saveToCloud();
-        return persisted;
+        return forCloud;
       } finally {
         cleanupParsedSkin(parsed);
         this.syncing = false;

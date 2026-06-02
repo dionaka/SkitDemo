@@ -30,7 +30,7 @@ const props = defineProps({
 const skin = useSkinStore();
 
 const visible = computed(
-  () => skin.isActive && (props.isPulling || props.isRefreshing || props.pullDistance > 2),
+  () => props.isPulling || props.isRefreshing || props.pullDistance > 2,
 );
 
 const iconUrl = computed(
