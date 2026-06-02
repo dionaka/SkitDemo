@@ -1,8 +1,8 @@
 <template>
   <div
     v-if="visible"
-    class="skin-refresh"
-    :style="{ transform: `translateY(${offset}px)` }"
+    class="skin-refresh-inline"
+    :class="{ refreshing: isRefreshing }"
   >
     <div class="skin-refresh-inner" :class="{ spinning: isRefreshing }">
       <img
@@ -13,7 +13,7 @@
       />
       <div v-else class="skin-refresh-dot" />
     </div>
-    <span class="skin-refresh-text">{{ statusText }}</span>
+    <span v-if="statusText" class="skin-refresh-text">{{ statusText }}</span>
   </div>
 </template>
 
@@ -29,48 +29,45 @@ const props = defineProps({
 
 const skin = useSkinStore();
 
-const visible = computed(() => skin.isActive && (props.isPulling || props.isRefreshing || props.pullDistance > 4));
+const visible = computed(
+  () => skin.isActive && (props.isPulling || props.isRefreshing || props.pullDistance > 2),
+);
 
-const offset = computed(() => {
-  if (props.isRefreshing) return 56;
-  return Math.min(72, props.pullDistance);
-});
-
-const iconUrl = computed(() => skin.refreshTheme?.icon || skin.tabBarTheme?.tabs?.[0]?.iconActive || '');
+const iconUrl = computed(
+  () => skin.refreshTheme?.icon || skin.tabBarTheme?.tabs?.[0]?.iconActive || '',
+);
 
 const statusText = computed(() => {
   if (props.isRefreshing) return '刷新中';
-  if (props.pullDistance >= 72) return '松开刷新';
-  if (props.isPulling) return '下拉刷新';
+  if (props.pullDistance >= 64) return '松开刷新';
+  if (props.isPulling && props.pullDistance > 8) return '下拉刷新';
   return '';
 });
 </script>
 
 <style scoped>
-.skin-refresh {
-  position: fixed;
-  top: calc(var(--safe-top) + 8px);
-  left: 0;
-  right: 0;
-  z-index: 80;
+.skin-refresh-inline {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  min-height: 44px;
+  padding: 6px 0 8px;
   pointer-events: none;
-  transition: transform 0.22s ease;
 }
 
 .skin-refresh-inner {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   display: flex;
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
 .skin-refresh-inner.spinning {
@@ -78,14 +75,14 @@ const statusText = computed(() => {
 }
 
 .skin-refresh-icon {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   object-fit: contain;
 }
 
 .skin-refresh-dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--skin-accent, var(--accent));
 }
@@ -93,6 +90,7 @@ const statusText = computed(() => {
 .skin-refresh-text {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.72);
+  letter-spacing: 0.2px;
 }
 
 @keyframes skin-refresh-spin {

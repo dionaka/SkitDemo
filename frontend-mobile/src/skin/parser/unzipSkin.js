@@ -8,16 +8,47 @@ function decodeName(bytes) {
   }
 }
 
+function unwrapProperties(parsed) {
+  if (parsed?.data?.properties) return parsed.data.properties;
+  if (parsed?.properties) return parsed.properties;
+  if (parsed?.data && typeof parsed.data === 'object') return parsed.data;
+  return {};
+}
+
+function mergeZipJsonPayload(archive) {
+  const jsonNames = Object.keys(archive).filter(
+    (name) => name.endsWith('.json') && !name.startsWith('__MACOSX'),
+  );
+
+  let properties = {};
+  let meta = {};
+
+  const ordered = [
+    ...jsonNames.filter((n) => /个性装扮\.json$/i.test(n)),
+    ...jsonNames.filter((n) => !/个性装扮\.json$/i.test(n)),
+  ];
+
+  ordered.forEach((name) => {
+    try {
+      const parsed = JSON.parse(decodeName(archive[name]));
+      const props = unwrapProperties(parsed);
+      if (props && typeof props === 'object') {
+        properties = { ...properties, ...props };
+      }
+      if (parsed?.data?.name || parsed?.name) meta.name = parsed.data?.name || parsed.name;
+      if (parsed?.data?.item_id || parsed?.id) meta.item_id = parsed.data?.item_id || parsed.id;
+      if (parsed?.preview) meta.preview = parsed.preview;
+      if (parsed?.package_url) meta.package_url = parsed.package_url;
+    } catch { /* skip invalid json */ }
+  });
+
+  return { properties, ...meta };
+}
+
 function findJsonEntry(entries) {
   const names = Object.keys(entries);
-  const priority = [
-    /个性装扮\.json$/i,
-    /[^/]+\.json$/i,
-  ];
-  for (const pattern of priority) {
-    const hit = names.find((name) => pattern.test(name) && !name.startsWith('__MACOSX'));
-    if (hit) return hit;
-  }
+  const hit = names.find((name) => /个性装扮\.json$/i.test(name) && !name.startsWith('__MACOSX'));
+  if (hit) return hit;
   return names.find((name) => name.endsWith('.json') && !name.startsWith('__MACOSX')) || null;
 }
 
@@ -32,27 +63,30 @@ function toBlobUrl(bytes, filename) {
   return URL.createObjectURL(blob);
 }
 
-/**
- * 解压 bilibili-skin zip，返回 JSON 与本地资源 blob URL 映射。
- */
-export function extractSkinZip(buffer) {
-  const archive = unzipSync(new Uint8Array(buffer));
-  const jsonName = findJsonEntry(archive);
-  if (!jsonName) throw new Error('压缩包中未找到主题 JSON');
+function mapAssetsFromProperties(properties, archive) {
+  const assetMap = {};
+  const entryNames = Object.keys(archive);
 
-  const jsonText = decodeName(archive[jsonName]);
-  let parsed;
-  try {
-    parsed = JSON.parse(jsonText);
-  } catch {
-    throw new Error('主题 JSON 格式无效');
-  }
+  Object.entries(properties || {}).forEach(([key, value]) => {
+    if (typeof value !== 'string' || !value.includes('/')) return;
+    const filename = value.split('/').pop()?.split('?')[0] || '';
+    if (!filename || filename.length < 8) return;
 
+    const hit = entryNames.find(
+      (entry) => entry.endsWith(filename)
+        || entry.includes(filename.slice(0, 20)),
+    );
+    if (hit) assetMap[key] = toBlobUrl(archive[hit], hit);
+  });
+
+  return assetMap;
+}
+
+function mapAssetsByFilename(archive) {
   const assetMap = {};
   const blobUrls = [];
 
   Object.entries(archive).forEach(([entryName, bytes]) => {
-    if (entryName === jsonName) return;
     if (entryName.startsWith('__MACOSX')) return;
     if (!/\.(png|jpe?g|webp|gif)$/i.test(entryName)) return;
 
@@ -60,12 +94,11 @@ export function extractSkinZip(buffer) {
     const url = toBlobUrl(bytes, entryName);
     blobUrls.push(url);
 
-    const normalized = base.replace(/[^a-z0-9_]/gi, '_').toLowerCase();
-    assetMap[normalized] = url;
     assetMap[base] = url;
 
     if (/head_tab/i.test(entryName)) assetMap.head_tab_bg = url;
     if (/head_bg/i.test(entryName) && !/tab|myself|squared/i.test(entryName)) assetMap.head_bg = url;
+    if (/head_myself_bg/i.test(entryName) && !/squared/i.test(entryName)) assetMap.head_myself_bg = url;
     if (/tail_bg/i.test(entryName)) assetMap.tail_bg = url;
     if (/tail_icon_main/i.test(entryName) && !/selected/i.test(entryName)) assetMap.tail_icon_main = url;
     if (/tail_icon_selected_main/i.test(entryName)) assetMap.tail_icon_selected_main = url;
@@ -74,6 +107,31 @@ export function extractSkinZip(buffer) {
     if (/side_bg/i.test(entryName) && !/bottom/i.test(entryName)) assetMap.side_bg = url;
     if (/preview/i.test(entryName)) assetMap.image_preview = url;
   });
+
+  return { assetMap, blobUrls };
+}
+
+/**
+ * 解压 bilibili-skin zip，返回 JSON 与本地资源 blob URL 映射。
+ */
+export function extractSkinZip(buffer) {
+  const archive = unzipSync(new Uint8Array(buffer));
+  const jsonName = findJsonEntry(archive);
+  if (!jsonName) throw new Error('压缩包中未找到主题 JSON');
+
+  const merged = mergeZipJsonPayload(archive);
+  const parsed = {
+    name: merged.name,
+    item_id: merged.item_id,
+    preview: merged.preview,
+    package_url: merged.package_url,
+    properties: merged.properties,
+  };
+
+  const fromNames = mapAssetsByFilename(archive);
+  const fromProps = mapAssetsFromProperties(merged.properties, archive);
+  const assetMap = { ...fromNames.assetMap, ...fromProps };
+  const blobUrls = [...new Set([...fromNames.blobUrls, ...Object.values(fromProps)])];
 
   return { parsed, assetMap, blobUrls };
 }

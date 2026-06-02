@@ -128,29 +128,29 @@ watch(() => skin.refreshToken, () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  font-size: 10px;
+  gap: 4px;
+  font-size: 11px;
   font-weight: 500;
   transition: color 0.2s;
   -webkit-tap-highlight-color: transparent;
 }
 
 .skin-tab-icon-wrap {
-  width: 28px;
-  height: 28px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .skin-tab-icon-img {
-  width: 26px;
-  height: 26px;
+  width: 34px;
+  height: 34px;
   object-fit: contain;
 }
 
 .skin-tab-icon-fallback {
-  font-size: 22px;
+  font-size: 28px;
   line-height: 1;
 }
 

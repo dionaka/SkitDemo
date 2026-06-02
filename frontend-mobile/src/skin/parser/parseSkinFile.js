@@ -70,7 +70,14 @@ export async function parseSkinFile(file) {
 
   const buffer = await readBuffer(file);
   const { parsed, assetMap, blobUrls } = extractSkinZip(buffer);
-  const raw = unwrapSkinJson(parsed);
+  const raw = {
+    name: parsed.name,
+    item_id: parsed.item_id,
+    id: parsed.item_id,
+    preview: parsed.preview,
+    package_url: parsed.package_url,
+    properties: parsed.properties || {},
+  };
   return {
     theme: normalizeBilibiliSkin(raw, assetMap),
     blobUrls,

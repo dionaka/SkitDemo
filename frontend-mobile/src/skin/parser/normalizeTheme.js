@@ -62,7 +62,8 @@ export function normalizeBilibiliSkin(raw = {}, assetMap = {}) {
 
   const topBg = assetMap.head_tab_bg
     || assetMap.head_bg
-    || pick(props, ['head_tab_bg', 'head_bg', 'head_myself_bg']);
+    || assetMap.head_myself_bg
+    || pick(props, ['head_tab_bg', 'head_bg', 'head_myself_bg', 'head_myself_squared_bg']);
 
   const pageBg = assetMap.side_bg
     || pick(props, ['side_bg', 'head_myself_squared_bg', 'image_cover']);

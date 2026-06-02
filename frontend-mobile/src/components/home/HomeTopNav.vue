@@ -1,7 +1,7 @@
 <template>
   <header
     class="home-top-nav"
-    :class="{ collapsed: collapsed }"
+    :class="{ collapsed: collapsed, 'has-skin-bg': hasSkinBg }"
     :style="themeVars"
   >
     <div class="nav-bg" />
@@ -43,6 +43,7 @@ import { useSessionStore } from '@/stores/session';
 const props = defineProps({
   scrollY: { type: Number, default: 0 },
   theme: { type: Object, default: () => homeTheme },
+  hasSkinBg: { type: Boolean, default: false },
 });
 
 defineEmits(['profile', 'search']);
@@ -119,6 +120,25 @@ const themeVars = computed(() => ({
     rgba(7, 7, 13, 0.15) 75%,
     var(--bg-base) 100%
   );
+}
+
+.home-top-nav.has-skin-bg .nav-bg {
+  background-size: cover, cover;
+  background-position: center top, center top;
+}
+
+.home-top-nav.has-skin-bg .nav-bg::after {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 42%,
+    rgba(7, 7, 13, 0.06) 78%,
+    rgba(7, 7, 13, 0.35) 100%
+  );
+}
+
+.home-top-nav.has-skin-bg .nav-mesh {
+  opacity: 0.45;
 }
 
 .nav-mesh {

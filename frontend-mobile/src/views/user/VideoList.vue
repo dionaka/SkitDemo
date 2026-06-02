@@ -1,14 +1,9 @@
 <template>
   <div class="home">
-    <SkinRefreshEffect
-      :pull-distance="pullDistance"
-      :is-pulling="isPulling"
-      :is-refreshing="isRefreshing"
-    />
-
     <HomeTopNav
       :scroll-y="scrollY"
       :theme="navTheme"
+      :has-skin-bg="hasSkinNavBg"
       @profile="onProfileTap"
       @search="onSearchTap"
     />
@@ -25,6 +20,19 @@
     </div>
 
     <template v-else>
+      <div
+        v-if="skinStore.isActive"
+        class="home-refresh-reveal"
+        :class="{ pulling: isPulling, refreshing: isRefreshing }"
+        :style="{ height: `${refreshRevealHeight}px` }"
+      >
+        <SkinRefreshEffect
+          :pull-distance="pullDistance"
+          :is-pulling="isPulling"
+          :is-refreshing="isRefreshing"
+        />
+      </div>
+
       <HomeCategoryBar
         ref="categoryBarRef"
         :model-value="activeCategory"
@@ -172,6 +180,13 @@ const {
   isRefreshing,
 } = useHomeSkinRefresh(loadData);
 
+const refreshRevealHeight = computed(() => {
+  if (isRefreshing.value) return 52;
+  return Math.max(0, Math.round(pullDistance.value));
+});
+
+const hasSkinNavBg = computed(() => Boolean(skinStore.topNavTheme?.navBackgroundImage));
+
 const navTheme = computed(() => {
   const theme = { ...homeTheme };
   const skinNav = skinStore.topNavTheme;
@@ -243,6 +258,25 @@ function onProfileTap() {
 .home {
   --home-chrome-top: calc(76px + var(--safe-top) + 54px);
   padding-bottom: 8px;
+}
+
+.home-refresh-reveal {
+  overflow: hidden;
+  margin: 0 -16px;
+  background: linear-gradient(
+    to bottom,
+    rgba(7, 7, 13, 0.98) 0%,
+    rgba(7, 7, 13, 0.88) 100%
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: height 0.18s ease-out;
+  will-change: height;
+}
+
+.home-refresh-reveal.pulling,
+.home-refresh-reveal.refreshing {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
 .setup-card {
