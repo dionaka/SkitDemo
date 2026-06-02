@@ -70,7 +70,8 @@ function applyRestore() {
 
   const want = computeTarget(el);
   el.scrollTop = want;
-  scrollToCategoryFn?.(savedCategoryId, false);
+  // 从播放/详情返回后内容固定在「热门」，菜单栏与横向列表同步到热门
+  scrollToCategoryFn?.('hot', false);
   return Math.abs(el.scrollTop - want) <= 8;
 }
 

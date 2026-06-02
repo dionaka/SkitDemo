@@ -37,18 +37,23 @@ export function useCategorySwiper(categories, activeCategoryRef) {
     const index = getIndex(id);
     if (index < 0) return;
 
+    const currentIndex = pageIndexFromScroll(el.scrollLeft, el.clientWidth);
+    const jump = Math.abs(index - currentIndex);
+    // 跨页点击（如热门→最新）用瞬时滚动，避免平滑动画经过中间标签
+    const useSmooth = smooth && jump <= 1;
+
     programmaticNav = true;
     window.clearTimeout(programmaticTimer);
     programmaticTimer = window.setTimeout(() => {
       programmaticNav = false;
-    }, smooth ? 420 : 0);
+    }, useSmooth ? 420 : 0);
 
     settledIndex = index;
     gestureStartIndex = index;
-    if (smooth) el.classList.add('smooth-scroll');
-    el.scrollTo({ left: index * el.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
     activeCategoryRef.value = id;
-    if (smooth) {
+    if (useSmooth) el.classList.add('smooth-scroll');
+    el.scrollTo({ left: index * el.clientWidth, behavior: useSmooth ? 'smooth' : 'auto' });
+    if (useSmooth) {
       window.setTimeout(() => el.classList.remove('smooth-scroll'), 420);
     }
   }
@@ -100,12 +105,8 @@ export function useCategorySwiper(categories, activeCategoryRef) {
 
   function onScrollEnd() {
     if (programmaticNav) {
-      const el = swiperRef.value;
-      if (el?.clientWidth) {
-        settledIndex = pageIndexFromScroll(el.scrollLeft, el.clientWidth);
-        gestureStartIndex = settledIndex;
-        applyCategoryIndex(settledIndex);
-      }
+      // 程序化滚动期间不按中间位置改标签，避免热门→最新时短暂停在推荐
+      applyCategoryIndex(settledIndex);
       return;
     }
     settleFromScroll(false);

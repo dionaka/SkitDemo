@@ -331,6 +331,8 @@ watch(apiBaseUrl, (url) => {
 });
 
 onActivated(() => {
+  activeCategory.value = 'hot';
+  scrollToCategory('hot', false);
   if (!hasServer.value) return;
   appPrefs.hydrate();
   if (!hasLoadedSeries() && !loading.value) {
@@ -369,8 +371,7 @@ watch(() => skinStore.refreshToken, (token, prev) => {
 });
 
 function onCategoryPick(id) {
-  activeCategory.value = id;
-  scrollToCategory(id);
+  scrollToCategory(id, false);
   categoryBarRef.value?.scrollActiveIntoView();
 }
 
