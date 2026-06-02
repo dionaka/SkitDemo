@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import App from './App.vue';
 import router from './router';
 import { initSafeArea } from './utils/safeArea';
+import { useAppPreferencesStore } from './stores/appPreferences';
 import { useAppBackgroundStore } from './stores/appBackground';
 import { initSkinModule } from './skin';
 import './assets/styles/main.css';
@@ -14,6 +15,7 @@ const pinia = createPinia();
 app.use(pinia).use(router);
 
 async function bootstrap() {
+  useAppPreferencesStore(pinia).hydrate();
   await useAppBackgroundStore(pinia).hydrate();
   await initSkinModule(pinia);
 

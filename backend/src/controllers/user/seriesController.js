@@ -5,7 +5,9 @@ const { success, fail } = require('../../utils/response');
 exports.list = (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const size = parseInt(req.query.size, 10) || 20;
-  const data = seriesService.listPublished(page, size);
+  const sort = req.query.sort;
+  const userSessionId = req.query.user_session_id || null;
+  const data = seriesService.listPublished(page, size, { sort, userSessionId });
   res.json(success(data));
 };
 

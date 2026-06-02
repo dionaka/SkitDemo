@@ -35,27 +35,28 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { onMounted, onActivated } from 'vue';
+import { storeToRefs } from 'pinia';
 import SettingsSection from './SettingsSection.vue';
-import { getAppPreferences, saveAppPreferences } from '@/utils/appPreferences';
-import { applyImmersiveStatusBar } from '@/utils/safeArea';
+import { useAppPreferencesStore } from '@/stores/appPreferences';
 
-const showContinueWatching = ref(true);
-const immersiveStatusBar = ref(false);
+const appPrefs = useAppPreferencesStore();
+const { showContinueWatching, immersiveStatusBar } = storeToRefs(appPrefs);
 
 onMounted(() => {
-  const prefs = getAppPreferences();
-  showContinueWatching.value = prefs.showContinueWatching;
-  immersiveStatusBar.value = prefs.immersiveStatusBar;
+  appPrefs.hydrate();
+});
+
+onActivated(() => {
+  appPrefs.hydrate();
 });
 
 function onContinueToggle() {
-  saveAppPreferences({ showContinueWatching: showContinueWatching.value });
+  appPrefs.setShowContinueWatching(showContinueWatching.value);
 }
 
 async function onImmersiveToggle() {
-  saveAppPreferences({ immersiveStatusBar: immersiveStatusBar.value });
-  await applyImmersiveStatusBar(immersiveStatusBar.value);
+  await appPrefs.setImmersiveStatusBar(immersiveStatusBar.value);
 }
 </script>
 

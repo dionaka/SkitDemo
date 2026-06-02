@@ -3,17 +3,49 @@ import { getAppPreferences } from './appPreferences';
 
 const STATUS_BAR_COLOR = '#07070d';
 
-function applySafeTopCss(immersive) {
+function applySafeTopCss(immersive, topPx = null) {
   const root = document.documentElement;
   root.classList.toggle('immersive-status-bar', immersive);
   root.classList.toggle('classic-status-bar', !immersive);
-  root.style.setProperty('--safe-top', immersive ? 'env(safe-area-inset-top, 0px)' : '0px');
+
+  if (!immersive) {
+    root.style.setProperty('--safe-top', '0px');
+    return;
+  }
+
+  if (topPx != null && topPx > 0) {
+    root.style.setProperty('--safe-top', `${topPx}px`);
+  } else {
+    root.style.setProperty('--safe-top', 'env(safe-area-inset-top, 28px)');
+  }
+}
+
+async function syncSafeTopFromStatusBar(immersive) {
+  if (!immersive) {
+    applySafeTopCss(false);
+    return;
+  }
+
+  if (!Capacitor.isNativePlatform()) {
+    applySafeTopCss(true);
+    return;
+  }
+
+  try {
+    const { StatusBar } = await import('@capacitor/status-bar');
+    const info = await StatusBar.getInfo();
+    const height = Math.round(Number(info.height) || 0);
+    applySafeTopCss(true, height > 0 ? height : null);
+  } catch {
+    applySafeTopCss(true);
+  }
 }
 
 export async function applyImmersiveStatusBar(immersive) {
-  applySafeTopCss(immersive);
-
-  if (!Capacitor.isNativePlatform()) return;
+  if (!Capacitor.isNativePlatform()) {
+    await syncSafeTopFromStatusBar(immersive);
+    return;
+  }
 
   try {
     const { StatusBar, Style } = await import('@capacitor/status-bar');
@@ -26,31 +58,28 @@ export async function applyImmersiveStatusBar(immersive) {
     }
     await StatusBar.setStyle({ style: Style.Dark });
     await StatusBar.show();
-  } catch {
-    // StatusBar plugin optional at runtime
+  } catch (err) {
+    console.warn('[status-bar] apply failed:', err?.message || err);
   }
+
+  await syncSafeTopFromStatusBar(immersive);
 }
 
 export async function restoreStatusBarAfterFullscreen() {
-  const immersive = getAppPreferences().immersiveStatusBar;
-  await applyImmersiveStatusBar(immersive);
+  await applyImmersiveStatusBar(getAppPreferences().immersiveStatusBar);
 }
 
-/**
- * Initialize safe-area handling on native platforms.
- */
 export async function initSafeArea() {
-  if (!Capacitor.isNativePlatform()) {
-    applySafeTopCss(getAppPreferences().immersiveStatusBar);
-    return;
+  const immersive = getAppPreferences().immersiveStatusBar;
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { ScreenOrientation } = await import('@capacitor/screen-orientation');
+      await ScreenOrientation.lock({ orientation: 'portrait' });
+    } catch {
+      // optional
+    }
   }
 
-  try {
-    const { ScreenOrientation } = await import('@capacitor/screen-orientation');
-    await ScreenOrientation.lock({ orientation: 'portrait' });
-  } catch {
-    // Screen orientation optional at runtime
-  }
-
-  await applyImmersiveStatusBar(getAppPreferences().immersiveStatusBar);
+  await applyImmersiveStatusBar(immersive);
 }

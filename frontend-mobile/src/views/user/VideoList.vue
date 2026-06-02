@@ -99,7 +99,10 @@
 
           <section v-else class="section">
             <div class="section-header">
-              <h2 class="section-title">{{ titleFor(cat.id) }}</h2>
+              <div class="section-heading">
+                <h2 class="section-title">{{ titleFor(cat.id) }}</h2>
+                <p v-if="subtitleFor(cat.id)" class="section-subtitle">{{ subtitleFor(cat.id) }}</p>
+              </div>
               <span class="section-more">共 {{ seriesFor(cat.id).length }} 部</span>
             </div>
             <div class="poster-grid">
@@ -138,7 +141,8 @@ import { useSessionStore } from '@/stores/session';
 import { useAppBackgroundStore } from '@/stores/appBackground';
 import { useSkinStore, SkinRefreshEffect, useHomeSkinRefresh } from '@/skin';
 import { formatProgressLabel, clearLocalProgressBatch } from '@/utils/watchProgress';
-import { getHomePreferences } from '@/utils/homePreferences';
+import { useAppPreferencesStore } from '@/stores/appPreferences';
+import { storeToRefs } from 'pinia';
 import { useHomeScroll } from '@/composables/useHomeScroll';
 import {
   useHomeScrollRestore,
@@ -152,12 +156,20 @@ import SeriesCover from '@/components/SeriesCover.vue';
 import HomeTopNav from '@/components/home/HomeTopNav.vue';
 import HomeCategoryBar from '@/components/home/HomeCategoryBar.vue';
 
+const HOME_LIST_SIZE = 50;
+
+function emptyCategoryLists() {
+  return Object.fromEntries(homeCategories.map((cat) => [cat.id, []]));
+}
+
 const session = useSessionStore();
+const appPrefs = useAppPreferencesStore();
+const { showContinueWatching } = storeToRefs(appPrefs);
 const backgroundStore = useAppBackgroundStore();
 const skinStore = useSkinStore();
 const router = useRouter();
 const { scrollY } = useHomeScroll();
-const seriesList = ref([]);
+const seriesByCategory = ref(emptyCategoryLists());
 const continueList = ref([]);
 const loading = ref(true);
 const error = ref('');
@@ -165,7 +177,6 @@ const activeCategory = ref('hot');
 const categoryBarRef = ref(null);
 const toast = ref('');
 const shakingSeriesId = ref(null);
-const showContinueWatching = ref(getHomePreferences().showContinueWatching);
 
 const LONG_PRESS_MS = 550;
 let longPressTimer = null;
@@ -184,6 +195,46 @@ useHomeScrollRestore();
 
 const hasServer = computed(() => Boolean(apiBaseUrl.value));
 
+function seriesFor(categoryId) {
+  return seriesByCategory.value[categoryId] || [];
+}
+
+function hasLoadedSeries() {
+  return homeCategories.some((cat) => seriesFor(cat.id).length > 0);
+}
+
+async function fetchCategoryList(categoryId) {
+  const data = await getSeriesList(
+    1,
+    HOME_LIST_SIZE,
+    categoryId,
+    session.userSessionId,
+  );
+  return data.list || [];
+}
+
+async function loadSeriesCategories() {
+  const results = await Promise.all(
+    homeCategories.map((cat) =>
+      fetchCategoryList(cat.id).catch(() => []),
+    ),
+  );
+  const next = emptyCategoryLists();
+  homeCategories.forEach((cat, index) => {
+    next[cat.id] = results[index];
+  });
+  seriesByCategory.value = next;
+}
+
+async function refreshRecommendCategory() {
+  if (!hasServer.value) return;
+  try {
+    seriesByCategory.value.recommend = await fetchCategoryList('recommend');
+  } catch {
+    // keep previous recommend list
+  }
+}
+
 async function loadData(options = {}) {
   const { silent = false } = options;
   if (!hasServer.value) {
@@ -193,13 +244,12 @@ async function loadData(options = {}) {
   if (!silent) loading.value = true;
   error.value = '';
   try {
-    const [seriesData, continueData] = await Promise.all([
-      getSeriesList(),
+    const [, continueData] = await Promise.all([
+      loadSeriesCategories(),
       showContinueWatching.value
         ? getContinueWatching(session.userSessionId).catch(() => ({ list: [] }))
         : Promise.resolve({ list: [] }),
     ]);
-    seriesList.value = seriesData.list || [];
     continueList.value = continueData.list || [];
   } catch (e) {
     error.value = e.message || '加载失败';
@@ -260,20 +310,18 @@ const navTheme = computed(() => {
   return theme;
 });
 
-function seriesFor(categoryId) {
-  const list = [...seriesList.value];
-  if (categoryId === 'latest') {
-    return list.sort((a, b) => (b.id || 0) - (a.id || 0));
-  }
-  if (categoryId === 'recommend') {
-    return [...list].reverse();
-  }
-  return list;
-}
-
 function titleFor(categoryId) {
   const map = { hot: '热门短剧', recommend: '为你推荐', latest: '最新上架' };
   return map[categoryId] || '热门短剧';
+}
+
+function subtitleFor(categoryId) {
+  const map = {
+    hot: '按点赞、收藏与观看热度排序',
+    recommend: '结合你的观看与互动偏好推荐',
+    latest: '按上架时间从新到旧',
+  };
+  return map[categoryId] || '';
 }
 
 onMounted(loadData);
@@ -284,12 +332,32 @@ watch(apiBaseUrl, (url) => {
 
 onActivated(() => {
   if (!hasServer.value) return;
-  showContinueWatching.value = getHomePreferences().showContinueWatching;
-  if (seriesList.value.length === 0 && !loading.value) {
+  appPrefs.hydrate();
+  if (!hasLoadedSeries() && !loading.value) {
     loadData();
     return;
   }
-  if (!showContinueWatching.value) return;
+  refreshRecommendCategory();
+  if (!showContinueWatching.value) {
+    continueList.value = [];
+    return;
+  }
+  getContinueWatching(session.userSessionId)
+    .then((data) => { continueList.value = data.list || []; })
+    .catch(() => {});
+});
+
+watch(() => session.userSessionId, () => {
+  if (!hasServer.value) return;
+  refreshRecommendCategory();
+});
+
+watch(showContinueWatching, (enabled) => {
+  if (!hasServer.value) return;
+  if (!enabled) {
+    continueList.value = [];
+    return;
+  }
   getContinueWatching(session.userSessionId)
     .then((data) => { continueList.value = data.list || []; })
     .catch(() => {});
@@ -440,6 +508,27 @@ function onProfileTap() {
 
 .section {
   margin-bottom: 20px;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 16px;
+  margin-bottom: 12px;
+}
+
+.section-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.section-subtitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
 }
 
 .continue-section {
