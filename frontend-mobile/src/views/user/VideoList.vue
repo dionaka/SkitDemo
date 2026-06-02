@@ -119,9 +119,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch, defineOptions } from 'vue';
+import { ref, computed, onMounted, onActivated, nextTick, watch, defineOptions } from 'vue';
 import { useRouter } from 'vue-router';
-import { getApiBaseUrl } from '@/config/server';
+import { apiBaseUrl } from '@/config/server';
 import { homeTheme, homeCategories } from '@/config/homeTheme';
 import { getSeriesList } from '@/api/series';
 import { getContinueWatching } from '@/api/watchProgress';
@@ -162,7 +162,7 @@ registerHomeScrollContext({
 });
 useHomeScrollRestore();
 
-const hasServer = computed(() => Boolean(getApiBaseUrl()));
+const hasServer = computed(() => Boolean(apiBaseUrl.value));
 
 async function loadData(options = {}) {
   const { silent = false } = options;
@@ -255,6 +255,16 @@ function titleFor(categoryId) {
 }
 
 onMounted(loadData);
+
+watch(apiBaseUrl, (url) => {
+  if (url) loadData();
+});
+
+onActivated(() => {
+  if (hasServer.value && seriesList.value.length === 0 && !loading.value) {
+    loadData();
+  }
+});
 
 watch(() => skinStore.refreshToken, (token, prev) => {
   if (token === prev || token === 0) return;

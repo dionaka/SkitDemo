@@ -75,7 +75,7 @@
 <script setup>
 import { ref, watch, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getApiBaseUrl } from '@/config/server';
+import { apiBaseUrl } from '@/config/server';
 import { searchContent } from '@/api/search';
 import { smartBack } from '@/utils/navigation';
 import SeriesCover from '@/components/SeriesCover.vue';
@@ -89,7 +89,7 @@ const total = ref(0);
 const loading = ref(false);
 const error = ref('');
 
-const hasServer = () => Boolean(getApiBaseUrl());
+const hasServer = () => Boolean(apiBaseUrl.value);
 
 let debounceTimer = null;
 
