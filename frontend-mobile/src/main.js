@@ -18,7 +18,7 @@ async function bootstrap() {
   await initSkinModule(pinia);
 
   if (Capacitor.isNativePlatform()) {
-    initSafeArea();
+    await initSafeArea();
 
     import('@capacitor/app').then(({ App: CapApp }) => {
       CapApp.addListener('backButton', async () => {

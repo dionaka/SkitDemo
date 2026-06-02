@@ -1,5 +1,5 @@
 <template>
-  <SettingsSection title="首页" description="控制首页展示内容">
+  <SettingsSection title="界面" description="首页内容与系统栏样式">
     <div class="card home-prefs-card">
       <label class="toggle-row">
         <div class="toggle-copy">
@@ -10,7 +10,24 @@
           v-model="showContinueWatching"
           type="checkbox"
           class="toggle-input"
-          @change="onToggle"
+          @change="onContinueToggle"
+        />
+      </label>
+
+      <div class="toggle-divider" />
+
+      <label class="toggle-row">
+        <div class="toggle-copy">
+          <span class="toggle-title">沉浸式状态栏</span>
+          <span class="toggle-desc">
+            内容延伸到屏幕顶部，状态栏透明（仅 App 生效）
+          </span>
+        </div>
+        <input
+          v-model="immersiveStatusBar"
+          type="checkbox"
+          class="toggle-input"
+          @change="onImmersiveToggle"
         />
       </label>
     </div>
@@ -20,16 +37,25 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import SettingsSection from './SettingsSection.vue';
-import { getHomePreferences, saveHomePreferences } from '@/utils/homePreferences';
+import { getAppPreferences, saveAppPreferences } from '@/utils/appPreferences';
+import { applyImmersiveStatusBar } from '@/utils/safeArea';
 
 const showContinueWatching = ref(true);
+const immersiveStatusBar = ref(false);
 
 onMounted(() => {
-  showContinueWatching.value = getHomePreferences().showContinueWatching;
+  const prefs = getAppPreferences();
+  showContinueWatching.value = prefs.showContinueWatching;
+  immersiveStatusBar.value = prefs.immersiveStatusBar;
 });
 
-function onToggle() {
-  saveHomePreferences({ showContinueWatching: showContinueWatching.value });
+function onContinueToggle() {
+  saveAppPreferences({ showContinueWatching: showContinueWatching.value });
+}
+
+async function onImmersiveToggle() {
+  saveAppPreferences({ immersiveStatusBar: immersiveStatusBar.value });
+  await applyImmersiveStatusBar(immersiveStatusBar.value);
 }
 </script>
 
@@ -47,6 +73,12 @@ function onToggle() {
   padding: 16px 18px;
   cursor: pointer;
   user-select: none;
+}
+
+.toggle-divider {
+  height: 1px;
+  margin: 0 18px;
+  background: var(--border);
 }
 
 .toggle-copy {

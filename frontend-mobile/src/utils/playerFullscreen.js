@@ -60,9 +60,8 @@ export async function exitNativePlayerFullscreen() {
   }
 
   try {
-    const { StatusBar } = await import('@capacitor/status-bar');
-    await StatusBar.show();
-    await StatusBar.setBackgroundColor({ color: '#07070d' });
+    const { restoreStatusBarAfterFullscreen } = await import('./safeArea');
+    await restoreStatusBarAfterFullscreen();
   } catch {
     // ignore
   }
