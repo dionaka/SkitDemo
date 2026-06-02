@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
+import { setupHomeScrollRouter } from '@/composables/useHomeScrollRestore';
 
 const routes = [
   {
@@ -44,5 +45,7 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes,
 });
+
+setupHomeScrollRouter(router);
 
 export default router;

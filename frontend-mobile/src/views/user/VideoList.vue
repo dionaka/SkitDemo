@@ -130,7 +130,7 @@ import { useAppBackgroundStore } from '@/stores/appBackground';
 import { useSkinStore, SkinRefreshEffect, useHomeSkinRefresh } from '@/skin';
 import { formatProgressLabel } from '@/utils/watchProgress';
 import { useHomeScroll } from '@/composables/useHomeScroll';
-import { useHomeScrollRestore, restoreHomeScroll } from '@/composables/useHomeScrollRestore';
+import { useHomeScrollRestore } from '@/composables/useHomeScrollRestore';
 import { useCategorySwiper } from '@/composables/useCategorySwiper';
 
 defineOptions({ name: 'VideoList' });
@@ -246,10 +246,6 @@ function titleFor(categoryId) {
 }
 
 onMounted(loadData);
-
-watch(loading, (isLoading) => {
-  if (!isLoading) restoreHomeScroll();
-});
 
 watch(() => skinStore.refreshToken, (token, prev) => {
   if (token === prev || token === 0) return;
