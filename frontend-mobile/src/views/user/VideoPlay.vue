@@ -278,6 +278,7 @@ let lastSaveAt = 0;
 /** 本次进入播放页时的起点，避免续播瞬间误刷新「最近观看」 */
 let sessionBaselinePosition = 0;
 const PROGRESS_ADVANCE_SECONDS = 3;
+const MIN_SAVE_SECONDS = 5;
 
 
 
@@ -384,8 +385,7 @@ async function goBack() {
 
 
 async function flushProgress(seconds) {
-  if (!videoId.value || seconds < 1) return;
-  if (seconds - sessionBaselinePosition < 1) return;
+  if (!videoId.value || seconds < MIN_SAVE_SECONDS) return;
 
   lastSaveAt = Date.now();
 

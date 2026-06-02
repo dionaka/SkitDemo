@@ -2,8 +2,8 @@ const db = require('../db');
 const seriesService = require('./seriesService');
 
 const MIN_RESUME_SECONDS = 5;
-/** 首次写入继续观看至少要看这么多秒，避免误触/预加载产生脏数据 */
-const MIN_NEW_ENTRY_SECONDS = 8;
+/** 首次写入继续观看至少要看这么多秒，避免误触产生脏数据 */
+const MIN_NEW_ENTRY_SECONDS = 5;
 const COMPLETE_RATIO = 0.95;
 const SHORT_VIDEO_MAX_SECONDS = 30;
 /** 只有相对「上次计时的进度锚点」往前看了这么多秒，才刷新最近观看时间 */
@@ -20,16 +20,9 @@ function isEligibleForContinue(positionSeconds, totalDuration) {
   return pos < total * COMPLETE_RATIO;
 }
 
-/** 过滤从未真正看过的脏记录（误触、预加载、旧版逻辑残留） */
-function hasMeaningfulWatch(positionSeconds, watchAnchorSeconds, totalDuration) {
-  const pos = Number(positionSeconds) || 0;
-  if (pos < MIN_NEW_ENTRY_SECONDS) return false;
-  const total = Number(totalDuration) || 0;
-  // 短视频看过 8 秒以上即视为有效观看
-  if (total > 0 && total <= SHORT_VIDEO_MAX_SECONDS) return true;
-  const anchor = Number(watchAnchorSeconds) || 0;
-  if (anchor <= MIN_NEW_ENTRY_SECONDS) return true;
-  return pos - anchor >= ADVANCE_SECONDS;
+/** 是否达到继续观看的最低进度（save 已保证新记录至少看够 MIN_NEW_ENTRY_SECONDS） */
+function hasMeaningfulWatch(positionSeconds) {
+  return (Number(positionSeconds) || 0) >= MIN_NEW_ENTRY_SECONDS;
 }
 
 class WatchProgressService {
@@ -50,11 +43,20 @@ class WatchProgressService {
 
     if (existing) {
       if (shouldBumpTime) {
-        db.prepare(`
-          UPDATE watch_progress
-          SET position_seconds = ?, watch_anchor_seconds = ?, updated_at = datetime('now')
-          WHERE user_session_id = ? AND video_id = ?
-        `).run(nextPosition, nextPosition, userSessionId, videoId);
+        if (bumpTime) {
+          // 暂停/离开：只刷新排序时间，不重置锚点
+          db.prepare(`
+            UPDATE watch_progress
+            SET position_seconds = ?, updated_at = datetime('now')
+            WHERE user_session_id = ? AND video_id = ?
+          `).run(nextPosition, userSessionId, videoId);
+        } else {
+          db.prepare(`
+            UPDATE watch_progress
+            SET position_seconds = ?, watch_anchor_seconds = ?, updated_at = datetime('now')
+            WHERE user_session_id = ? AND video_id = ?
+          `).run(nextPosition, nextPosition, userSessionId, videoId);
+        }
       } else if (nextPosition > prev) {
         db.prepare(`
           UPDATE watch_progress
@@ -180,7 +182,7 @@ class WatchProgressService {
     const seenSeries = new Set();
     const list = [];
     for (const item of rows) {
-      if (!hasMeaningfulWatch(item.position_seconds, item.watch_anchor_seconds, item.total_duration)) continue;
+      if (!hasMeaningfulWatch(item.position_seconds)) continue;
       if (!isEligibleForContinue(item.position_seconds, item.total_duration)) continue;
       if (seenSeries.has(item.series_id)) continue;
       seenSeries.add(item.series_id);

@@ -153,6 +153,7 @@ const prefs = ref(getPlayPreferences());
 let lastSaveAt = 0;
 let sessionBaselinePosition = 0;
 const PROGRESS_ADVANCE_SECONDS = 3;
+const MIN_SAVE_SECONDS = 5;
 
 const videoUrl = computed(() => video.value?.video_url || '');
 const videoId = computed(() => Number(route.params.id));
@@ -210,8 +211,7 @@ async function goBack() {
 }
 
 async function flushProgress(seconds) {
-  if (!videoId.value || seconds < 1) return;
-  if (seconds - sessionBaselinePosition < 1) return;
+  if (!videoId.value || seconds < MIN_SAVE_SECONDS) return;
   lastSaveAt = Date.now();
   setLocalProgress(videoId.value, seconds);
   try {
