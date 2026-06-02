@@ -275,6 +275,9 @@ const playerFullscreen = ref(false);
 const prefs = ref(getPlayPreferences());
 
 let lastSaveAt = 0;
+/** 本次进入播放页时的起点，避免续播瞬间误刷新「最近观看」 */
+let sessionBaselinePosition = 0;
+const PROGRESS_ADVANCE_SECONDS = 3;
 
 
 
@@ -328,6 +331,8 @@ async function loadVideo() {
 
 
     const resume = Math.max(local, remote);
+
+    sessionBaselinePosition = resume >= 5 ? resume : 0;
 
     if (resume >= 5) {
 
@@ -403,11 +408,12 @@ async function flushProgress(seconds) {
 
 
 function persistProgress(seconds, force = false) {
-
   if (!videoId.value || seconds < 1) return;
 
-  const now = Date.now();
+  const advanced = seconds - sessionBaselinePosition >= PROGRESS_ADVANCE_SECONDS;
+  if (!force && !advanced) return;
 
+  const now = Date.now();
   if (!force && now - lastSaveAt < 5000) return;
 
   lastSaveAt = now;
@@ -435,9 +441,9 @@ function onTimeUpdate(seconds) {
 
 
 function onPause(seconds) {
-
-  persistProgress(seconds, true);
-
+  if (seconds - sessionBaselinePosition >= 1) {
+    persistProgress(seconds, true);
+  }
 }
 
 

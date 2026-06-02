@@ -151,6 +151,8 @@ const startTime = ref(0);
 const resumeHint = ref('');
 const prefs = ref(getPlayPreferences());
 let lastSaveAt = 0;
+let sessionBaselinePosition = 0;
+const PROGRESS_ADVANCE_SECONDS = 3;
 
 const videoUrl = computed(() => video.value?.video_url || '');
 const videoId = computed(() => Number(route.params.id));
@@ -178,6 +180,7 @@ async function loadVideo() {
     } catch { /* ignore */ }
 
     const resume = Math.max(local, remote);
+    sessionBaselinePosition = resume >= 5 ? resume : 0;
     if (resume >= 5) {
       startTime.value = resume;
       resumeHint.value = `将从 ${formatProgressLabel(resume, video.value.total_duration)} 继续播放`;
@@ -220,6 +223,8 @@ async function flushProgress(seconds) {
 
 function persistProgress(seconds, force = false) {
   if (!videoId.value || seconds < 1) return;
+  const advanced = seconds - sessionBaselinePosition >= PROGRESS_ADVANCE_SECONDS;
+  if (!force && !advanced) return;
   const now = Date.now();
   if (!force && now - lastSaveAt < 5000) return;
   lastSaveAt = now;
@@ -235,7 +240,9 @@ function onTimeUpdate(seconds) {
 }
 
 function onPause(seconds) {
-  persistProgress(seconds, true);
+  if (seconds - sessionBaselinePosition >= 1) {
+    persistProgress(seconds, true);
+  }
 }
 
 function onHighlightReached(highlight) {
