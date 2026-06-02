@@ -70,7 +70,7 @@ html.custom-bg-active .tips-card {
   -webkit-backdrop-filter: blur(12px);
 }
 
-html.custom-bg-active .tab-bar {
+html.custom-bg-active .skin-tab-bar {
   background: rgba(12, 12, 20, 0.78);
 }
 

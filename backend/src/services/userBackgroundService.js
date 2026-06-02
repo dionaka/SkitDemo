@@ -15,12 +15,14 @@ function formatBackground(user) {
       background_url: null,
       overlay_opacity: 55,
       blur: 0,
+      skin_data: null,
     };
   }
   return {
     background_url: user.background_url || null,
     overlay_opacity: user.background_overlay ?? 55,
     blur: user.background_blur ?? 0,
+    skin_data: user.skin_data || null,
   };
 }
 
@@ -57,12 +59,14 @@ class UserBackgroundService {
     const user = requireUserBySessionId(sessionId);
     const overlay = Math.max(0, Math.min(85, Number(payload.overlay_opacity ?? user.background_overlay ?? 55)));
     const blur = Math.max(0, Math.min(24, Number(payload.blur ?? user.background_blur ?? 0)));
+    const hasSkinData = Object.prototype.hasOwnProperty.call(payload, 'skin_data');
+    const skinData = hasSkinData ? (payload.skin_data || null) : user.skin_data;
 
     db.prepare(`
       UPDATE app_user
-      SET background_overlay = ?, background_blur = ?, updated_at = datetime('now')
+      SET background_overlay = ?, background_blur = ?, skin_data = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(overlay, blur, user.id);
+    `).run(overlay, blur, skinData, user.id);
 
     return formatBackground(getBySessionId(sessionId));
   }
@@ -87,7 +91,7 @@ class UserBackgroundService {
 
     db.prepare(`
       UPDATE app_user
-      SET background_url = NULL, background_overlay = 55, background_blur = 0, updated_at = datetime('now')
+      SET background_url = NULL, background_overlay = 55, background_blur = 0, skin_data = NULL, updated_at = datetime('now')
       WHERE id = ?
     `).run(user.id);
 

@@ -1,5 +1,11 @@
 <template>
   <div class="home">
+    <SkinRefreshEffect
+      :pull-distance="pullDistance"
+      :is-pulling="isPulling"
+      :is-refreshing="isRefreshing"
+    />
+
     <HomeTopNav
       :scroll-y="scrollY"
       :theme="navTheme"
@@ -104,7 +110,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { getApiBaseUrl } from '@/config/server';
 import { homeTheme, homeCategories } from '@/config/homeTheme';
@@ -112,6 +118,7 @@ import { getSeriesList } from '@/api/series';
 import { getContinueWatching } from '@/api/watchProgress';
 import { useSessionStore } from '@/stores/session';
 import { useAppBackgroundStore } from '@/stores/appBackground';
+import { useSkinStore, SkinRefreshEffect, useHomeSkinRefresh } from '@/skin';
 import { formatProgressLabel } from '@/utils/watchProgress';
 import { useHomeScroll } from '@/composables/useHomeScroll';
 import { useCategorySwiper } from '@/composables/useCategorySwiper';
@@ -121,6 +128,7 @@ import HomeCategoryBar from '@/components/home/HomeCategoryBar.vue';
 
 const session = useSessionStore();
 const backgroundStore = useAppBackgroundStore();
+const skinStore = useSkinStore();
 const router = useRouter();
 const { scrollY } = useHomeScroll();
 const seriesList = ref([]);
@@ -133,32 +141,6 @@ const categoryBarRef = ref(null);
 const { swiperRef, scrollToCategory, initSwiper } = useCategorySwiper(homeCategories, activeCategory);
 
 const hasServer = computed(() => Boolean(getApiBaseUrl()));
-
-const navTheme = computed(() => {
-  const theme = { ...homeTheme };
-  if (backgroundStore.navBackgroundImage) {
-    theme.navBackgroundImage = backgroundStore.navBackgroundImage;
-  }
-  return theme;
-});
-
-function seriesFor(categoryId) {
-  const list = [...seriesList.value];
-  if (categoryId === 'latest') {
-    return list.sort((a, b) => (b.id || 0) - (a.id || 0));
-  }
-  if (categoryId === 'recommend') {
-    return [...list].reverse();
-  }
-  return list;
-}
-
-function titleFor(categoryId) {
-  const map = { hot: '热门短剧', recommend: '为你推荐', latest: '最新上架' };
-  return map[categoryId] || '热门短剧';
-}
-
-onMounted(loadData);
 
 async function loadData() {
   if (!hasServer.value) {
@@ -183,6 +165,60 @@ async function loadData() {
     }
   }
 }
+
+const {
+  pullDistance,
+  isPulling,
+  isRefreshing,
+} = useHomeSkinRefresh(loadData);
+
+const navTheme = computed(() => {
+  const theme = { ...homeTheme };
+  const skinNav = skinStore.topNavTheme;
+  const colors = skinStore.themeColors;
+
+  if (skinNav?.navBackgroundImage) {
+    theme.navBackgroundImage = skinNav.navBackgroundImage;
+  } else if (backgroundStore.navBackgroundImage) {
+    theme.navBackgroundImage = backgroundStore.navBackgroundImage;
+  }
+
+  if (skinNav?.navBackgroundGradient) {
+    theme.navBackgroundGradient = skinNav.navBackgroundGradient;
+  } else if (colors?.accent) {
+    theme.navAccentGlow = colors.accent.startsWith('#')
+      ? `${colors.accent}88`
+      : homeTheme.navAccentGlow;
+    theme.navBackgroundGradient = `linear-gradient(145deg, ${colors.pubTop || colors.tabBg} 0%, ${colors.tabBg} 45%, #07070d 100%)`;
+  }
+
+  if (skinNav?.navAccentGlow) theme.navAccentGlow = skinNav.navAccentGlow;
+  if (skinNav?.navMeshColor) theme.navMeshColor = skinNav.navMeshColor;
+
+  return theme;
+});
+
+function seriesFor(categoryId) {
+  const list = [...seriesList.value];
+  if (categoryId === 'latest') {
+    return list.sort((a, b) => (b.id || 0) - (a.id || 0));
+  }
+  if (categoryId === 'recommend') {
+    return [...list].reverse();
+  }
+  return list;
+}
+
+function titleFor(categoryId) {
+  const map = { hot: '热门短剧', recommend: '为你推荐', latest: '最新上架' };
+  return map[categoryId] || '热门短剧';
+}
+
+onMounted(loadData);
+
+watch(() => skinStore.refreshToken, () => {
+  if (skinStore.isActive) loadData();
+});
 
 function onCategoryPick(id) {
   activeCategory.value = id;

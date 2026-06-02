@@ -70,12 +70,12 @@ const innerStyle = computed(() => ({
 }));
 
 const themeVars = computed(() => ({
-  '--home-nav-gradient': props.theme.navBackgroundGradient,
+  '--home-nav-gradient': props.theme.navBackgroundGradient || homeTheme.navBackgroundGradient,
   '--home-nav-bg-image': props.theme.navBackgroundImage
     ? `url(${props.theme.navBackgroundImage})`
     : 'none',
-  '--home-nav-glow': props.theme.navAccentGlow,
-  '--home-nav-mesh': props.theme.navMeshColor || 'rgba(255, 120, 150, 0.1)',
+  '--home-nav-glow': props.theme.navAccentGlow || homeTheme.navAccentGlow,
+  '--home-nav-mesh': props.theme.navMeshColor || homeTheme.navMeshColor || 'rgba(255, 120, 150, 0.1)',
   '--home-nav-height': props.theme.navHeight,
 }));
 </script>

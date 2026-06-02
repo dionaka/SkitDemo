@@ -26,6 +26,19 @@
       <button type="button" class="btn btn-ghost logout-btn" @click="handleLogout">退出登录</button>
     </div>
 
+    <button
+      v-if="session.isLoggedIn"
+      type="button"
+      class="theme-entry card"
+      @click="router.push('/settings')"
+    >
+      <div class="theme-entry-text">
+        <span class="theme-entry-title">个性主题</span>
+        <span class="theme-entry-desc">导入 bilibili-skin 格式主题</span>
+      </div>
+      <span class="theme-entry-arrow">›</span>
+    </button>
+
     <div v-else class="guest-card card">
       <UserAvatar username="" avatar-url="" size="lg" />
       <h1 class="profile-name">未登录</h1>
@@ -204,6 +217,47 @@ function handleLogout() {
 .logout-btn {
   width: 100%;
   max-width: 280px;
+}
+
+.theme-entry {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.theme-entry:active {
+  background: var(--bg-card-hover);
+}
+
+.theme-entry-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.theme-entry-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.theme-entry-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.theme-entry-arrow {
+  font-size: 22px;
+  color: var(--text-muted);
+  line-height: 1;
 }
 
 .favorites-section {

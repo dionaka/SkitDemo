@@ -1,39 +1,88 @@
 <template>
-  <SettingsSection title="外观设置" description="自定义背景会同步到云端，登录后多端一致">
+  <SettingsSection
+    title="个性主题"
+    description="支持 bilibili-skin 仓库格式的 .json / .zip 主题包，登录后云端同步"
+  >
     <div v-if="!session.isLoggedIn" class="card login-hint-card">
-      <p>登录后可上传背景并同步到账号</p>
+      <p>登录后可导入 bilibili-skin 仓库格式的 B 站装扮主题（.json / .zip），并同步到账号。</p>
       <button type="button" class="btn btn-primary" @click="$router.push('/login')">去登录</button>
     </div>
 
     <div v-else class="card appearance-card">
-      <div class="field-label">背景图片</div>
-      <div class="upload-row">
-        <label class="upload-btn" :class="{ disabled: uploading || background.syncing }">
-          <input
-            type="file"
-            accept="image/*"
-            class="upload-input"
-            :disabled="uploading || background.syncing"
-            @change="onPickImage"
-          />
-          <span class="upload-icon">🖼️</span>
-          <span>{{ uploading ? '处理中...' : background.syncing ? '同步中...' : '从相册选择' }}</span>
-        </label>
+      <div class="section-block">
+        <div class="field-label">导入 B 站主题</div>
+        <p class="field-hint">
+          支持 `个性装扮.json`、`<主题名>.json`，或包含 `bg/` 文件夹的主题 zip 包。
+        </p>
         <button
-          v-if="background.isActive"
+          type="button"
+          class="upload-btn primary"
+          :disabled="uploading || skin.syncing"
+          @click="pickSkin"
+        >
+          <span class="upload-icon">📦</span>
+          <span>{{ uploading ? '导入中...' : skin.syncing ? '同步中...' : '选择主题文件 (.json / .zip)' }}</span>
+        </button>
+        <input
+          ref="skinRef"
+          type="file"
+          accept=".json,.zip,application/json,application/zip"
+          class="upload-input"
+          @change="onPickSkin"
+        />
+      </div>
+
+      <div v-if="hasTheme" class="current-theme card-lite">
+        <div v-if="previewUrl" class="preview-box">
+          <img :src="previewUrl" alt="主题预览" class="preview-image" />
+        </div>
+        <div class="current-theme-info">
+          <div class="current-theme-name">
+            {{ themeName || '自定义背景' }}
+          </div>
+          <div class="current-theme-meta">
+            {{ skin.isActive ? 'bilibili-skin 主题' : '自定义图片' }}
+            <span v-if="skin.theme?.id"> · ID {{ skin.theme.id }}</span>
+          </div>
+          <div v-if="colorChips.length" class="color-row">
+            <span
+              v-for="chip in colorChips"
+              :key="chip.label"
+              class="color-chip"
+              :style="{ background: chip.value }"
+              :title="chip.label"
+            />
+          </div>
+        </div>
+        <button
           type="button"
           class="btn btn-ghost compact-btn"
-          :disabled="background.syncing"
-          @click="clearImage"
+          :disabled="skin.syncing || background.syncing"
+          @click="resetTheme"
         >
-          清除图片
+          恢复默认
         </button>
       </div>
 
-      <div v-if="background.imageUrl" class="preview-box">
-        <img :src="background.imageUrl" alt="背景预览" class="preview-image" />
+      <div class="section-block">
+        <div class="field-label">自定义背景图</div>
+        <button
+          type="button"
+          class="upload-btn"
+          :disabled="uploading || background.syncing"
+          @click="pickImage"
+        >
+          <span class="upload-icon">🖼️</span>
+          <span>从相册选择图片</span>
+        </button>
+        <input
+          ref="imageRef"
+          type="file"
+          accept="image/*"
+          class="upload-input"
+          @change="onPickImage"
+        />
       </div>
-      <p v-else class="field-hint">尚未设置背景，当前使用默认样式</p>
 
       <div class="slider-field">
         <div class="slider-head">
@@ -50,7 +99,6 @@
           :disabled="!background.isActive || background.syncing"
           @input="onOverlayChange"
         />
-        <p class="field-hint">提高遮罩可让文字更清晰，调整后会自动保存到云端</p>
       </div>
 
       <div class="slider-field">
@@ -72,35 +120,72 @@
 
       <p v-if="message" class="success-text">{{ message }}</p>
       <p v-if="error" class="error-text">{{ error }}</p>
-
-      <button
-        type="button"
-        class="btn btn-text reset-btn"
-        :disabled="!background.isActive || background.syncing"
-        @click="resetBackground"
-      >
-        恢复默认背景
-      </button>
     </div>
   </SettingsSection>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import SettingsSection from './SettingsSection.vue';
 import { useAppBackgroundStore } from '@/stores/appBackground';
+import { useSkinStore } from '@/skin';
 import { useSessionStore } from '@/stores/session';
 
 const background = useAppBackgroundStore();
+const skin = useSkinStore();
 const session = useSessionStore();
+const skinRef = ref(null);
+const imageRef = ref(null);
 const uploading = ref(false);
 const message = ref('');
 const error = ref('');
 
+const hasTheme = computed(() => skin.isActive || background.isActive);
+const themeName = computed(() => skin.themeName || '');
+const previewUrl = computed(() => skin.previewUrl || background.imageUrl || '');
+
+const colorChips = computed(() => {
+  const colors = skin.themeColors;
+  if (!colors) return [];
+  return [
+    { label: '强调色', value: colors.accent },
+    { label: '文字色', value: colors.text },
+    { label: '底栏色', value: colors.tabBg },
+    { label: '选中色', value: colors.tabActive },
+  ].filter((item) => item.value);
+});
+
 function flash(msg) {
   message.value = msg;
   error.value = '';
-  setTimeout(() => { message.value = ''; }, 1800);
+  setTimeout(() => { message.value = ''; }, 2200);
+}
+
+function pickSkin() {
+  if (uploading.value || skin.syncing) return;
+  skinRef.value?.click();
+}
+
+function pickImage() {
+  if (uploading.value || background.syncing) return;
+  imageRef.value?.click();
+}
+
+async function onPickSkin(event) {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+
+  uploading.value = true;
+  error.value = '';
+  try {
+    await skin.importFromFile(file);
+    flash(`已导入主题：${skin.themeName || 'B站主题'}`);
+  } catch (e) {
+    error.value = e.message || '主题导入失败';
+  } finally {
+    uploading.value = false;
+  }
 }
 
 async function onPickImage(event) {
@@ -112,21 +197,11 @@ async function onPickImage(event) {
   error.value = '';
   try {
     await background.uploadImageFromFile(file);
-    flash('背景已上传并同步到云端');
+    flash('自定义背景已上传');
   } catch (e) {
     error.value = e.message || '背景上传失败';
   } finally {
     uploading.value = false;
-  }
-}
-
-async function clearImage() {
-  error.value = '';
-  try {
-    await background.clearCloudBackground();
-    flash('已清除背景');
-  } catch (e) {
-    error.value = e.message || '清除失败';
   }
 }
 
@@ -138,11 +213,12 @@ function onBlurChange(event) {
   background.setBlur(event.target.value);
 }
 
-async function resetBackground() {
+async function resetTheme() {
   error.value = '';
   try {
-    await background.clearCloudBackground();
-    flash('已恢复默认背景');
+    await skin.clearSkin();
+    background.resetLocal();
+    flash('已恢复默认主题');
   } catch (e) {
     error.value = e.message || '恢复失败';
   }
@@ -165,7 +241,13 @@ async function resetBackground() {
 .appearance-card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+}
+
+.section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .field-label {
@@ -178,14 +260,13 @@ async function resetBackground() {
   margin: 0;
 }
 
-.upload-row {
-  display: flex;
-  gap: 10px;
-  align-items: stretch;
+.field-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
 }
 
 .upload-btn {
-  flex: 1;
   min-height: 46px;
   display: inline-flex;
   align-items: center;
@@ -200,11 +281,16 @@ async function resetBackground() {
   cursor: pointer;
 }
 
-.upload-btn:active:not(.disabled) {
-  background: var(--bg-card-hover);
+.upload-btn.primary {
+  border-color: rgba(255, 77, 109, 0.35);
+  background: var(--accent-soft);
 }
 
-.upload-btn.disabled {
+.upload-btn:active:not(:disabled) {
+  opacity: 0.85;
+}
+
+.upload-btn:disabled {
   opacity: 0.6;
   pointer-events: none;
 }
@@ -218,25 +304,59 @@ async function resetBackground() {
   line-height: 1;
 }
 
-.compact-btn {
-  width: auto;
-  min-width: 96px;
-  padding: 0 14px;
-  min-height: 46px;
+.current-theme {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card-lite {
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .preview-box {
   border-radius: var(--radius-sm);
   overflow: hidden;
   border: 1px solid var(--border);
-  max-height: 160px;
+  max-height: 140px;
 }
 
 .preview-image {
   display: block;
   width: 100%;
-  height: 160px;
+  height: 140px;
   object-fit: cover;
+}
+
+.current-theme-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.current-theme-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.color-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.color-chip {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.compact-btn {
+  width: 100%;
 }
 
 .slider-field {
@@ -264,21 +384,6 @@ async function resetBackground() {
 }
 
 .slider:disabled {
-  opacity: 0.45;
-}
-
-.field-hint {
-  font-size: 11px;
-  color: var(--text-muted);
-  line-height: 1.4;
-}
-
-.reset-btn {
-  align-self: center;
-  margin-top: 4px;
-}
-
-.reset-btn:disabled {
   opacity: 0.45;
 }
 </style>

@@ -5,6 +5,7 @@ import App from './App.vue';
 import router from './router';
 import { initSafeArea } from './utils/safeArea';
 import { useAppBackgroundStore } from './stores/appBackground';
+import { initSkinModule } from './skin';
 import './assets/styles/main.css';
 
 const app = createApp(App);
@@ -14,6 +15,7 @@ app.use(pinia).use(router);
 
 async function bootstrap() {
   await useAppBackgroundStore(pinia).hydrate();
+  await initSkinModule(pinia);
 
   if (Capacitor.isNativePlatform()) {
     initSafeArea();

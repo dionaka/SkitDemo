@@ -156,6 +156,9 @@ function migrateSchema() {
   if (!userCols.includes('background_blur')) {
     db.exec('ALTER TABLE app_user ADD COLUMN background_blur INTEGER NOT NULL DEFAULT 0');
   }
+  if (!userCols.includes('skin_data')) {
+    db.exec('ALTER TABLE app_user ADD COLUMN skin_data TEXT');
+  }
 }
 
 function seedDemoData() {

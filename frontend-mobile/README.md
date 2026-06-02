@@ -71,3 +71,23 @@ npm run cap:sync
 | 用户端 App | Android Studio 安装到手机 |
 
 管理端上传、AI 分析、发布视频后，App 刷新列表即可看到。
+
+## 个性主题（bilibili-skin 格式）
+
+支持导入 [Rovniced/bilibili-skin](https://github.com/Rovniced/bilibili-skin) 仓库中的 B 站装扮主题，登录后云端同步。
+
+### 支持的文件
+
+| 文件 | 说明 |
+|------|------|
+| `个性装扮.json` | 原始装扮数据 |
+| `<主题名>.json` | 哔哩漫游可读格式 |
+| `*_package.zip` / 含 `bg/` 的 zip | 完整主题包（含背景图） |
+
+### 使用步骤
+
+1. 从 bilibili-skin 仓库下载某个主题文件夹中的 json 或 zip
+2. App → **设置** → **个性主题** → 选择文件导入
+3. 主题配色、背景图会应用到 App，并同步到云端
+
+示例路径：`2233赛博朋克/2233赛博朋克.json` 或 `BML2020/BML2020_package.zip`
