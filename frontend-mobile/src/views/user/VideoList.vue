@@ -41,7 +41,7 @@
         @update:model-value="onCategoryPick"
       />
 
-      <section v-if="continueList.length" class="section continue-section">
+      <section v-if="showContinueWatching && continueList.length" class="section continue-section">
         <div class="section-header continue-header">
           <h2 class="section-title">继续观看</h2>
           <button type="button" class="continue-clear-btn" @click="clearAllContinue">清空记录</button>
@@ -138,6 +138,7 @@ import { useSessionStore } from '@/stores/session';
 import { useAppBackgroundStore } from '@/stores/appBackground';
 import { useSkinStore, SkinRefreshEffect, useHomeSkinRefresh } from '@/skin';
 import { formatProgressLabel, clearLocalProgressBatch } from '@/utils/watchProgress';
+import { getHomePreferences } from '@/utils/homePreferences';
 import { useHomeScroll } from '@/composables/useHomeScroll';
 import {
   useHomeScrollRestore,
@@ -164,6 +165,7 @@ const activeCategory = ref('hot');
 const categoryBarRef = ref(null);
 const toast = ref('');
 const shakingSeriesId = ref(null);
+const showContinueWatching = ref(getHomePreferences().showContinueWatching);
 
 const LONG_PRESS_MS = 550;
 let longPressTimer = null;
@@ -193,7 +195,9 @@ async function loadData(options = {}) {
   try {
     const [seriesData, continueData] = await Promise.all([
       getSeriesList(),
-      getContinueWatching(session.userSessionId).catch(() => ({ list: [] })),
+      showContinueWatching.value
+        ? getContinueWatching(session.userSessionId).catch(() => ({ list: [] }))
+        : Promise.resolve({ list: [] }),
     ]);
     seriesList.value = seriesData.list || [];
     continueList.value = continueData.list || [];
@@ -280,10 +284,12 @@ watch(apiBaseUrl, (url) => {
 
 onActivated(() => {
   if (!hasServer.value) return;
+  showContinueWatching.value = getHomePreferences().showContinueWatching;
   if (seriesList.value.length === 0 && !loading.value) {
     loadData();
     return;
   }
+  if (!showContinueWatching.value) return;
   getContinueWatching(session.userSessionId)
     .then((data) => { continueList.value = data.list || []; })
     .catch(() => {});
