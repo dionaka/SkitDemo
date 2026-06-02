@@ -11,6 +11,14 @@ export function setLocalProgress(videoId, seconds) {
   localStorage.setItem(`${PREFIX}${videoId}`, String(Math.max(0, seconds)));
 }
 
+export function clearLocalProgress(videoId) {
+  localStorage.removeItem(`${PREFIX}${videoId}`);
+}
+
+export function clearLocalProgressBatch(videoIds) {
+  (videoIds || []).forEach((id) => clearLocalProgress(id));
+}
+
 export function formatProgressLabel(seconds, total) {
   if (!total || seconds < 5) return '';
   const pct = Math.min(100, Math.round((seconds / total) * 100));

@@ -14,3 +14,15 @@ export const getContinueWatching = (userSessionId) =>
     params: { user_session_id: userSessionId },
     silent: true,
   });
+
+export const removeContinueSeries = (seriesId, userSessionId) =>
+  request.delete(`/api/v1/watch-progress/series/${seriesId}`, {
+    params: { user_session_id: userSessionId },
+    silent: true,
+  });
+
+export const clearContinueWatching = (userSessionId) =>
+  request.delete('/api/v1/watch-progress', {
+    params: { user_session_id: userSessionId },
+    silent: true,
+  });

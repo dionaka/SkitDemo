@@ -120,6 +120,36 @@ class WatchProgressService {
     });
   }
 
+  removeBySeries(userSessionId, seriesId) {
+    const videoIds = db.prepare(
+      'SELECT id FROM video WHERE series_id = ?'
+    ).all(seriesId).map((row) => row.id);
+
+    if (videoIds.length === 0) {
+      return { deleted: 0, video_ids: [] };
+    }
+
+    const placeholders = videoIds.map(() => '?').join(',');
+    const result = db.prepare(`
+      DELETE FROM watch_progress
+      WHERE user_session_id = ? AND video_id IN (${placeholders})
+    `).run(userSessionId, ...videoIds);
+
+    return { deleted: result.changes, video_ids: videoIds };
+  }
+
+  clearAll(userSessionId) {
+    const videoIds = db.prepare(
+      'SELECT video_id FROM watch_progress WHERE user_session_id = ?'
+    ).all(userSessionId).map((row) => row.video_id);
+
+    const result = db.prepare(
+      'DELETE FROM watch_progress WHERE user_session_id = ?'
+    ).run(userSessionId);
+
+    return { deleted: result.changes, video_ids: videoIds };
+  }
+
   getContinueList(userSessionId, limit = 10) {
     // 按剧集聚合：每部剧只取 updated_at 最新的一集，避免多集轮流顶到前面
     const rows = db.prepare(`

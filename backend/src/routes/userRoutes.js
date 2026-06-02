@@ -28,6 +28,8 @@ router.post('/series/:id/favorite', engagementController.toggleFavorite);
 router.get('/user/favorites', engagementController.listFavorites);
 router.get('/series/:id/episodes', seriesController.episodesWithProgress);
 router.get('/watch-progress/continue', watchProgressController.continueList);
+router.delete('/watch-progress', watchProgressController.clearAll);
+router.delete('/watch-progress/series/:seriesId', watchProgressController.removeBySeries);
 router.get('/watch-progress/:videoId', watchProgressController.getOne);
 router.put('/watch-progress/:videoId', watchProgressController.save);
 

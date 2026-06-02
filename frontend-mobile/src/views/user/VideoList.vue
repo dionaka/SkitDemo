@@ -42,15 +42,22 @@
       />
 
       <section v-if="continueList.length" class="section continue-section">
-        <div class="section-header">
+        <div class="section-header continue-header">
           <h2 class="section-title">继续观看</h2>
+          <button type="button" class="continue-clear-btn" @click="clearAllContinue">清空</button>
         </div>
         <div class="continue-scroll">
           <div
             v-for="item in continueList"
             :key="item.video_id"
             class="continue-item"
-            @click="openPlay(item.video_id)"
+            :class="{ shaking: shakingSeriesId === item.series_id }"
+            @click="onContinueClick(item)"
+            @touchstart.passive="onContinueTouchStart(item, $event)"
+            @touchmove.passive="onContinueTouchMove"
+            @touchend="onContinueTouchEnd"
+            @touchcancel="onContinueTouchEnd"
+            @contextmenu.prevent="confirmRemoveContinue(item)"
           >
             <SeriesCover
               class="continue-poster"
@@ -66,6 +73,8 @@
           </div>
         </div>
       </section>
+
+      <div v-if="toast" class="home-toast">{{ toast }}</div>
 
       <div ref="swiperRef" class="category-swiper">
         <div
@@ -124,11 +133,11 @@ import { useRouter } from 'vue-router';
 import { apiBaseUrl } from '@/config/server';
 import { homeTheme, homeCategories } from '@/config/homeTheme';
 import { getSeriesList } from '@/api/series';
-import { getContinueWatching } from '@/api/watchProgress';
+import { getContinueWatching, removeContinueSeries, clearContinueWatching } from '@/api/watchProgress';
 import { useSessionStore } from '@/stores/session';
 import { useAppBackgroundStore } from '@/stores/appBackground';
 import { useSkinStore, SkinRefreshEffect, useHomeSkinRefresh } from '@/skin';
-import { formatProgressLabel } from '@/utils/watchProgress';
+import { formatProgressLabel, clearLocalProgressBatch } from '@/utils/watchProgress';
 import { useHomeScroll } from '@/composables/useHomeScroll';
 import {
   useHomeScrollRestore,
@@ -153,6 +162,15 @@ const loading = ref(true);
 const error = ref('');
 const activeCategory = ref('hot');
 const categoryBarRef = ref(null);
+const toast = ref('');
+const shakingSeriesId = ref(null);
+
+const LONG_PRESS_MS = 550;
+let longPressTimer = null;
+let longPressTriggered = false;
+let touchStartX = 0;
+let touchStartY = 0;
+let confirmOpen = false;
 
 const { swiperRef, scrollToCategory, initSwiper } = useCategorySwiper(homeCategories, activeCategory);
 
@@ -296,6 +314,79 @@ function openPlay(videoId) {
   router.push(`/play/${videoId}`);
 }
 
+function showToast(msg) {
+  toast.value = msg;
+  setTimeout(() => { toast.value = ''; }, 2200);
+}
+
+function onContinueClick(item) {
+  if (longPressTriggered) {
+    longPressTriggered = false;
+    return;
+  }
+  openPlay(item.video_id);
+}
+
+function onContinueTouchStart(item, e) {
+  longPressTriggered = false;
+  const touch = e.touches?.[0];
+  if (!touch) return;
+  touchStartX = touch.clientX;
+  touchStartY = touch.clientY;
+  clearTimeout(longPressTimer);
+  longPressTimer = setTimeout(() => {
+    longPressTriggered = true;
+    shakingSeriesId.value = item.series_id;
+    if (navigator.vibrate) navigator.vibrate(20);
+    confirmRemoveContinue(item);
+    setTimeout(() => {
+      if (shakingSeriesId.value === item.series_id) shakingSeriesId.value = null;
+    }, 400);
+  }, LONG_PRESS_MS);
+}
+
+function onContinueTouchMove(e) {
+  const touch = e.touches?.[0];
+  if (!touch) return;
+  const dx = Math.abs(touch.clientX - touchStartX);
+  const dy = Math.abs(touch.clientY - touchStartY);
+  if (dx > 10 || dy > 10) clearTimeout(longPressTimer);
+}
+
+function onContinueTouchEnd() {
+  clearTimeout(longPressTimer);
+}
+
+async function confirmRemoveContinue(item) {
+  if (confirmOpen) return;
+  confirmOpen = true;
+  const ok = window.confirm(`从继续观看中移除「${item.series_title}」？`);
+  confirmOpen = false;
+  if (!ok) return;
+  try {
+    const data = await removeContinueSeries(item.series_id, session.userSessionId);
+    clearLocalProgressBatch(data.video_ids);
+    continueList.value = continueList.value.filter((row) => row.series_id !== item.series_id);
+    showToast('已移除');
+  } catch (e) {
+    showToast(e.message || '移除失败');
+  }
+}
+
+async function clearAllContinue() {
+  if (!continueList.value.length) return;
+  const ok = window.confirm('确定清空全部继续观看记录？');
+  if (!ok) return;
+  try {
+    const data = await clearContinueWatching(session.userSessionId);
+    clearLocalProgressBatch(data.video_ids);
+    continueList.value = [];
+    showToast('已清空');
+  } catch (e) {
+    showToast(e.message || '清空失败');
+  }
+}
+
 function onSearchTap() {
   router.push('/search');
 }
@@ -349,6 +440,26 @@ function onProfileTap() {
   margin-bottom: 16px;
 }
 
+.continue-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 16px;
+}
+
+.continue-clear-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.continue-clear-btn:active {
+  color: var(--accent);
+}
+
 .category-swiper {
   display: flex;
   overflow-x: auto;
@@ -400,6 +511,19 @@ function onProfileTap() {
   flex-shrink: 0;
   width: 110px;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.continue-item.shaking {
+  animation: continue-shake 0.35s ease;
+}
+
+@keyframes continue-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
 }
 
 .continue-item:active {
@@ -455,6 +579,22 @@ function onProfileTap() {
   font-size: 10px;
   color: var(--accent);
   margin-top: 2px;
+}
+
+.home-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tab-height) + var(--safe-bottom) + 24px);
+  transform: translateX(-50%);
+  z-index: 200;
+  background: rgba(20, 20, 28, 0.92);
+  color: #fff;
+  font-size: 13px;
+  padding: 10px 18px;
+  border-radius: 20px;
+  pointer-events: none;
+  max-width: 80vw;
+  text-align: center;
 }
 
 </style>

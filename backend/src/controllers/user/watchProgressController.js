@@ -42,3 +42,22 @@ exports.continueList = (req, res) => {
   const list = watchProgressService.getContinueList(sessionId);
   res.json(success({ list }));
 };
+
+exports.removeBySeries = (req, res) => {
+  const sessionId = req.query.user_session_id;
+  if (!sessionId) return res.status(400).json(fail(400, '缺少 user_session_id'));
+
+  const seriesId = Number(req.params.seriesId);
+  if (!seriesId) return res.status(400).json(fail(400, '无效的 series_id'));
+
+  const data = watchProgressService.removeBySeries(sessionId, seriesId);
+  res.json(success(data, '已从继续观看移除'));
+};
+
+exports.clearAll = (req, res) => {
+  const sessionId = req.query.user_session_id;
+  if (!sessionId) return res.status(400).json(fail(400, '缺少 user_session_id'));
+
+  const data = watchProgressService.clearAll(sessionId);
+  res.json(success(data, '已清空继续观看'));
+};
