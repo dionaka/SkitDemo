@@ -173,3 +173,13 @@ exports.analyze = async (req, res) => {
     res.status(400).json(fail(400, err.message));
   }
 };
+
+exports.backfillDurations = async (_req, res) => {
+  try {
+    const { backfillVideoDurations } = require('../../services/durationBackfill');
+    const result = await backfillVideoDurations({ forceLog: true });
+    res.json(success(result, `扫描 ${result.scanned} 个，修正 ${result.updated} 个`));
+  } catch (err) {
+    res.status(500).json(fail(500, err.message));
+  }
+};

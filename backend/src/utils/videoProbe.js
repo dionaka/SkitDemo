@@ -27,7 +27,13 @@ async function probeVideoDuration(videoPath) {
   const bins = [...new Set([ffmpegPath, 'ffmpeg'].filter(Boolean))];
   for (const bin of bins) {
     try {
-      await execFileAsync(bin, ['-hide_banner', '-i', videoPath, '-f', 'null', '-'], { timeout: 120000 });
+      const { stderr } = await execFileAsync(
+        bin,
+        ['-hide_banner', '-nostdin', '-i', videoPath],
+        { timeout: 30000, maxBuffer: 4 * 1024 * 1024 },
+      );
+      const sec = parseDurationFromFfmpegOutput(stderr);
+      if (sec) return sec;
     } catch (err) {
       const sec = parseDurationFromFfmpegOutput(err.stderr || err.stdout);
       if (sec) return sec;
@@ -36,7 +42,12 @@ async function probeVideoDuration(videoPath) {
   return null;
 }
 
+function getFfmpegBins() {
+  return [...new Set([ffmpegPath, 'ffmpeg'].filter(Boolean))];
+}
+
 module.exports = {
   probeVideoDuration,
   parseDurationFromFfmpegOutput,
+  getFfmpegBins,
 };
