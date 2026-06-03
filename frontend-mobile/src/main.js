@@ -6,6 +6,7 @@ import router from './router';
 import { initSafeArea } from './utils/safeArea';
 import { useAppPreferencesStore } from './stores/appPreferences';
 import { useAppBackgroundStore } from './stores/appBackground';
+import { useOfflineCacheStore } from './stores/offlineCache';
 import { initSkinModule } from './skin';
 import './assets/styles/main.css';
 
@@ -16,6 +17,7 @@ app.use(pinia).use(router);
 
 async function bootstrap() {
   useAppPreferencesStore(pinia).hydrate();
+  useOfflineCacheStore(pinia).hydrate();
   await useAppBackgroundStore(pinia).hydrate();
   await initSkinModule(pinia);
 

@@ -1,10 +1,11 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import { resolveCategorySwipeSensitivity } from '@/utils/categorySwipeSensitivity';
 
 /**
  * 首页分类横滑：transform 轨道
- * 分类区优先横向；capture + preventDefault 抢在整页滚动前；低阈值 + 轻扫翻页
+ * sensitivityRef：1~5，可在设置中调节
  */
-export function useCategorySwiper(categories, activeCategoryRef) {
+export function useCategorySwiper(categories, activeCategoryRef, sensitivityRef) {
   const viewportRef = ref(null);
   const activeIndex = ref(0);
   const dragBaseIndex = ref(0);
@@ -22,10 +23,12 @@ export function useCategorySwiper(categories, activeCategoryRef) {
   let lastMoveTime = 0;
   let velocityX = 0;
 
-  const FLING_VELOCITY = 0.08;
-  const DRAG_GAIN = 1.2;
-
   const CAPTURE_OPTS = { capture: true };
+
+  function sensitivityConfig() {
+    const level = sensitivityRef?.value ?? sensitivityRef;
+    return resolveCategorySwipeSensitivity(level);
+  }
 
   function clamp(i) {
     return Math.max(0, Math.min(i, categories.length - 1));
@@ -58,35 +61,41 @@ export function useCategorySwiper(categories, activeCategoryRef) {
     if (id) activeCategoryRef.value = id;
   }
 
-  /** 只有明显纵向才交给页面上下滚，其余跟手横滑 */
   function resolveHorizontalLock(dx, dy) {
+    const cfg = sensitivityConfig();
     const adx = Math.abs(dx);
     const ady = Math.abs(dy);
-    if (adx + ady < 2) return null;
-    if (ady > 14 && ady > adx * 1.75) return 'y';
-    if (adx >= 1 || adx >= ady * 0.3) return 'x';
+    if (adx + ady < cfg.axisMinPx) return null;
+    if (ady > cfg.verticalDyMin && ady > adx * cfg.verticalLockRatio) return 'y';
+    if (adx >= cfg.axisMinPx && adx >= ady * cfg.horizontalBias) return 'x';
     return null;
   }
 
   function applyDragOffset(dx) {
-    let offset = dx * DRAG_GAIN;
+    const { dragGain } = sensitivityConfig();
+    let offset = dx * dragGain;
     if (dragStartIndex <= 0 && offset > 0) offset *= 0.4;
     if (dragStartIndex >= categories.length - 1 && offset < 0) offset *= 0.4;
     dragOffsetPx.value = offset;
   }
 
-  function resolveNextIndex(dx) {
-    const w = viewportWidth() || 360;
-    const commitPx = Math.max(18, w * 0.035);
+  function currentDragGain() {
+    return sensitivityConfig().dragGain || 1;
+  }
 
-    if (Math.abs(velocityX) >= FLING_VELOCITY) {
+  function resolveNextIndex(dx) {
+    const cfg = sensitivityConfig();
+    const w = viewportWidth() || 360;
+    const commitPx = Math.max(cfg.minCommitPx, w * cfg.commitRatio);
+
+    if (cfg.flingEnabled && Math.abs(velocityX) >= cfg.flingVelocity) {
       return clamp(dragStartIndex + (velocityX > 0 ? -1 : 1));
     }
 
     if (dx > commitPx) return clamp(dragStartIndex - 1);
     if (dx < -commitPx) return clamp(dragStartIndex + 1);
 
-    if (Math.abs(dx) >= w * 0.14) {
+    if (Math.abs(dx) >= w * cfg.halfPageRatio) {
       return clamp(Math.round(dragStartIndex - dx / w));
     }
 
@@ -192,7 +201,7 @@ export function useCategorySwiper(categories, activeCategoryRef) {
       return;
     }
 
-    const dx = dragOffsetPx.value / DRAG_GAIN;
+    const dx = dragOffsetPx.value / currentDragGain();
     const next = resolveNextIndex(dx);
 
     isPanning.value = false;

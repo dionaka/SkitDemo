@@ -30,18 +30,53 @@
           @change="onImmersiveToggle"
         />
       </label>
+
+      <div class="toggle-divider" />
+
+      <div class="slider-block">
+        <div class="slider-head">
+          <div class="toggle-copy">
+            <span class="toggle-title">首页横滑灵敏度</span>
+            <span class="toggle-desc">调节「热门 / 推荐 / 最新」左右切换的难易度</span>
+          </div>
+          <span class="slider-value">{{ swipeSensitivityLabel }}</span>
+        </div>
+        <input
+          type="range"
+          min="1"
+          max="5"
+          step="1"
+          class="slider"
+          :value="categorySwipeSensitivity"
+          @input="onSwipeSensitivityChange"
+        />
+        <p class="slider-hint">{{ swipeSensitivityHint }}</p>
+        <div class="slider-scale">
+          <span>低</span>
+          <span>高</span>
+        </div>
+      </div>
     </div>
   </SettingsSection>
 </template>
 
 <script setup>
-import { onMounted, onActivated } from 'vue';
+import { computed, onMounted, onActivated } from 'vue';
 import { storeToRefs } from 'pinia';
 import SettingsSection from './SettingsSection.vue';
 import { useAppPreferencesStore } from '@/stores/appPreferences';
+import { getCategorySwipeSensitivityLabel, getCategorySwipeSensitivityHint } from '@/utils/categorySwipeSensitivity';
 
 const appPrefs = useAppPreferencesStore();
-const { showContinueWatching, immersiveStatusBar } = storeToRefs(appPrefs);
+const { showContinueWatching, immersiveStatusBar, categorySwipeSensitivity } = storeToRefs(appPrefs);
+
+const swipeSensitivityLabel = computed(() =>
+  getCategorySwipeSensitivityLabel(categorySwipeSensitivity.value),
+);
+
+const swipeSensitivityHint = computed(() =>
+  getCategorySwipeSensitivityHint(categorySwipeSensitivity.value),
+);
 
 onMounted(() => {
   appPrefs.hydrate();
@@ -57,6 +92,10 @@ function onContinueToggle() {
 
 async function onImmersiveToggle() {
   await appPrefs.setImmersiveStatusBar(immersiveStatusBar.value);
+}
+
+function onSwipeSensitivityChange(event) {
+  appPrefs.setCategorySwipeSensitivity(Number(event.target.value));
 }
 </script>
 
@@ -133,5 +172,45 @@ async function onImmersiveToggle() {
 
 .toggle-input:checked::after {
   transform: translateX(18px);
+}
+
+.slider-block {
+  padding: 16px 18px 18px;
+}
+
+.slider-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.slider-value {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.4;
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.slider-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.slider-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 </style>

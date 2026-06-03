@@ -35,13 +35,31 @@
       </div>
 
       <HomeCategoryBar
+        v-if="!offlineOnlyMode"
         ref="categoryBarRef"
         :model-value="activeCategory"
         :pinned="scrollY > 56"
         @pick="onCategoryPick"
       />
 
-      <section v-if="showContinueWatching && continueList.length" class="section continue-section">
+      <div v-if="isEffectivelyOffline && hasServer" class="offline-banner card">
+        <span class="offline-banner-icon">📡</span>
+        <div>
+          <p class="offline-banner-title">当前无网络</p>
+          <p class="offline-banner-desc">
+            {{ offlineCompleted.length ? '在线榜单不可用，请播放下方已缓存分集' : '请先在联网时下载剧集，或检查网络连接' }}
+          </p>
+        </div>
+      </div>
+
+      <HomeOfflineSection
+        v-if="isEffectivelyOffline && offlineCompleted.length"
+        :items="offlineCompleted"
+        :is-online="!isEffectivelyOffline"
+        @play="openOfflineItem"
+      />
+
+      <section v-if="showContinueWatching && continueList.length && !offlineOnlyMode" class="section continue-section">
         <div class="section-header continue-header">
           <h2 class="section-title">继续观看</h2>
           <button type="button" class="continue-clear-btn" @click="clearAllContinue">清空记录</button>
@@ -76,7 +94,7 @@
 
       <div v-if="toast" class="home-toast">{{ toast }}</div>
 
-      <div ref="swiperRef" class="category-viewport">
+      <div v-if="!offlineOnlyMode" ref="swiperRef" class="category-viewport">
         <div class="category-track" :style="trackStyle">
           <div
             v-for="cat in homeCategories"
@@ -152,11 +170,14 @@ import {
   flushHomeScrollCapture,
 } from '@/composables/useHomeScrollRestore';
 import { useCategorySwiper } from '@/composables/useCategorySwiper';
+import { useNetworkStatus, probeNetworkReachable, markNetworkUnreachable, markNetworkReachable } from '@/composables/useNetworkStatus';
+import { useOfflineCacheStore } from '@/stores/offlineCache';
 
 defineOptions({ name: 'VideoList' });
 import SeriesCover from '@/components/SeriesCover.vue';
 import HomeTopNav from '@/components/home/HomeTopNav.vue';
 import HomeCategoryBar from '@/components/home/HomeCategoryBar.vue';
+import HomeOfflineSection from '@/components/home/HomeOfflineSection.vue';
 
 const HOME_LIST_SIZE = 50;
 
@@ -166,7 +187,10 @@ function emptyCategoryLists() {
 
 const session = useSessionStore();
 const appPrefs = useAppPreferencesStore();
-const { showContinueWatching } = storeToRefs(appPrefs);
+const offlineCache = useOfflineCacheStore();
+const { showContinueWatching, categorySwipeSensitivity } = storeToRefs(appPrefs);
+const { completedItems: offlineCompleted } = storeToRefs(offlineCache);
+const { isEffectivelyOffline } = useNetworkStatus();
 const backgroundStore = useAppBackgroundStore();
 const skinStore = useSkinStore();
 const router = useRouter();
@@ -187,7 +211,11 @@ let touchStartX = 0;
 let touchStartY = 0;
 let confirmOpen = false;
 
-const { swiperRef, trackStyle, selectCategory, initSwiper } = useCategorySwiper(homeCategories, activeCategory);
+const { swiperRef, trackStyle, selectCategory, initSwiper } = useCategorySwiper(
+  homeCategories,
+  activeCategory,
+  categorySwipeSensitivity,
+);
 
 registerHomeScrollContext({
   getCategoryId: () => activeCategory.value,
@@ -196,6 +224,7 @@ registerHomeScrollContext({
 useHomeScrollRestore();
 
 const hasServer = computed(() => Boolean(apiBaseUrl.value));
+const offlineOnlyMode = computed(() => isEffectivelyOffline.value && offlineCompleted.value.length > 0);
 
 function seriesFor(categoryId) {
   return seriesByCategory.value[categoryId] || [];
@@ -253,8 +282,14 @@ async function loadData(options = {}) {
         : Promise.resolve({ list: [] }),
     ]);
     continueList.value = continueData.list || [];
+    markNetworkReachable();
   } catch (e) {
-    error.value = e.message || '加载失败';
+    markNetworkUnreachable();
+    if (isEffectivelyOffline.value && offlineCompleted.value.length) {
+      error.value = '';
+    } else {
+      error.value = e.message || '加载失败';
+    }
   } finally {
     if (!silent) loading.value = false;
     if (hasServer.value) {
@@ -326,13 +361,26 @@ function subtitleFor(categoryId) {
   return map[categoryId] || '';
 }
 
-onMounted(loadData);
-
-watch(apiBaseUrl, (url) => {
-  if (url) loadData();
+onMounted(async () => {
+  offlineCache.hydrate();
+  if (hasServer.value) await probeNetworkReachable(apiBaseUrl.value);
+  loadData();
 });
 
-onActivated(() => {
+watch(apiBaseUrl, async (url) => {
+  if (url) {
+    await probeNetworkReachable(url);
+    loadData();
+  }
+});
+
+watch(isEffectivelyOffline, (offline) => {
+  if (!offline && hasServer.value) loadData();
+});
+
+onActivated(async () => {
+  offlineCache.hydrate();
+  if (hasServer.value) await probeNetworkReachable(apiBaseUrl.value);
   if (!hasServer.value) return;
   appPrefs.hydrate();
   if (!hasLoadedSeries() && !loading.value) {
@@ -387,6 +435,11 @@ function openSeries(id) {
 function openPlay(videoId) {
   flushHomeScrollCapture();
   router.push(`/play/${videoId}`);
+}
+
+function openOfflineItem(item) {
+  flushHomeScrollCapture();
+  router.push(`/play/${item.videoId}`);
 }
 
 function showToast(msg) {
@@ -554,6 +607,31 @@ function onProfileTap() {
 
 .continue-clear-btn:active {
   color: var(--accent);
+}
+
+.offline-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.offline-banner-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.offline-banner-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.offline-banner-desc {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
 }
 
 .category-viewport {

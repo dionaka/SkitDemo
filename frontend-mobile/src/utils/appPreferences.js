@@ -1,10 +1,17 @@
 const STORAGE_KEY = 'skitdemo_app_prefs';
 const LEGACY_STORAGE_KEY = 'skitdemo_home_prefs';
 
+import {
+  CATEGORY_SWIPE_SENSITIVITY_DEFAULT,
+  clampCategorySwipeSensitivity,
+} from './categorySwipeSensitivity';
+
 const DEFAULTS = {
   showContinueWatching: true,
   /** 沉浸式状态栏：内容延伸到顶部，使用安全区留白 */
   immersiveStatusBar: false,
+  /** 首页热门/推荐/最新横滑灵敏度：1 低 ~ 5 高 */
+  categorySwipeSensitivity: CATEGORY_SWIPE_SENSITIVITY_DEFAULT,
 };
 
 function readStoredPreferences() {
@@ -27,7 +34,13 @@ function readStoredPreferences() {
 export function getAppPreferences() {
   const parsed = readStoredPreferences();
   if (!parsed) return { ...DEFAULTS };
-  return { ...DEFAULTS, ...parsed };
+  return {
+    ...DEFAULTS,
+    ...parsed,
+    categorySwipeSensitivity: clampCategorySwipeSensitivity(
+      parsed.categorySwipeSensitivity ?? DEFAULTS.categorySwipeSensitivity,
+    ),
+  };
 }
 
 /** @deprecated use getAppPreferences */

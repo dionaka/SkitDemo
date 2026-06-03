@@ -61,6 +61,17 @@
           <div class="ep-play-btn">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
           </div>
+          <OfflineDownloadButton
+            compact
+            :video-id="ep.id"
+            :series-id="series.id"
+            :series-title="series.title"
+            :episode-number="ep.episode_number"
+            :title="ep.title"
+            :cover-url="series.cover_url"
+            :video-url="ep.video_url"
+            @toast="showToast"
+          />
         </div>
       </div>
     </template>
@@ -85,6 +96,7 @@ import { smartBack } from '@/utils/navigation';
 import { formatProgressLabel, getLocalProgress } from '@/utils/watchProgress';
 import SeriesCover from '@/components/SeriesCover.vue';
 import SeriesEngagementBar from '@/components/SeriesEngagementBar.vue';
+import OfflineDownloadButton from '@/components/offline/OfflineDownloadButton.vue';
 
 const route = useRoute();
 const router = useRouter();

@@ -16,13 +16,28 @@
             <h2>{{ video.series_title }} · 第 {{ video.episode_number }} 集</h2>
             <p class="ep-subtitle">{{ video.title }}</p>
             <p v-if="resumeHint" class="resume-hint">{{ resumeHint }}</p>
+            <p v-if="isOfflinePlayback" class="resume-hint offline-tag">离线播放</p>
           </div>
-          <SeriesEngagementBar
-            v-if="video.series_id"
-            :series-id="video.series_id"
-            variant="inline"
-            @toast="showToast"
-          />
+          <div class="play-header-actions">
+            <SeriesEngagementBar
+              v-if="video.series_id"
+              :series-id="video.series_id"
+              variant="inline"
+              @toast="showToast"
+            />
+            <OfflineDownloadButton
+              v-if="video.video_url"
+              compact
+              :video-id="video.id"
+              :series-id="video.series_id"
+              :series-title="video.series_title"
+              :episode-number="video.episode_number"
+              :title="video.title"
+              :cover-url="video.cover_url"
+              :video-url="video.video_url"
+              @toast="showToast"
+            />
+          </div>
         </div>
 
         <div class="play-prefs">
@@ -43,7 +58,7 @@
 
         ref="playerRef"
 
-        :src="videoUrl"
+        :src="playbackUrl"
 
         :highlights="effectiveHighlights"
         :branch-points="effectiveBranchPoints"
@@ -187,7 +202,7 @@
 
 <script setup>
 
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 
 import { useRoute, useRouter } from 'vue-router';
 
@@ -200,6 +215,10 @@ import { getBranchPointDetail, chooseBranchPoint, getBranchPointStats } from '@/
 
 import PageBackBar from '@/components/PageBackBar.vue';
 import SeriesEngagementBar from '@/components/SeriesEngagementBar.vue';
+import OfflineDownloadButton from '@/components/offline/OfflineDownloadButton.vue';
+import { useOfflineCacheStore } from '@/stores/offlineCache';
+import { buildVideoRecordFromCache } from '@/services/offlineCache';
+import { isEffectivelyOfflineNow } from '@/composables/useNetworkStatus';
 
 import { resolveMediaUrl } from '@/config/server';
 
@@ -224,6 +243,7 @@ const route = useRoute();
 const router = useRouter();
 
 const session = useSessionStore();
+const offlineCache = useOfflineCacheStore();
 
 
 
@@ -272,6 +292,8 @@ const startTime = ref(0);
 
 const resumeHint = ref('');
 
+const isOfflinePlayback = ref(false);
+
 const playerFullscreen = ref(false);
 
 const prefs = ref(getPlayPreferences());
@@ -284,7 +306,21 @@ const MIN_SAVE_SECONDS = 5;
 
 
 
-const videoUrl = computed(() => resolveMediaUrl(video.value?.video_url || ''));
+const playbackUrl = ref('');
+
+watch(
+  () => [video.value?.id, video.value?.video_url],
+  async () => {
+    const current = video.value;
+    if (!current) {
+      playbackUrl.value = '';
+      return;
+    }
+    const cached = await offlineCache.ensurePlayUrl(current.id);
+    playbackUrl.value = cached || resolveMediaUrl(current.video_url || '');
+  },
+  { immediate: true },
+);
 
 const videoId = computed(() => Number(route.params.id));
 
@@ -307,6 +343,20 @@ async function loadVideo() {
   loadError.value = '';
 
   video.value = null;
+
+  isOfflinePlayback.value = false;
+
+  if (isEffectivelyOfflineNow()) {
+
+    const ok = await tryLoadFromOfflineCache();
+
+    loading.value = false;
+
+    if (!ok) loadError.value = '当前无网络，且该集未缓存到本机';
+
+    return;
+
+  }
 
   try {
 
@@ -348,13 +398,55 @@ async function loadVideo() {
 
   } catch (e) {
 
-    loadError.value = e.message || '加载失败';
+    const ok = await tryLoadFromOfflineCache();
+
+    if (!ok) loadError.value = e.message || '加载失败';
 
   } finally {
 
     loading.value = false;
 
   }
+
+}
+
+async function tryLoadFromOfflineCache() {
+
+  const cached = offlineCache.getItem(videoId.value);
+
+  if (!cached || cached.status !== 'completed') return false;
+
+  const playUrl = await offlineCache.ensurePlayUrl(videoId.value);
+
+  if (!playUrl) {
+
+    loadError.value = '缓存文件已丢失，请联网后重新下载';
+
+    return false;
+
+  }
+
+  video.value = buildVideoRecordFromCache(cached);
+
+  highlights.value = [];
+
+  branchPoints.value = [];
+
+  isOfflinePlayback.value = true;
+
+  const local = getLocalProgress(videoId.value);
+
+  sessionBaselinePosition = local >= MIN_SAVE_SECONDS ? local : 0;
+
+  if (local >= MIN_SAVE_SECONDS) {
+
+    startTime.value = local;
+
+    resumeHint.value = `将从 ${formatProgressLabel(local, 0)} 继续播放`;
+
+  }
+
+  return true;
 
 }
 
@@ -719,6 +811,13 @@ function categoryLabel(c) { return labels[c] || c; }
 .play-header-info {
   flex: 1;
   min-width: 0;
+}
+
+.play-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .play-header h2 {
