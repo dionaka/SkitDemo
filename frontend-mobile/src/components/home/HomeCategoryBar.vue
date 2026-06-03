@@ -8,7 +8,8 @@
         class="category-chip"
         :class="{ active: modelValue === cat.id }"
         :data-id="cat.id"
-        @click="select(cat.id)"
+        @touchstart.stop
+        @pointerdown.stop="onChipPointerDown(cat.id)"
       >
         {{ cat.label }}
       </button>
@@ -26,12 +27,13 @@ const props = defineProps({
   categories: { type: Array, default: () => homeCategories },
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['pick']);
 
 const barRef = ref(null);
 
-function select(id) {
-  emit('update:modelValue', id);
+/** pointerdown 早于 swiper touchstart；同标签也触发以抵消惯性（菜单可能未跟上滑动） */
+function onChipPointerDown(id) {
+  emit('pick', id);
 }
 
 function scrollActiveIntoView() {

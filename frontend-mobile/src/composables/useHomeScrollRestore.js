@@ -63,20 +63,27 @@ function computeTarget(el) {
   return Math.min(Math.max(savedScrollTop, byRatio), max);
 }
 
+function restoreCategoryTab() {
+  scrollToCategoryFn?.(savedCategoryId, false);
+}
+
 function applyRestore() {
   const el = getHomeScrollEl();
   if (!el) return false;
+
+  restoreCategoryTab();
+
   if (savedScrollTop <= 8 && savedScrollRatio < 0.02) return true;
 
   const want = computeTarget(el);
   el.scrollTop = want;
-  // 从播放/详情返回后内容固定在「热门」，菜单栏与横向列表同步到热门
-  scrollToCategoryFn?.('hot', false);
   return Math.abs(el.scrollTop - want) <= 8;
 }
 
 /** 回到首页后恢复滚动（等内容高度稳定，避免卡在「热门短剧」附近） */
 export function restoreHomeScroll() {
+  nextTick(restoreCategoryTab);
+
   if (savedScrollTop <= 8 && savedScrollRatio < 0.02) return;
 
   stopRestoreWatchers();

@@ -1,162 +1,259 @@
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 
 /**
- * Carousel-style category swiper: free finger tracking, snap on release,
- * at most one category per gesture, no mid-scroll clamping.
+ * 首页分类横滑：transform 轨道
+ * 分类区优先横向；capture + preventDefault 抢在整页滚动前；低阈值 + 轻扫翻页
  */
 export function useCategorySwiper(categories, activeCategoryRef) {
-  const swiperRef = ref(null);
-  let settledIndex = 0;
-  let gestureStartIndex = 0;
-  let scrollRaf = 0;
-  let programmaticNav = false;
-  let programmaticTimer = null;
+  const viewportRef = ref(null);
+  const activeIndex = ref(0);
+  const dragBaseIndex = ref(0);
+  const isPanning = ref(false);
+  const dragOffsetPx = ref(0);
+  const transitionEnabled = ref(false);
 
-  function getIndex(id) {
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let dragStartIndex = 0;
+  let axisLock = null;
+  let isDragging = false;
+  let menuPickLock = false;
+  let lastMoveX = 0;
+  let lastMoveTime = 0;
+  let velocityX = 0;
+
+  const FLING_VELOCITY = 0.08;
+  const DRAG_GAIN = 1.2;
+
+  const CAPTURE_OPTS = { capture: true };
+
+  function clamp(i) {
+    return Math.max(0, Math.min(i, categories.length - 1));
+  }
+
+  function idToIndex(id) {
     return categories.findIndex((c) => c.id === id);
   }
 
-  function clampIndex(index) {
-    return Math.max(0, Math.min(index, categories.length - 1));
+  function indexToId(i) {
+    return categories[clamp(i)]?.id ?? categories[0]?.id;
   }
 
-  function pageIndexFromScroll(scrollLeft, pageWidth) {
-    return clampIndex(Math.round(scrollLeft / pageWidth));
+  function viewportWidth() {
+    return viewportRef.value?.clientWidth || 0;
   }
 
-  function applyCategoryIndex(index) {
-    const cat = categories[clampIndex(index)];
-    if (cat && cat.id !== activeCategoryRef.value) {
-      activeCategoryRef.value = cat.id;
-    }
+  function bindIndex(i) {
+    const idx = clamp(i);
+    activeIndex.value = idx;
+    const id = indexToId(idx);
+    if (id) activeCategoryRef.value = id;
   }
 
-  function scrollToCategory(id, smooth = true) {
-    const el = swiperRef.value;
-    if (!el) return;
-    const index = getIndex(id);
-    if (index < 0) return;
-
-    const currentIndex = pageIndexFromScroll(el.scrollLeft, el.clientWidth);
-    const jump = Math.abs(index - currentIndex);
-    // 跨页点击（如热门→最新）用瞬时滚动，避免平滑动画经过中间标签
-    const useSmooth = smooth && jump <= 1;
-
-    programmaticNav = true;
-    window.clearTimeout(programmaticTimer);
-    programmaticTimer = window.setTimeout(() => {
-      programmaticNav = false;
-    }, useSmooth ? 420 : 0);
-
-    settledIndex = index;
-    gestureStartIndex = index;
-    activeCategoryRef.value = id;
-    if (useSmooth) el.classList.add('smooth-scroll');
-    el.scrollTo({ left: index * el.clientWidth, behavior: useSmooth ? 'smooth' : 'auto' });
-    if (useSmooth) {
-      window.setTimeout(() => el.classList.remove('smooth-scroll'), 420);
-    }
+  function previewMenuFromDx(dx) {
+    const w = viewportWidth();
+    if (!w) return;
+    const preview = clamp(Math.round(dragStartIndex - dx / w));
+    const id = indexToId(preview);
+    if (id) activeCategoryRef.value = id;
   }
 
-  function settleFromScroll(smooth = false) {
-    const el = swiperRef.value;
-    if (!el || !el.clientWidth) return;
+  /** 只有明显纵向才交给页面上下滚，其余跟手横滑 */
+  function resolveHorizontalLock(dx, dy) {
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+    if (adx + ady < 2) return null;
+    if (ady > 14 && ady > adx * 1.75) return 'y';
+    if (adx >= 1 || adx >= ady * 0.3) return 'x';
+    return null;
+  }
 
-    const pageWidth = el.clientWidth;
-    let index = pageIndexFromScroll(el.scrollLeft, pageWidth);
+  function applyDragOffset(dx) {
+    let offset = dx * DRAG_GAIN;
+    if (dragStartIndex <= 0 && offset > 0) offset *= 0.4;
+    if (dragStartIndex >= categories.length - 1 && offset < 0) offset *= 0.4;
+    dragOffsetPx.value = offset;
+  }
 
-    // Limit to ±1 page per gesture (anchor = touchstart), not stale settledIndex.
-    if (!programmaticNav && Math.abs(index - gestureStartIndex) > 1) {
-      index = gestureStartIndex + Math.sign(index - gestureStartIndex);
+  function resolveNextIndex(dx) {
+    const w = viewportWidth() || 360;
+    const commitPx = Math.max(18, w * 0.035);
+
+    if (Math.abs(velocityX) >= FLING_VELOCITY) {
+      return clamp(dragStartIndex + (velocityX > 0 ? -1 : 1));
     }
 
-    const targetLeft = index * pageWidth;
-    settledIndex = index;
-    gestureStartIndex = index;
-    applyCategoryIndex(index);
+    if (dx > commitPx) return clamp(dragStartIndex - 1);
+    if (dx < -commitPx) return clamp(dragStartIndex + 1);
 
-    if (Math.abs(el.scrollLeft - targetLeft) > 1) {
-      if (smooth) el.classList.add('smooth-scroll');
-      el.scrollTo({ left: targetLeft, behavior: smooth ? 'smooth' : 'auto' });
-      if (smooth) {
-        window.setTimeout(() => el.classList.remove('smooth-scroll'), 420);
-      }
+    if (Math.abs(dx) >= w * 0.14) {
+      return clamp(Math.round(dragStartIndex - dx / w));
     }
+
+    return dragStartIndex;
   }
 
-  function onScroll() {
-    if (scrollRaf || programmaticNav) return;
-    scrollRaf = window.requestAnimationFrame(() => {
-      scrollRaf = 0;
-      const el = swiperRef.value;
-      if (!el || !el.clientWidth) return;
-      applyCategoryIndex(pageIndexFromScroll(el.scrollLeft, el.clientWidth));
-    });
+  const trackStyle = computed(() => {
+    const base = isPanning.value ? dragBaseIndex.value : activeIndex.value;
+    return {
+      transform: `translate3d(calc(-${base * 100}% + ${dragOffsetPx.value}px), 0, 0)`,
+      transition: transitionEnabled.value && !isPanning.value
+        ? 'transform 0.18s ease-out'
+        : 'none',
+    };
+  });
+
+  function selectCategory(id) {
+    const i = idToIndex(id);
+    if (i < 0) return;
+
+    menuPickLock = true;
+    isPanning.value = false;
+    isDragging = false;
+    axisLock = null;
+    velocityX = 0;
+    dragOffsetPx.value = 0;
+    transitionEnabled.value = false;
+    bindIndex(i);
   }
 
-  function onTouchStart() {
-    const el = swiperRef.value;
-    if (!el?.clientWidth) return;
-
-    const index = pageIndexFromScroll(el.scrollLeft, el.clientWidth);
-    gestureStartIndex = index;
-    settledIndex = index;
+  function resetGesture() {
+    isDragging = false;
+    axisLock = null;
+    isPanning.value = false;
+    dragOffsetPx.value = 0;
+    velocityX = 0;
   }
 
-  function onScrollEnd() {
-    if (programmaticNav) {
-      // 程序化滚动期间不按中间位置改标签，避免热门→最新时短暂停在推荐
-      applyCategoryIndex(settledIndex);
+  function beginHorizontalPan() {
+    isDragging = true;
+    isPanning.value = true;
+    dragBaseIndex.value = dragStartIndex;
+  }
+
+  function onTouchStart(e) {
+    if (e.target.closest('.continue-scroll')) return;
+
+    menuPickLock = false;
+    resetGesture();
+    transitionEnabled.value = false;
+    const touch = e.touches[0];
+    dragStartX = touch.clientX;
+    dragStartY = touch.clientY;
+    dragStartIndex = activeIndex.value;
+    dragBaseIndex.value = activeIndex.value;
+    lastMoveX = touch.clientX;
+    lastMoveTime = performance.now();
+  }
+
+  function onTouchMove(e) {
+    if (menuPickLock) return;
+    if (e.target.closest('.continue-scroll')) return;
+
+    const touch = e.touches[0];
+    const x = touch.clientX;
+    const y = touch.clientY;
+    const dx = x - dragStartX;
+    const dy = y - dragStartY;
+
+    if (!axisLock) {
+      const lock = resolveHorizontalLock(dx, dy);
+      if (!lock) return;
+      axisLock = lock;
+      if (axisLock === 'y') return;
+      beginHorizontalPan();
+    }
+
+    if (axisLock !== 'x' || !isDragging) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const now = performance.now();
+    const dt = Math.max(now - lastMoveTime, 1);
+    velocityX = (x - lastMoveX) / dt;
+    lastMoveX = x;
+    lastMoveTime = now;
+
+    if (!viewportWidth()) return;
+
+    applyDragOffset(dx);
+    previewMenuFromDx(dx);
+  }
+
+  function onTouchEnd() {
+    if (menuPickLock) {
+      resetGesture();
       return;
     }
-    settleFromScroll(false);
+
+    if (axisLock !== 'x' || !isDragging) {
+      resetGesture();
+      return;
+    }
+
+    const dx = dragOffsetPx.value / DRAG_GAIN;
+    const next = resolveNextIndex(dx);
+
+    isPanning.value = false;
+    dragOffsetPx.value = 0;
+    isDragging = false;
+    axisLock = null;
+    velocityX = 0;
+    transitionEnabled.value = true;
+    bindIndex(next);
   }
 
-  function onTouchEnd(e) {
-    if (programmaticNav) return;
-    if (e.target?.closest?.('.continue-scroll')) return;
-    if ('onscrollend' in window) return;
-    window.setTimeout(() => settleFromScroll(false), 60);
+  function bindViewport(node) {
+    if (!node) return;
+    unbindViewport(node);
+    node.dataset.categoryViewportBound = '1';
+    const opts = { ...CAPTURE_OPTS };
+    node.addEventListener('touchstart', onTouchStart, { passive: true, ...opts });
+    node.addEventListener('touchmove', onTouchMove, { passive: false, ...opts });
+    node.addEventListener('touchend', onTouchEnd, { passive: true, ...opts });
+    node.addEventListener('touchcancel', onTouchEnd, { passive: true, ...opts });
   }
 
-  function bindSwiper(el) {
-    if (!el || el.dataset.categorySwiperBound) return;
-    el.dataset.categorySwiperBound = '1';
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchend', onTouchEnd, { passive: true });
-    el.addEventListener('scroll', onScroll, { passive: true });
-    el.addEventListener('scrollend', onScrollEnd, { passive: true });
-  }
-
-  function unbindSwiper(el) {
-    if (!el?.dataset?.categorySwiperBound) return;
-    delete el.dataset.categorySwiperBound;
-    el.removeEventListener('touchstart', onTouchStart);
-    el.removeEventListener('touchend', onTouchEnd);
-    el.removeEventListener('scroll', onScroll);
-    el.removeEventListener('scrollend', onScrollEnd);
+  function unbindViewport(node) {
+    if (!node) return;
+    delete node.dataset.categoryViewportBound;
+    const opts = { ...CAPTURE_OPTS };
+    node.removeEventListener('touchstart', onTouchStart, opts);
+    node.removeEventListener('touchmove', onTouchMove, opts);
+    node.removeEventListener('touchend', onTouchEnd, opts);
+    node.removeEventListener('touchcancel', onTouchEnd, opts);
   }
 
   function initSwiper() {
     nextTick(() => {
-      const el = swiperRef.value;
-      if (!el) return;
-      bindSwiper(el);
-      scrollToCategory(activeCategoryRef.value, false);
+      const node = viewportRef.value;
+      if (!node) return;
+      bindViewport(node);
+      transitionEnabled.value = false;
+      bindIndex(idToIndex(activeCategoryRef.value || categories[0]?.id));
+      dragOffsetPx.value = 0;
+      isPanning.value = false;
+      menuPickLock = false;
     });
   }
 
   onMounted(() => {
     nextTick(() => {
-      if (swiperRef.value) bindSwiper(swiperRef.value);
+      if (viewportRef.value) bindViewport(viewportRef.value);
     });
   });
 
   onUnmounted(() => {
-    window.clearTimeout(programmaticTimer);
-    if (scrollRaf) window.cancelAnimationFrame(scrollRaf);
-    if (swiperRef.value) unbindSwiper(swiperRef.value);
+    const node = viewportRef.value;
+    if (node) unbindViewport(node);
   });
 
-  return { swiperRef, scrollToCategory, initSwiper };
+  return {
+    swiperRef: viewportRef,
+    trackStyle,
+    scrollToCategory: selectCategory,
+    selectCategory,
+    initSwiper,
+  };
 }

@@ -38,7 +38,7 @@
         ref="categoryBarRef"
         :model-value="activeCategory"
         :pinned="scrollY > 56"
-        @update:model-value="onCategoryPick"
+        @pick="onCategoryPick"
       />
 
       <section v-if="showContinueWatching && continueList.length" class="section continue-section">
@@ -76,12 +76,13 @@
 
       <div v-if="toast" class="home-toast">{{ toast }}</div>
 
-      <div ref="swiperRef" class="category-swiper">
-        <div
-          v-for="cat in homeCategories"
-          :key="cat.id"
-          class="swiper-page"
-        >
+      <div ref="swiperRef" class="category-viewport">
+        <div class="category-track" :style="trackStyle">
+          <div
+            v-for="cat in homeCategories"
+            :key="cat.id"
+            class="swiper-page"
+          >
           <div v-if="loading" class="loading-box">
             <div class="loading-spinner" />
             <span>加载中...</span>
@@ -124,6 +125,7 @@
               </div>
             </div>
           </section>
+          </div>
         </div>
       </div>
     </template>
@@ -185,11 +187,11 @@ let touchStartX = 0;
 let touchStartY = 0;
 let confirmOpen = false;
 
-const { swiperRef, scrollToCategory, initSwiper } = useCategorySwiper(homeCategories, activeCategory);
+const { swiperRef, trackStyle, selectCategory, initSwiper } = useCategorySwiper(homeCategories, activeCategory);
 
 registerHomeScrollContext({
   getCategoryId: () => activeCategory.value,
-  scrollToCategory: (id, smooth = false) => scrollToCategory(id, smooth),
+  scrollToCategory: (id) => selectCategory(id),
 });
 useHomeScrollRestore();
 
@@ -331,8 +333,6 @@ watch(apiBaseUrl, (url) => {
 });
 
 onActivated(() => {
-  activeCategory.value = 'hot';
-  scrollToCategory('hot', false);
   if (!hasServer.value) return;
   appPrefs.hydrate();
   if (!hasLoadedSeries() && !loading.value) {
@@ -371,7 +371,7 @@ watch(() => skinStore.refreshToken, (token, prev) => {
 });
 
 function onCategoryPick(id) {
-  scrollToCategory(id, false);
+  selectCategory(id);
   categoryBarRef.value?.scrollActiveIntoView();
 }
 
@@ -556,36 +556,26 @@ function onProfileTap() {
   color: var(--accent);
 }
 
-.category-swiper {
-  display: flex;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-behavior: auto;
+.category-viewport {
+  overflow: hidden;
   margin: 0 -16px;
   min-height: calc(100dvh - var(--tab-height) - var(--safe-bottom) - var(--home-chrome-top));
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: none;
 }
 
-.category-swiper.smooth-scroll {
-  scroll-behavior: smooth;
-}
-
-.category-swiper::-webkit-scrollbar {
-  display: none;
+.category-track {
+  display: flex;
+  width: 100%;
+  will-change: transform;
 }
 
 .swiper-page {
   flex: 0 0 100%;
   width: 100%;
   min-height: 100%;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
   padding: 0 16px;
   box-sizing: border-box;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 480px;
 }
 
 .continue-scroll {
