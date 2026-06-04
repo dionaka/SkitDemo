@@ -75,8 +75,11 @@ export const useSessionStore = defineStore('session', {
       try {
         const data = await getProfile(this.userSessionId);
         this.applyProfile(data);
-      } catch {
-        this.logout();
+      } catch (err) {
+        // 仅服务端明确拒绝 session 时登出；断网/超时保留本地登录态
+        if (err?.status === 401 || err?.status === 403) {
+          this.logout();
+        }
       }
     },
   },

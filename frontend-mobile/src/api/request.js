@@ -14,19 +14,21 @@ request.interceptors.response.use(
   (res) => {
     const { code, message, data } = res.data;
     if (code !== 0) {
-      if (!res.config.silent) {
-        return Promise.reject(new Error(message || '请求失败'));
-      }
-      return Promise.reject(new Error(message));
+      const error = new Error(message || '请求失败');
+      error.status = res.status;
+      return Promise.reject(error);
     }
     return data;
   },
   (err) => {
     const message = err.response?.data?.message || err.message || '网络错误';
+    const error = new Error(message);
+    error.status = err.response?.status ?? null;
+    error.isNetworkError = !err.response;
     if (!err.config?.silent) {
-      return Promise.reject(new Error(message));
+      return Promise.reject(error);
     }
-    return Promise.reject(new Error(message));
+    return Promise.reject(error);
   }
 );
 export default request;
