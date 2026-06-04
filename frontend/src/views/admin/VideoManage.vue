@@ -124,7 +124,7 @@
           <p class="upload-hint">
             支持 B站、抖音、小红书视频链接（参考
             <a href="https://github.com/vacacia/astrbot_plugin_link_resolver" target="_blank" rel="noopener">link_resolver</a>
-            ）。需服务器安装 yt-dlp；B 站高画质可在 <code>uploads/cookies/bili_cookies.txt</code> 放置 Cookie。
+            ）。服务器请执行 <code>bash backend/scripts/install-yt-dlp.sh</code> 安装 yt-dlp；B 站 Cookie 见 <code>uploads/cookies/bili_cookies.txt</code>。
           </p>
         </el-tab-pane>
       </el-tabs>

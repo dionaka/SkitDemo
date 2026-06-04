@@ -6,7 +6,8 @@
 - 可先 **解析预览** 查看标题、作者、时长与封面，再 **下载并导入**
 - 后端基于 `yt-dlp` 下载（参考 [astrbot_plugin_link_resolver](https://github.com/vacacia/astrbot_plugin_link_resolver)）
 - API：`POST /api/admin/videos/resolve-link`、`POST /api/admin/videos/import-from-link`
-- 可选：在 `uploads/cookies/bili_cookies.txt` 放置 B 站 Cookie 以提升画质；环境变量 `LINK_RESOLVE_MAX_MB`（默认 200）限制体积
+- 服务器需单独安装 yt-dlp：`bash backend/scripts/install-yt-dlp.sh` 或 `pip install yt-dlp`
+- 可选：在 `uploads/cookies/bili_cookies.txt` 放置 B 站 Cookie；`YT_DLP_PATH`、`LINK_RESOLVE_MAX_MB`（默认 200）
 
 ---
 

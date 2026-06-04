@@ -28,14 +28,21 @@ function getBiliCookiesPath() {
   return fs.existsSync(defaultPath) ? defaultPath : null;
 }
 
+function bundledYtDlpPath() {
+  return path.join(__dirname, '../../bin/yt-dlp');
+}
+
 async function ensureYtDlp() {
   if (ytDlpBinary) return ytDlpBinary;
   if (!ytDlpInitPromise) {
     ytDlpInitPromise = (async () => {
+      const bundled = bundledYtDlpPath();
       const candidates = [
         process.env.YT_DLP_PATH,
+        fs.existsSync(bundled) ? bundled : null,
         'yt-dlp',
-        'yt-dlp.exe',
+        '/usr/local/bin/yt-dlp',
+        path.join(process.env.HOME || '', '.local/bin/yt-dlp'),
       ].filter(Boolean);
 
       for (const bin of candidates) {
@@ -48,22 +55,12 @@ async function ensureYtDlp() {
         }
       }
 
-      try {
-        const YTDlpWrap = require('yt-dlp-wrap').default || require('yt-dlp-wrap');
-        const wrap = new YTDlpWrap();
-        const binPath = await wrap.getBinaryPath();
-        if (!binPath || !fs.existsSync(binPath)) {
-          await wrap.downloadFromGithub();
-        }
-        const resolved = wrap.getBinaryPath();
-        ytDlpBinary = resolved;
-        return resolved;
-      } catch (err) {
-        throw new Error(
-          '未找到 yt-dlp。请安装 yt-dlp 并加入 PATH，或执行 npm install 后重启后端（将自动下载二进制）。'
-          + (err.message ? ` (${err.message})` : '')
-        );
-      }
+      throw new Error(
+        '未找到 yt-dlp。请在服务器安装：'
+        + ' bash backend/scripts/install-yt-dlp.sh'
+        + ' 或 pip install yt-dlp'
+        + ' 或设置环境变量 YT_DLP_PATH=/path/to/yt-dlp'
+      );
     })();
   }
   return ytDlpInitPromise;
