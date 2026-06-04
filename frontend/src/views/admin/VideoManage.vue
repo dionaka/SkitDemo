@@ -62,9 +62,10 @@
               <div v-loading="biliCookieLoading" class="cookie-panel">
                 <el-alert type="info" :closable="false" show-icon class="cookie-alert">
                   <template #title>如何获取</template>
-                  <p>1. 浏览器登录 bilibili.com</p>
-                  <p>2. F12 → 网络/Application → 复制 Cookie，或直接粘贴整串 <code>buvid3=...; SESSDATA=...; bili_jct=...</code></p>
-                  <p>3. 粘贴到下方并保存（必须包含 <code>SESSDATA</code>）</p>
+                  <p>1. 浏览器登录 <a href="https://www.bilibili.com" target="_blank" rel="noopener">bilibili.com</a></p>
+                  <p>2. 按 F12 → Application / 存储 → Cookies → bilibili.com，复制整串 <code>name=value; ...</code></p>
+                  <p>3. 或使用扩展「Get cookies.txt LOCALLY」导出；两种格式均支持</p>
+                  <p>4. 粘贴下方并保存（需包含 <code>SESSDATA</code>）</p>
                 </el-alert>
 
                 <el-form label-width="100px" class="cookie-form">
@@ -81,7 +82,7 @@
                       v-model="biliCookieForm.cookies_text"
                       type="textarea"
                       :rows="8"
-                      placeholder="buvid3=...; SESSDATA=...; bili_jct=...; DedeUserID=..."
+                      placeholder="直接粘贴整串：buvid3=...; SESSDATA=...; bili_jct=...; sid=..."
                       class="cookie-textarea"
                     />
                   </el-form-item>
