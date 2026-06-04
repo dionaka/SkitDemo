@@ -12,6 +12,14 @@
         @click="togglePlay"
       />
       <EffectOverlay v-show="!segmentVisible" :type="effectType" :active="showEffect" />
+      <VideoDanmakuLayer
+        v-if="!segmentVisible"
+        ref="danmakuLayerRef"
+        :enabled="danmakuEnabled"
+        :paused="!playing"
+        :current-time="currentTime"
+        :items="danmakuItems"
+      />
       <div v-if="segmentVisible" class="player-segment-layer">
         <slot name="segment" />
       </div>
@@ -81,6 +89,7 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import HighlightMarker from './HighlightMarker.vue';
 import EffectOverlay from '../effects/EffectOverlay.vue';
+import VideoDanmakuLayer from '../danmaku/VideoDanmakuLayer.vue';
 
 const props = defineProps({
   src: String,
@@ -89,6 +98,8 @@ const props = defineProps({
   startTime: { type: Number, default: 0 },
   overlayVisible: { type: Boolean, default: false },
   segmentVisible: { type: Boolean, default: false },
+  danmakuEnabled: { type: Boolean, default: true },
+  danmakuItems: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['highlight-reached', 'branch-reached', 'timeupdate', 'pause', 'overlay-dismiss', 'duration']);
@@ -115,6 +126,7 @@ const hasAppliedStart = ref(false);
 const playbackStarted = ref(false);
 const pendingHighlightIds = ref(new Set());
 const pendingBranchIds = ref(new Set());
+const danmakuLayerRef = ref(null);
 
 const TRIGGER_WINDOW = 0.8;
 const CONFLICT_GAP = 3;
@@ -382,6 +394,10 @@ function play() {
   }
 }
 
+function pushDanmaku(text, color = '#ffd166') {
+  danmakuLayerRef.value?.pushInstant(text, color);
+}
+
 defineExpose({
   playEffect,
   jumpTo,
@@ -395,6 +411,7 @@ defineExpose({
   pause,
   play,
   togglePlay,
+  pushDanmaku,
 });
 </script>
 

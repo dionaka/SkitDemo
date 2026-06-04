@@ -5,6 +5,7 @@ const seriesController = require('../controllers/admin/seriesController');
 const highlightController = require('../controllers/admin/highlightController');
 const settingsController = require('../controllers/admin/settingsController');
 const commentAdminController = require('../controllers/admin/commentAdminController');
+const danmakuAdminController = require('../controllers/admin/danmakuAdminController');
 const auth = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
@@ -30,6 +31,10 @@ router.put('/videos/:id/publish', videoAdminController.publish);
 router.delete('/videos/:id', videoAdminController.remove);
 router.get('/videos/:id/comments', commentAdminController.listByVideo);
 router.delete('/comments/:id', commentAdminController.remove);
+router.get('/videos/:id/danmaku', danmakuAdminController.listByVideo);
+router.get('/videos/:id/danmaku/density', danmakuAdminController.densityPreview);
+router.post('/videos/:id/danmaku/analyze-highlights', danmakuAdminController.analyzeHighlights);
+router.delete('/danmaku/:id', danmakuAdminController.remove);
 router.post('/videos/:id/analyze', videoAdminController.analyze);
 
 router.get('/highlights', highlightController.list);

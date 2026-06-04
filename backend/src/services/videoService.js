@@ -45,9 +45,11 @@ class VideoService {
     const video = this.getById(id);
     if (!video) return null;
 
-    const highlights = db.prepare(
-      'SELECT * FROM highlight WHERE video_id = ? ORDER BY timestamp ASC'
-    ).all(id);
+    const highlights = db.prepare(`
+      SELECT * FROM highlight
+      WHERE video_id = ? AND status = 'active' AND merged_into_id IS NULL
+      ORDER BY timestamp ASC
+    `).all(id);
 
     const branchPointService = require('../branch/branchPointService');
     const branchPoints = branchPointService.listByVideoId(id, true);

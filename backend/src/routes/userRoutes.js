@@ -7,6 +7,7 @@ const authController = require('../controllers/user/authController');
 const searchController = require('../controllers/user/searchController');
 const engagementController = require('../controllers/user/engagementController');
 const commentController = require('../controllers/user/commentController');
+const danmakuController = require('../controllers/user/danmakuController');
 const backgroundController = require('../controllers/user/backgroundController');
 const upload = require('../middleware/upload');
 
@@ -39,6 +40,9 @@ router.get('/videos/:id', videoController.detail);
 router.get('/videos/:id/comments', commentController.listByVideo);
 router.post('/videos/:id/comments', commentController.create);
 router.delete('/comments/:id', commentController.remove);
+router.get('/videos/:id/danmaku', danmakuController.listByVideo);
+router.post('/videos/:id/danmaku', danmakuController.create);
+router.delete('/danmaku/:id', danmakuController.remove);
 router.post('/videos/:id/duration', videoController.syncDuration);
 router.post('/interactions', interactionController.record);
 router.get('/interactions/stats/:highlightId', interactionController.stats);

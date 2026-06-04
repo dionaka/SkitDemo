@@ -7,7 +7,7 @@
 ```
 SkitDemo/
 ├── backend/           # Express + SQLite API
-├── frontend/        # Vue3 管理端 + Web 用户端
+├── frontend/          # Vue3 管理端 + Web 用户端
 ├── frontend-mobile/   # Capacitor Android 用户端
 ├── docs/              # CHANGELOG、部署说明
 └── uploads/           # 视频/封面（本地，不入库）
@@ -17,9 +17,11 @@ SkitDemo/
 
 | 端 | 能力 |
 |----|------|
-| 用户端（Web / App） | 剧集列表、续播、播放与高光互动、收藏、评论、离线缓存、个性主题与背景 |
-| 管理端 | 登录、本地上传、**链接解析导入**（B站/抖音/小红书）、AI 高光分析、评论审核 |
-| 后端 | REST API、JWT、SQLite、yt-dlp 链接解析、B 站 Cookie 配置 |
+| 用户端（Web / App） | 剧集列表、续播、**弹幕**、高光互动、剧情分支、收藏、评论、离线缓存、个性主题 |
+| 管理端 | 登录、本地上传、**链接解析导入**（B站/抖音/小红书）、AI 高光分析、**弹幕生成高光**、评论审核 |
+| 后端 | REST API、JWT、SQLite、yt-dlp 链接解析、双来源高光（AI 视频 + 弹幕密集区） |
+
+**弹幕与高光：** 播放页可发弹幕（需登录）；管理端可分析弹幕密集区生成高光，与 AI 视频分析并存，±5 秒内自动合并，手动高光优先。
 
 详细更新见 [docs/CHANGELOG.md](docs/CHANGELOG.md)。
 

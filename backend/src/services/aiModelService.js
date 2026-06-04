@@ -263,6 +263,91 @@ class AIModelService {
     }));
   }
 
+  async analyzeDanmakuClusters(clusters, overrideCreds) {
+    const creds = this._getCreds(overrideCreds);
+    const { DANMAKU_HIGHLIGHT_SYSTEM_PROMPT } = require('../config/danmakuPrompts');
+
+    if (!clusters?.length) {
+      return { highlights: [], source: 'empty' };
+    }
+
+    if (!creds?.apiKey || !creds?.endpoint) {
+      return {
+        highlights: this._mockDanmakuHighlights(clusters),
+        source: 'mock',
+        reason: '请先在管理后台 → API 配置 中保存密钥',
+      };
+    }
+
+    const payload = clusters.map((c) => ({
+      timestamp: c.center_seconds,
+      danmaku_count: c.danmaku_count,
+      unique_users: c.unique_users,
+      samples: c.samples.slice(0, 15),
+    }));
+
+    const prompt = `${DANMAKU_HIGHLIGHT_SYSTEM_PROMPT}\n\n弹幕热点数据：\n${JSON.stringify(payload)}\n\n请为每个热点生成 1 条高光点 JSON。`;
+
+    const res = await fetch(`${creds.baseUrl}/responses`, {
+      method: 'POST',
+      headers: this._headers(creds.apiKey),
+      body: JSON.stringify({
+        model: creds.endpoint,
+        input: [{
+          role: 'user',
+          content: [{ type: 'input_text', text: prompt }],
+        }],
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error?.message || data.message || `模型调用失败 (${res.status})`);
+    }
+
+    const text = this._extractResponseText(data);
+    const highlights = this._parseDanmakuHighlights(text, clusters);
+    if (!highlights.length) {
+      return { highlights: this._mockDanmakuHighlights(clusters), source: 'mock-fallback' };
+    }
+
+    return { highlights, source: 'doubao' };
+  }
+
+  _parseDanmakuHighlights(text, clusters) {
+    const rawItems = this._tryParseRootArray(text, 'highlights');
+    return rawItems
+      .filter((h) => h && h.timestamp != null && h.title && h.options?.length)
+      .map((h) => {
+        const ts = Math.floor(Number(h.timestamp));
+        const cluster = clusters.find((c) => Math.abs(c.center_seconds - ts) <= 8) || clusters[0];
+        return {
+          timestamp: cluster?.center_seconds ?? ts,
+          category: this._normalizeHighlightCategory(h.category),
+          title: String(h.title).slice(0, 80),
+          options: (h.options || []).slice(0, 3).map((o) => String(o).slice(0, 40)),
+          confidence: Math.min(1, Math.max(0, Number(h.confidence) || 0.75)),
+          danmaku_count: cluster?.danmaku_count || 0,
+        };
+      });
+  }
+
+  _mockDanmakuHighlights(clusters) {
+    const categoryCycle = ['scene', 'reversal', 'sweet', 'conflict'];
+    return clusters.map((c, i) => {
+      const sample = c.samples[0] || '太精彩了';
+      const category = categoryCycle[i % categoryCycle.length];
+      return {
+        timestamp: c.center_seconds,
+        category,
+        title: `${sample.slice(0, 12)}…`.replace(/…$/, '') || '弹幕热点',
+        options: c.samples.slice(0, 3).map((s) => s.slice(0, 14)),
+        confidence: 0.6,
+        danmaku_count: c.danmaku_count,
+      };
+    });
+  }
+
   async analyzeBranches(videoPath, duration = 360, overrideCreds) {
     const creds = this._getCreds(overrideCreds);
 

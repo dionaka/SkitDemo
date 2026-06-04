@@ -21,6 +21,8 @@ exports.create = (req, res) => {
       category,
       interaction_type: interaction_type || category,
       options,
+      source: 'manual',
+      status: 'active',
     });
     res.json(success(data, '添加成功'));
   } catch (err) {

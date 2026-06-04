@@ -42,6 +42,12 @@ export const updateHighlight = (id, data) => request.put(`/api/admin/highlights/
 
 export const deleteHighlight = (id) => request.delete(`/api/admin/highlights/${id}`);
 
+export const analyzeDanmakuHighlights = (videoId) =>
+  request.post(`/api/admin/videos/${videoId}/danmaku/analyze-highlights`, null, { timeout: 120000 });
+
+export const getDanmakuDensity = (videoId) =>
+  request.get(`/api/admin/videos/${videoId}/danmaku/density`);
+
 export const getAiSettings = () => request.get('/api/admin/settings/ai');
 
 export const saveAiSettings = (data) => request.put('/api/admin/settings/ai', data);

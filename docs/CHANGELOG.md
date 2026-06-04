@@ -1,5 +1,16 @@
 # 更新日志
 
+## [2026-06-04] 弹幕与弹幕高光
+
+- 播放页集成 [vue-danmaku](https://github.com/hellodigua/vue-danmaku) 弹幕层，支持开关、登录后发弹幕（40 字、5 色）
+- 弹幕按播放进度同步；高光互动结束后可二次展示投票统计弹幕
+- 后端：`video_danmaku` 表；`GET/POST /api/v1/videos/:id/danmaku`，`DELETE /api/v1/danmaku/:id`
+- 弹幕密集区 AI 生成高光（`source=danmaku`），与 AI 视频高光（`source=ai_video`）双来源并存；±5s 内合并去重，手动高光优先
+- 管理端高光列表显示来源；「从弹幕生成高光」按钮 + 密度预览
+- API：`GET /api/admin/videos/:id/danmaku/density`，`POST .../danmaku/analyze-highlights`
+
+---
+
 ## [2026-06-04] 视频评论
 
 - 播放页新增评论列表与发表（需 App 登录）

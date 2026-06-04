@@ -24,6 +24,14 @@
           @play="onPlay"
         />
         <EffectOverlay v-show="!segmentVisible" :type="effectType" :active="showEffect" />
+        <VideoDanmakuLayer
+          v-if="!segmentVisible"
+          ref="danmakuLayerRef"
+          :enabled="danmakuEnabled"
+          :paused="!playing"
+          :current-time="currentTime"
+          :items="danmakuItems"
+        />
         <div v-if="segmentVisible" class="player-segment-layer">
           <slot name="segment" />
         </div>
@@ -96,6 +104,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { Capacitor } from '@capacitor/core';
 import HighlightMarker from './HighlightMarker.vue';
 import EffectOverlay from '../effects/EffectOverlay.vue';
+import VideoDanmakuLayer from '../danmaku/VideoDanmakuLayer.vue';
 import {
   enterNativePlayerFullscreen,
   exitNativePlayerFullscreen,
@@ -110,6 +119,8 @@ const props = defineProps({
   startTime: { type: Number, default: 0 },
   overlayVisible: { type: Boolean, default: false },
   segmentVisible: { type: Boolean, default: false },
+  danmakuEnabled: { type: Boolean, default: true },
+  danmakuItems: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['highlight-reached', 'branch-reached', 'timeupdate', 'pause', 'fullscreen-change', 'overlay-dismiss', 'duration']);
@@ -136,6 +147,7 @@ const hasAppliedStart = ref(false);
 const playbackStarted = ref(false);
 const pendingHighlightIds = ref(new Set());
 const pendingBranchIds = ref(new Set());
+const danmakuLayerRef = ref(null);
 
 const TRIGGER_WINDOW = 0.8;
 const CONFLICT_GAP = 3;
@@ -426,9 +438,13 @@ function jumpToBranch(time, id) {
   }
 }
 
+function pushDanmaku(text, color = '#ffd166') {
+  danmakuLayerRef.value?.pushInstant(text, color);
+}
+
 defineExpose({
   playEffect, jumpTo, jumpToBranch, resetTriggers, confirmHighlight, confirmBranch,
-  clearBranchTrigger, clearHighlightTrigger, getCurrentTime, pause, play,
+  clearBranchTrigger, clearHighlightTrigger, getCurrentTime, pause, play, pushDanmaku,
 });
 </script>
 

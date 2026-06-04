@@ -3,6 +3,7 @@ const STORAGE_KEY = 'skitdemo_play_prefs';
 const DEFAULTS = {
   highlightEnabled: true,
   branchEnabled: true,
+  danmakuEnabled: true,
 };
 
 export function getPlayPreferences() {

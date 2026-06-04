@@ -5,15 +5,23 @@
       <h1 class="page-title">高光点管理 (视频 #{{ videoId }})</h1>
     </div>
 
-    <el-button type="primary" @click="showAdd = true" style="margin-bottom:16px">
-      + 手动添加高光点
-    </el-button>
+    <div class="toolbar">
+      <el-button type="primary" @click="showAdd = true">+ 手动添加高光点</el-button>
+      <el-button type="success" :loading="analyzingDanmaku" @click="handleAnalyzeDanmaku">
+        从弹幕生成高光
+      </el-button>
+    </div>
 
     <el-table :data="highlights" stripe>
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="timestamp" label="时间(秒)" width="100" />
       <el-table-column prop="title" label="标题" />
       <el-table-column prop="category" label="类型" width="100" />
+      <el-table-column label="来源" width="100">
+        <template #default="{ row }">
+          <el-tag size="small" :type="sourceTagType(row.source)">{{ sourceLabel(row.source) }}</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="互动选项">
         <template #default="{ row }">
           <el-tag v-for="o in row.options" :key="o" size="small" style="margin-right:4px">{{ o }}</el-tag>
@@ -59,14 +67,34 @@
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getHighlights, createHighlight, updateHighlight, deleteHighlight } from '@/api/admin';
+import {
+  getHighlights,
+  createHighlight,
+  updateHighlight,
+  deleteHighlight,
+  analyzeDanmakuHighlights,
+  getDanmakuDensity,
+} from '@/api/admin';
 
 const route = useRoute();
 const videoId = route.params.videoId;
 const highlights = ref([]);
 const showAdd = ref(false);
 const editingId = ref(null);
+const analyzingDanmaku = ref(false);
 const form = ref({ timestamp: 0, title: '', category: 'reversal', opt1: '', opt2: '', opt3: '' });
+
+const SOURCE_LABELS = { ai_video: 'AI视频', danmaku: '弹幕', manual: '手动' };
+
+function sourceLabel(source) {
+  return SOURCE_LABELS[source] || source || '未知';
+}
+
+function sourceTagType(source) {
+  if (source === 'manual') return 'warning';
+  if (source === 'danmaku') return 'success';
+  return 'info';
+}
 
 onMounted(loadHighlights);
 
@@ -124,8 +152,41 @@ async function handleDelete(id) {
   ElMessage.success('删除成功');
   await loadHighlights();
 }
+
+async function handleAnalyzeDanmaku() {
+  try {
+    const preview = await getDanmakuDensity(videoId);
+    const clusters = preview.clusters || [];
+    const hint = clusters.length
+      ? `检测到 ${clusters.length} 个弹幕密集区（每 5 秒 ≥${preview.min_danmaku_count} 条且 ≥${preview.min_unique_users} 人）。\n\n将用 AI 分析并生成/合并高光，±5 秒内重复会自动合并，手动高光不会被覆盖。`
+      : `当前暂无满足条件的弹幕热点（需每 5 秒 ≥${preview.min_danmaku_count} 条且 ≥${preview.min_unique_users} 人）。仍要尝试分析吗？`;
+    await ElMessageBox.confirm(hint, '从弹幕生成高光', {
+      confirmButtonText: clusters.length ? '开始分析' : '仍要分析',
+      cancelButtonText: '取消',
+      type: clusters.length ? 'info' : 'warning',
+    });
+  } catch (e) {
+    if (e === 'cancel') return;
+    ElMessage.error(e.message || '预览失败');
+    return;
+  }
+
+  analyzingDanmaku.value = true;
+  try {
+    const result = await analyzeDanmakuHighlights(videoId);
+    const msg = result.message
+      || `完成：新增 ${result.created || 0}，合并 ${result.merged || 0}，跳过 ${result.skipped || 0}`;
+    ElMessage.success(msg);
+    await loadHighlights();
+  } catch (e) {
+    ElMessage.error(e.message || '分析失败');
+  } finally {
+    analyzingDanmaku.value = false;
+  }
+}
 </script>
 
 <style scoped>
 .page-header { margin-bottom: 16px; }
+.toolbar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 </style>

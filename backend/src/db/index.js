@@ -182,6 +182,47 @@ function migrateSchema() {
     CREATE INDEX IF NOT EXISTS idx_video_comment_video_status
     ON video_comment(video_id, status, created_at DESC)
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS video_danmaku (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      video_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      position_seconds REAL NOT NULL,
+      content TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#ffffff',
+      status INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (video_id) REFERENCES video(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_video_danmaku_video_pos
+    ON video_danmaku(video_id, status, position_seconds)
+  `);
+
+  const highlightCols = db.prepare('PRAGMA table_info(highlight)').all().map((c) => c.name);
+  if (!highlightCols.includes('source')) {
+    db.exec("ALTER TABLE highlight ADD COLUMN source TEXT NOT NULL DEFAULT 'ai_video'");
+  }
+  if (!highlightCols.includes('status')) {
+    db.exec("ALTER TABLE highlight ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+  }
+  if (!highlightCols.includes('danmaku_density')) {
+    db.exec('ALTER TABLE highlight ADD COLUMN danmaku_density INTEGER');
+  }
+  if (!highlightCols.includes('confidence')) {
+    db.exec('ALTER TABLE highlight ADD COLUMN confidence REAL');
+  }
+  if (!highlightCols.includes('merged_into_id')) {
+    db.exec('ALTER TABLE highlight ADD COLUMN merged_into_id INTEGER');
+  }
+
+  db.exec("UPDATE highlight SET source = 'ai_video' WHERE source IS NULL OR source = ''");
+  db.exec("UPDATE highlight SET status = 'active' WHERE status IS NULL OR status = ''");
 }
 
 function seedDemoData() {

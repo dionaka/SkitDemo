@@ -17,6 +17,10 @@
             <input v-model="prefs.branchEnabled" type="checkbox" @change="savePrefs" />
             <span>剧情分支</span>
           </label>
+          <label class="pref-item">
+            <input v-model="prefs.danmakuEnabled" type="checkbox" @change="savePrefs" />
+            <span>弹幕</span>
+          </label>
         </div>
       </div>
 
@@ -28,6 +32,8 @@
         :start-time="startTime"
         :overlay-visible="panelVisible || branchPanelVisible"
         :segment-visible="branchSegmentVisible"
+        :danmaku-enabled="prefs.danmakuEnabled"
+        :danmaku-items="danmakuList"
         @highlight-reached="onHighlightReached"
         @branch-reached="onBranchReached"
         @timeupdate="onTimeUpdate"
@@ -65,6 +71,13 @@
           />
         </template>
       </VideoPlayer>
+
+      <DanmakuSendBar
+        v-if="video"
+        :logged-in="session.isLoggedIn"
+        :disabled="!prefs.danmakuEnabled"
+        @send="onSendDanmaku"
+      />
 
       <div v-if="highlights.length" class="highlight-list">
         <h3>高光点时间轴</h3>
@@ -127,6 +140,8 @@ import { useSessionStore } from '@/stores/session';
 import { smartBack } from '@/utils/navigation';
 import { getLocalProgress, setLocalProgress, formatProgressLabel, clampProgressSeconds } from '@/utils/watchProgress';
 import { getPlayPreferences, savePlayPreferences } from '@/utils/playPreferences';
+import DanmakuSendBar from '@/components/danmaku/DanmakuSendBar.vue';
+import { listDanmaku, sendDanmaku } from '@/api/danmaku';
 
 const route = useRoute();
 const router = useRouter();
@@ -154,6 +169,7 @@ const panelMode = ref('options');
 const startTime = ref(0);
 const resumeHint = ref('');
 const prefs = ref(getPlayPreferences());
+const danmakuList = ref([]);
 let lastSaveAt = 0;
 let sessionBaselinePosition = 0;
 const PROGRESS_ADVANCE_SECONDS = 3;
@@ -171,11 +187,13 @@ async function loadVideo() {
   loading.value = true;
   loadError.value = '';
   video.value = null;
+  danmakuList.value = [];
   try {
     const data = await getVideoDetail(route.params.id);
     video.value = data.video;
     highlights.value = data.highlights || [];
     branchPoints.value = data.branch_points || [];
+    await loadDanmaku();
 
     const local = getLocalProgress(videoId.value);
     let remote = 0;
@@ -206,6 +224,45 @@ function savePrefs() {
   savePlayPreferences(prefs.value);
   if (!prefs.value.highlightEnabled && panelVisible.value) closePanel();
   if (!prefs.value.branchEnabled && branchPanelVisible.value) closeBranchPanel();
+}
+
+async function loadDanmaku() {
+  danmakuList.value = [];
+  if (!video.value?.id) return;
+  try {
+    const data = await listDanmaku(video.value.id);
+    danmakuList.value = data.list || [];
+  } catch {
+    danmakuList.value = [];
+  }
+}
+
+async function onSendDanmaku({ content, color }) {
+  if (!session.isLoggedIn || !video.value?.id || !prefs.value.danmakuEnabled) return;
+  try {
+    const pos = playerRef.value?.getCurrentTime?.() ?? 0;
+    const created = await sendDanmaku(video.value.id, {
+      content,
+      color,
+      position_seconds: pos,
+      user_session_id: session.userSessionId,
+    });
+    danmakuList.value = [...danmakuList.value, created];
+    ElMessage.success('弹幕已发送');
+  } catch (e) {
+    ElMessage.error(e.message || '发送失败');
+  }
+}
+
+function pushStatsDanmaku() {
+  const options = interactionStats.value?.options;
+  if (!options?.length || !prefs.value.danmakuEnabled) return;
+  const top = [...options].sort((a, b) => (b.percentage || 0) - (a.percentage || 0)).slice(0, 2);
+  top.forEach((s, i) => {
+    setTimeout(() => {
+      playerRef.value?.pushDanmaku?.(`${Math.round(s.percentage || 0)}% 选了「${s.option}」`, '#ffd166');
+    }, i * 450);
+  });
 }
 
 async function goBack() {
@@ -285,10 +342,12 @@ function onHighlightReached(highlight) {
 }
 
 function closePanel() {
+  const showStats = panelMode.value === 'result' && interactionStats.value?.options?.length;
   panelVisible.value = false;
   if (currentHighlight.value?.id) {
     playerRef.value?.clearHighlightTrigger?.(currentHighlight.value.id);
   }
+  if (showStats) pushStatsDanmaku();
 }
 
 function onOverlayDismiss() {
