@@ -7,6 +7,7 @@ const {
   extractLinkFromText, matchPlatform, PLATFORM_LABELS, normalizeUrl, canonicalizeResolveUrl,
 } = require('../utils/linkPatterns');
 const bilibiliResolve = require('./bilibiliResolveService');
+const biliCookiesService = require('./biliCookiesService');
 const { BROWSER_UA } = bilibiliResolve;
 
 const execFileAsync = promisify(execFile);
@@ -26,13 +27,8 @@ function getMaxBytes() {
 }
 
 function getBiliCookiesPath() {
-  const candidates = [
-    process.env.BILI_COOKIES_PATH,
-    path.join(config.uploadBasePath, 'cookies', 'bili_cookies.txt'),
-    path.join(__dirname, '../../cookies/bili_cookies.txt'),
-  ].filter(Boolean);
-
-  return candidates.find((p) => fs.existsSync(p)) || null;
+  const filePath = biliCookiesService.resolveReadablePath();
+  return fs.existsSync(filePath) ? filePath : null;
 }
 
 function resolveTargetUrl(textOrUrl) {
@@ -46,8 +42,7 @@ function formatYtDlpError(err, platform) {
     const cookiePath = getBiliCookiesPath();
     if (!cookiePath) {
       return (
-        'B站返回 412，需要登录 Cookie。请将 Netscape 格式 Cookie 保存到 '
-        + 'uploads/cookies/bili_cookies.txt（见 backend/cookies/README.md），然后重启后端。'
+        'B站返回 412，需要登录 Cookie。请在管理端「视频管理 → 链接解析 → B 站 Cookie 配置」粘贴并保存。'
       );
     }
     return (
@@ -248,8 +243,7 @@ class LinkResolveService {
 
     if (platform === 'bilibili' && !getBiliCookiesPath()) {
       throw new Error(
-        'B站下载需要 Cookie。请将登录后的 Cookie 保存到 uploads/cookies/bili_cookies.txt'
-        + '（说明见 backend/cookies/README.md）'
+        'B站下载需要 Cookie。请在管理端「链接解析 → B 站 Cookie 配置」粘贴并保存'
       );
     }
 
@@ -343,6 +337,19 @@ class LinkResolveService {
     const dest = path.join(coversDir, filename);
     fs.writeFileSync(dest, buf);
     return `/uploads/covers/${filename}`;
+  }
+
+  async testBiliCookies(testUrl) {
+    if (!getBiliCookiesPath()) {
+      throw new Error('尚未保存 B 站 Cookie');
+    }
+    const url = canonicalizeResolveUrl(testUrl || 'https://www.bilibili.com/video/BV1xx411c7mD');
+    const info = await runYtDlpJson(url);
+    return {
+      ok: true,
+      test_url: url,
+      title: info.title || info.fulltitle || '',
+    };
   }
 }
 

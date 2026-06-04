@@ -67,3 +67,12 @@ export const saveSiliconflowTtsSettings = (data) => request.put('/api/admin/sett
 export const testSiliconflowTtsSettings = (data) => request.post('/api/admin/settings/siliconflow-tts/test', data);
 
 export const deleteSiliconflowTtsSettings = () => request.delete('/api/admin/settings/siliconflow-tts');
+
+export const getBiliCookiesSettings = () => request.get('/api/admin/settings/bili-cookies');
+
+export const saveBiliCookiesSettings = (data) => request.put('/api/admin/settings/bili-cookies', data);
+
+export const testBiliCookiesSettings = (data) =>
+  request.post('/api/admin/settings/bili-cookies/test', data, { timeout: 120000, silent: true });
+
+export const deleteBiliCookiesSettings = () => request.delete('/api/admin/settings/bili-cookies');

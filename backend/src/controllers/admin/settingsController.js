@@ -222,3 +222,37 @@ exports.deleteSiliconflowTtsSettings = (_req, res) => {
   secretsService.clearSiliconflowTtsCredentials();
   res.json(success(null, '硅基流动 TTS 配置已清除'));
 };
+
+const biliCookiesService = require('../../services/biliCookiesService');
+const linkResolveService = require('../../services/linkResolveService');
+
+exports.getBiliCookiesSettings = (_req, res) => {
+  const status = biliCookiesService.getStatus();
+  const cookies_text = status.configured ? biliCookiesService.readCookieText() : '';
+  res.json(success({ ...status, cookies_text }));
+};
+
+exports.saveBiliCookiesSettings = (req, res) => {
+  try {
+    const { cookies_text } = req.body || {};
+    const status = biliCookiesService.saveCookieText(cookies_text);
+    res.json(success(status, 'B 站 Cookie 已保存'));
+  } catch (err) {
+    res.status(400).json(fail(400, err.message));
+  }
+};
+
+exports.testBiliCookiesSettings = async (req, res) => {
+  try {
+    const { test_url } = req.body || {};
+    const result = await linkResolveService.testBiliCookies(test_url);
+    res.json(success(result, 'Cookie 有效，yt-dlp 解析成功'));
+  } catch (err) {
+    res.status(400).json(fail(400, err.message));
+  }
+};
+
+exports.deleteBiliCookiesSettings = (_req, res) => {
+  const status = biliCookiesService.clearCookies();
+  res.json(success(status, 'B 站 Cookie 已清除'));
+};

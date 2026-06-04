@@ -50,4 +50,9 @@ router.put('/settings/siliconflow-tts', settingsController.saveSiliconflowTtsSet
 router.post('/settings/siliconflow-tts/test', settingsController.testSiliconflowTtsSettings);
 router.delete('/settings/siliconflow-tts', settingsController.deleteSiliconflowTtsSettings);
 
+router.get('/settings/bili-cookies', settingsController.getBiliCookiesSettings);
+router.put('/settings/bili-cookies', settingsController.saveBiliCookiesSettings);
+router.post('/settings/bili-cookies/test', settingsController.testBiliCookiesSettings);
+router.delete('/settings/bili-cookies', settingsController.deleteBiliCookiesSettings);
+
 module.exports = router;

@@ -57,83 +57,138 @@
         </el-tab-pane>
 
         <el-tab-pane label="链接解析" name="link">
-          <el-form label-width="100px" class="link-form" @submit.prevent="handleLinkImport">
-            <el-form-item label="视频链接">
-              <el-input
-                v-model="linkForm.text"
-                type="textarea"
-                :rows="2"
-                placeholder="粘贴 B站 / 抖音 / 小红书 分享链接或整段文案"
-                style="max-width: 560px"
-              />
-            </el-form-item>
-            <el-form-item label="剧名">
-              <el-select
-                v-model="linkForm.series_title"
-                filterable
-                allow-create
-                default-first-option
-                placeholder="解析后自动填充，可修改"
-                style="width: 280px"
-              >
-                <el-option
-                  v-for="s in seriesList"
-                  :key="s.id"
-                  :label="s.title"
-                  :value="s.title"
-                />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="集数">
-              <el-input-number v-model="linkForm.episode_number" :min="1" />
-            </el-form-item>
-            <el-form-item label="单集标题">
-              <el-input v-model="linkForm.title" placeholder="解析后自动填充" style="width: 280px" />
-            </el-form-item>
-            <el-form-item>
-              <el-button :loading="resolvingLink" @click="handleResolveLink">解析预览</el-button>
-              <el-button
-                type="primary"
-                :loading="importingLink"
-                :disabled="!linkPreview?.ok"
-                @click="handleLinkImport"
-              >
-                下载并导入
-              </el-button>
-            </el-form-item>
-          </el-form>
+          <el-collapse v-model="linkPanels" class="link-collapse">
+            <el-collapse-item name="cookie" title="B 站 Cookie 配置（链接下载必需）">
+              <div v-loading="biliCookieLoading" class="cookie-panel">
+                <el-alert type="info" :closable="false" show-icon class="cookie-alert">
+                  <template #title>如何获取</template>
+                  <p>1. 浏览器登录 <a href="https://www.bilibili.com" target="_blank" rel="noopener">bilibili.com</a></p>
+                  <p>2. 安装扩展「Get cookies.txt LOCALLY」，点击 Export 复制全部内容</p>
+                  <p>3. 粘贴到下方文本框并保存（需包含 <code>SESSDATA</code>）</p>
+                </el-alert>
 
-          <div v-if="linkPreview" class="link-preview">
-            <template v-if="linkPreview.ok">
-              <el-tag type="success" size="small">{{ linkPreview.platform_label }}</el-tag>
-              <span class="preview-title">{{ linkPreview.title }}</span>
-              <span v-if="linkPreview.author" class="preview-meta">作者：{{ linkPreview.author }}</span>
-              <span v-if="linkPreview.duration_seconds" class="preview-meta">
-                时长：{{ linkPreview.duration_seconds }} 秒
-              </span>
-              <img
-                v-if="linkPreview.thumbnail"
-                :src="linkPreview.thumbnail"
-                class="preview-thumb"
-                alt="封面预览"
-              />
-              <el-alert
-                v-if="linkPreview.hint"
-                :title="linkPreview.hint"
-                :type="linkPreview.download_requires_cookie ? 'warning' : 'info'"
-                show-icon
-                :closable="false"
-                class="preview-hint"
-              />
-            </template>
-            <el-alert v-else :title="linkPreview.message || '解析失败'" type="warning" show-icon :closable="false" />
-          </div>
+                <el-form label-width="100px" class="cookie-form">
+                  <el-form-item label="配置状态">
+                    <el-tag :type="biliCookieStatus.configured ? 'success' : 'warning'">
+                      {{ biliCookieStatus.configured ? '已配置' : '未配置' }}
+                    </el-tag>
+                    <span v-if="biliCookieStatus.updated_at" class="field-hint">
+                      更新于 {{ formatTime(biliCookieStatus.updated_at) }}
+                    </span>
+                  </el-form-item>
+                  <el-form-item label="Cookie 内容">
+                    <el-input
+                      v-model="biliCookieForm.cookies_text"
+                      type="textarea"
+                      :rows="8"
+                      placeholder="# Netscape HTTP Cookie File&#10;.bilibili.com	TRUE	/	FALSE	...	SESSDATA	..."
+                      class="cookie-textarea"
+                    />
+                  </el-form-item>
+                  <el-form-item label="测试链接">
+                    <el-input
+                      v-model="biliCookieForm.test_url"
+                      placeholder="留空则用默认测试 BV 号"
+                      style="max-width: 480px"
+                    />
+                  </el-form-item>
+                  <el-form-item>
+                    <el-button type="primary" :loading="savingBiliCookie" @click="handleSaveBiliCookie">
+                      保存 Cookie
+                    </el-button>
+                    <el-button
+                      :loading="testingBiliCookie"
+                      :disabled="!biliCookieStatus.configured && !biliCookieForm.cookies_text?.trim()"
+                      @click="handleTestBiliCookie"
+                    >
+                      测试 Cookie
+                    </el-button>
+                    <el-button type="danger" plain :disabled="!biliCookieStatus.configured" @click="handleClearBiliCookie">
+                      清除
+                    </el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </el-collapse-item>
 
-          <p class="upload-hint">
-            支持 B站、抖音、小红书视频链接（参考
-            <a href="https://github.com/vacacia/astrbot_plugin_link_resolver" target="_blank" rel="noopener">link_resolver</a>
-            ）。B 站下载需配置 Cookie：<code>uploads/cookies/bili_cookies.txt</code>（说明见 <code>backend/cookies/README.md</code>）。
-          </p>
+            <el-collapse-item name="import" title="粘贴链接并导入">
+              <el-form label-width="100px" class="link-form" @submit.prevent="handleLinkImport">
+                <el-form-item label="视频链接">
+                  <el-input
+                    v-model="linkForm.text"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="粘贴 B站 / 抖音 / 小红书 分享链接或整段文案"
+                    style="max-width: 560px"
+                  />
+                </el-form-item>
+                <el-form-item label="剧名">
+                  <el-select
+                    v-model="linkForm.series_title"
+                    filterable
+                    allow-create
+                    default-first-option
+                    placeholder="解析后自动填充，可修改"
+                    style="width: 280px"
+                  >
+                    <el-option
+                      v-for="s in seriesList"
+                      :key="s.id"
+                      :label="s.title"
+                      :value="s.title"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="集数">
+                  <el-input-number v-model="linkForm.episode_number" :min="1" />
+                </el-form-item>
+                <el-form-item label="单集标题">
+                  <el-input v-model="linkForm.title" placeholder="解析后自动填充" style="width: 280px" />
+                </el-form-item>
+                <el-form-item>
+                  <el-button :loading="resolvingLink" @click="handleResolveLink">解析预览</el-button>
+                  <el-button
+                    type="primary"
+                    :loading="importingLink"
+                    :disabled="!linkPreview?.ok"
+                    @click="handleLinkImport"
+                  >
+                    下载并导入
+                  </el-button>
+                </el-form-item>
+              </el-form>
+
+              <div v-if="linkPreview" class="link-preview">
+                <template v-if="linkPreview.ok">
+                  <el-tag type="success" size="small">{{ linkPreview.platform_label }}</el-tag>
+                  <span class="preview-title">{{ linkPreview.title }}</span>
+                  <span v-if="linkPreview.author" class="preview-meta">作者：{{ linkPreview.author }}</span>
+                  <span v-if="linkPreview.duration_seconds" class="preview-meta">
+                    时长：{{ linkPreview.duration_seconds }} 秒
+                  </span>
+                  <img
+                    v-if="linkPreview.thumbnail"
+                    :src="linkPreview.thumbnail"
+                    class="preview-thumb"
+                    alt="封面预览"
+                  />
+                  <el-alert
+                    v-if="linkPreview.hint"
+                    :title="linkPreview.hint"
+                    :type="linkPreview.download_requires_cookie ? 'warning' : 'info'"
+                    show-icon
+                    :closable="false"
+                    class="preview-hint"
+                  />
+                </template>
+                <el-alert v-else :title="linkPreview.message || '解析失败'" type="warning" show-icon :closable="false" />
+              </div>
+
+              <p class="upload-hint">
+                支持 B站、抖音、小红书视频链接。B 站下载需先在上方配置 Cookie。
+              </p>
+            </el-collapse-item>
+          </el-collapse>
         </el-tab-pane>
       </el-tabs>
     </el-card>
@@ -255,6 +310,8 @@ import {
   publishVideo, analyzeVideo, deleteVideo,
   uploadVideoCover, regenerateVideoCover,
   resolveVideoLink, importVideoFromLink,
+  getBiliCookiesSettings, saveBiliCookiesSettings,
+  testBiliCookiesSettings, deleteBiliCookiesSettings,
 } from '@/api/admin';
 import { useSessionStore } from '@/stores/session';
 import { isDefaultCoverUrl } from '@/utils/cover';
@@ -269,6 +326,15 @@ const uploading = ref(false);
 const resolvingLink = ref(false);
 const importingLink = ref(false);
 const linkPreview = ref(null);
+const linkPanels = ref(['cookie', 'import']);
+const biliCookieLoading = ref(false);
+const savingBiliCookie = ref(false);
+const testingBiliCookie = ref(false);
+const biliCookieStatus = ref({ configured: false });
+const biliCookieForm = ref({
+  cookies_text: '',
+  test_url: '',
+});
 const analyzingId = ref(null);
 const deletingId = ref(null);
 const regeneratingId = ref(null);
@@ -300,8 +366,81 @@ const editForm = ref({
 });
 
 onMounted(async () => {
-  await Promise.all([loadVideos(), loadSeries()]);
+  await Promise.all([loadVideos(), loadSeries(), loadBiliCookieSettings()]);
 });
+
+function formatTime(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString();
+  } catch {
+    return iso;
+  }
+}
+
+async function loadBiliCookieSettings() {
+  biliCookieLoading.value = true;
+  try {
+    const data = await getBiliCookiesSettings();
+    biliCookieStatus.value = data;
+    biliCookieForm.value.cookies_text = data.cookies_text || '';
+  } finally {
+    biliCookieLoading.value = false;
+  }
+}
+
+async function handleSaveBiliCookie() {
+  if (!biliCookieForm.value.cookies_text?.trim()) {
+    ElMessage.warning('请粘贴 Cookie 内容');
+    return;
+  }
+  savingBiliCookie.value = true;
+  try {
+    const data = await saveBiliCookiesSettings({
+      cookies_text: biliCookieForm.value.cookies_text,
+    });
+    biliCookieStatus.value = { ...biliCookieStatus.value, ...data };
+    ElMessage.success('B 站 Cookie 已保存');
+  } catch (err) {
+    ElMessage.error(err.message || '保存失败');
+  } finally {
+    savingBiliCookie.value = false;
+  }
+}
+
+async function handleTestBiliCookie() {
+  if (!biliCookieStatus.value.configured && biliCookieForm.value.cookies_text?.trim()) {
+    await handleSaveBiliCookie();
+    if (!biliCookieStatus.value.configured) return;
+  }
+  testingBiliCookie.value = true;
+  try {
+    const data = await testBiliCookiesSettings({
+      test_url: biliCookieForm.value.test_url?.trim() || undefined,
+    });
+    ElMessage.success(data.title ? `Cookie 有效：${data.title}` : 'Cookie 有效');
+  } catch (err) {
+    ElMessage.error(err.message || 'Cookie 测试失败');
+  } finally {
+    testingBiliCookie.value = false;
+  }
+}
+
+async function handleClearBiliCookie() {
+  try {
+    await ElMessageBox.confirm('确定清除已保存的 B 站 Cookie？', '清除 Cookie', {
+      type: 'warning',
+      confirmButtonText: '清除',
+      cancelButtonText: '取消',
+    });
+  } catch {
+    return;
+  }
+  const data = await deleteBiliCookiesSettings();
+  biliCookieStatus.value = data;
+  biliCookieForm.value.cookies_text = '';
+  ElMessage.success('已清除');
+}
 
 async function loadVideos() {
   const data = await getAdminVideos();
@@ -611,5 +750,15 @@ function logout() {
   object-fit: cover;
   border-radius: 6px;
   margin-left: auto;
+}
+.preview-hint { flex-basis: 100%; margin-top: 4px; }
+.link-collapse { max-width: 760px; margin-bottom: 8px; }
+.cookie-panel { padding-top: 4px; }
+.cookie-alert { margin-bottom: 16px; }
+.cookie-alert p { margin: 4px 0; font-size: 13px; line-height: 1.5; }
+.cookie-form { max-width: 720px; }
+.cookie-textarea :deep(textarea) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
 }
 </style>
