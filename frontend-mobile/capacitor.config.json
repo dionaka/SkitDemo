@@ -13,6 +13,13 @@
       "overlaysWebView": false,
       "backgroundColor": "#07070d",
       "style": "DARK"
+    },
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "launchAutoHide": false,
+      "backgroundColor": "#07070d",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
     }
   }
 }

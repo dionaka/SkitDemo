@@ -17,9 +17,8 @@ export { default as SkinTabBar } from './components/SkinTabBar.vue';
 export { default as SkinRefreshEffect } from './components/SkinRefreshEffect.vue';
 
 /**
- * 初始化 bilibili-skin 模块（在 bootstrap 中调用一次）。
+ * 初始化 bilibili-skin 模块（本地默认值；云端数据由 userCloudSync 异步拉取）。
  */
 export async function initSkinModule(pinia) {
-  const skin = useSkinStore(pinia);
-  await skin.hydrate();
+  useSkinStore(pinia).hydrate();
 }

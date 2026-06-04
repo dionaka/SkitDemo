@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia';
 import {
-  getUserBackground,
   updateUserBackground,
   uploadUserBackground,
   clearUserBackground,
+  getUserBackgroundOnce,
 } from '@/api/background';
 import {
   BACKGROUND_DEFAULTS,
@@ -66,7 +66,7 @@ export const useAppBackgroundStore = defineStore('appBackground', {
 
       this.loading = true;
       try {
-        const data = await getUserBackground(session.userSessionId);
+        const data = await getUserBackgroundOnce(session.userSessionId);
         this.applyPayload(data);
         return data;
       } catch {
@@ -138,9 +138,7 @@ export const useAppBackgroundStore = defineStore('appBackground', {
     async hydrate() {
       clearLegacyBackgroundStorage();
       const session = useSessionStore();
-      if (session.isLoggedIn) {
-        await this.fetchFromCloud();
-      } else {
+      if (!session.isLoggedIn) {
         this.resetLocal();
       }
     },

@@ -1,10 +1,23 @@
 import request from './request';
 
+let inflightFetch = null;
+
 export const getUserBackground = (userSessionId) =>
   request.get('/api/v1/user/background', {
     params: { user_session_id: userSessionId },
     silent: true,
   });
+
+/** 合并请求：同一时刻只发一次 background 拉取 */
+export function getUserBackgroundOnce(userSessionId) {
+  if (!userSessionId) return Promise.resolve(null);
+  if (!inflightFetch) {
+    inflightFetch = getUserBackground(userSessionId).finally(() => {
+      inflightFetch = null;
+    });
+  }
+  return inflightFetch;
+}
 
 export const updateUserBackground = (userSessionId, payload) =>
   request.put('/api/v1/user/background', {

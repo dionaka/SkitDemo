@@ -1,4 +1,7 @@
 import { defineStore } from 'pinia';
+import { getProfile } from '@/api/auth';
+import { getApiBaseUrl } from '@/config/server';
+import { hydrateUserCloudAsync, resetUserCloudLocal } from '@/services/userCloudSync';
 
 function createAnonymousSessionId() {
   return `session_${Math.random().toString(36).slice(2, 12)}`;
@@ -38,18 +41,16 @@ export const useSessionStore = defineStore('session', {
     isAnonymousSession: (state) => state.userSessionId.startsWith('session_'),
   },
   actions: {
-    setUser(profile) {
+    applyProfile(profile) {
       this.username = profile.username || '';
       this.userId = profile.user_id ?? null;
       this.avatarUrl = profile.avatar_url || '';
       if (profile.user_session_id) this.userSessionId = profile.user_session_id;
       persistUserProfile(profile);
-      import('./appBackground').then(({ useAppBackgroundStore }) => {
-        useAppBackgroundStore().fetchFromCloud().catch(() => {});
-      });
-      import('@/skin').then(({ useSkinStore }) => {
-        useSkinStore().fetchFromCloud().catch(() => {});
-      });
+    },
+    setUser(profile) {
+      this.applyProfile(profile);
+      hydrateUserCloudAsync().catch(() => {});
     },
     updateAvatar(avatarUrl) {
       this.avatarUrl = avatarUrl || '';
@@ -66,12 +67,17 @@ export const useSessionStore = defineStore('session', {
       const nextId = createAnonymousSessionId();
       this.userSessionId = nextId;
       localStorage.setItem('user_session_id', nextId);
-      import('./appBackground').then(({ useAppBackgroundStore }) => {
-        useAppBackgroundStore().resetLocal();
-      });
-      import('@/skin').then(({ useSkinStore }) => {
-        useSkinStore().resetLocal();
-      });
+      resetUserCloudLocal();
+    },
+    async restoreSession() {
+      if (!this.isLoggedIn || !getApiBaseUrl()) return;
+
+      try {
+        const data = await getProfile(this.userSessionId);
+        this.applyProfile(data);
+      } catch {
+        this.logout();
+      }
     },
   },
 });

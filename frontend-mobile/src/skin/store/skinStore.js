@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
-import { getUserBackground, updateUserBackground, clearUserBackground } from '@/api/background';
+import { updateUserBackground, clearUserBackground } from '@/api/background';
 import { useSessionStore } from '@/stores/session';
+import { getUserBackgroundOnce } from '@/api/background';
 import { parseSkinFile, cleanupParsedSkin } from '../parser/parseSkinFile';
 import { prepareThemeForCloud } from '../parser/persistAssets';
 import { isSkinActive } from '../parser/normalizeTheme';
@@ -91,7 +92,7 @@ export const useSkinStore = defineStore('bilibiliSkin', {
 
       this.loading = true;
       try {
-        const data = await getUserBackground(session.userSessionId);
+        const data = await getUserBackgroundOnce(session.userSessionId);
         this.applyPayload(data);
         return data;
       } catch {
@@ -159,8 +160,11 @@ export const useSkinStore = defineStore('bilibiliSkin', {
       this.refreshToken += 1;
     },
 
-    async hydrate() {
-      await this.fetchFromCloud();
+    hydrate() {
+      const session = useSessionStore();
+      if (!session.isLoggedIn) {
+        this.theme = EMPTY_THEME;
+      }
     },
   },
 });
