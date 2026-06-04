@@ -99,6 +99,18 @@ function initDatabase() {
       FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE,
       FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS video_comment (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      video_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      status INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (video_id) REFERENCES video(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE
+    );
   `);
 
   migrateSchema();
@@ -165,6 +177,11 @@ function migrateSchema() {
     db.exec('ALTER TABLE watch_progress ADD COLUMN watch_anchor_seconds REAL NOT NULL DEFAULT 0');
     db.exec('UPDATE watch_progress SET watch_anchor_seconds = position_seconds');
   }
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_video_comment_video_status
+    ON video_comment(video_id, status, created_at DESC)
+  `);
 }
 
 function seedDemoData() {

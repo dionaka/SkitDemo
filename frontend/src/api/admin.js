@@ -76,3 +76,9 @@ export const testBiliCookiesSettings = (data) =>
   request.post('/api/admin/settings/bili-cookies/test', data, { timeout: 120000, silent: true });
 
 export const deleteBiliCookiesSettings = () => request.delete('/api/admin/settings/bili-cookies');
+
+export const getAdminVideoComments = (videoId, params) =>
+  request.get(`/api/admin/videos/${videoId}/comments`, { params });
+
+export const deleteAdminComment = (commentId) =>
+  request.delete(`/api/admin/comments/${commentId}`);

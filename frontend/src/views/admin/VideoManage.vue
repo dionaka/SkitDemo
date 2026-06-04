@@ -211,6 +211,9 @@
       <el-table-column prop="title" label="单集标题" min-width="120" />
       <el-table-column prop="total_duration" label="时长(秒)" width="100" />
       <el-table-column prop="highlight_count" label="高光点" width="80" />
+      <el-table-column label="评论" width="70">
+        <template #default="{ row }">{{ row.comment_count ?? 0 }}</template>
+      </el-table-column>
       <el-table-column label="分支点" width="80">
         <template #default="{ row }">{{ row.branch_point_count ?? 0 }}</template>
       </el-table-column>
@@ -221,8 +224,9 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="520">
+      <el-table-column label="操作" width="580">
         <template #default="{ row }">
+          <el-button size="small" @click="openComments(row)">评论</el-button>
           <el-button size="small" @click="openEdit(row)">编辑</el-button>
           <el-button size="small" :loading="regeneratingId === row.id" @click="handleRegenerateCover(row)">
             重截封面
@@ -301,6 +305,30 @@
         <el-button type="primary" :loading="savingEdit" @click="handleSaveEdit">保存</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="commentDialogVisible" :title="commentDialogTitle" width="640px">
+      <div v-loading="commentLoading">
+        <el-empty v-if="!commentLoading && adminComments.length === 0" description="暂无评论" />
+        <ul v-else class="admin-comment-list">
+          <li v-for="c in adminComments" :key="c.id" class="admin-comment-item">
+            <div class="admin-comment-head">
+              <strong>{{ c.user?.username }}</strong>
+              <span class="admin-comment-time">{{ c.created_at }}</span>
+              <el-button
+                size="small"
+                type="danger"
+                text
+                :loading="adminCommentDeletingId === c.id"
+                @click="handleAdminDeleteComment(c.id)"
+              >
+                删除
+              </el-button>
+            </div>
+            <p class="admin-comment-body">{{ c.content }}</p>
+          </li>
+        </ul>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -315,6 +343,7 @@ import {
   resolveVideoLink, importVideoFromLink,
   getBiliCookiesSettings, saveBiliCookiesSettings,
   testBiliCookiesSettings, deleteBiliCookiesSettings,
+  getAdminVideoComments, deleteAdminComment,
 } from '@/api/admin';
 import { useSessionStore } from '@/stores/session';
 import { isDefaultCoverUrl } from '@/utils/cover';
@@ -339,6 +368,11 @@ const biliCookieForm = ref({
   cookies_text: '',
   test_url: '',
 });
+const commentDialogVisible = ref(false);
+const commentLoading = ref(false);
+const adminComments = ref([]);
+const adminCommentDeletingId = ref(null);
+const commentVideoRow = ref(null);
 const analyzingId = ref(null);
 const deletingId = ref(null);
 const regeneratingId = ref(null);
@@ -446,6 +480,39 @@ async function handleClearBiliCookie() {
   ElMessage.success('已清除');
 }
 
+async function openComments(row) {
+  commentVideoRow.value = row;
+  commentDialogVisible.value = true;
+  commentLoading.value = true;
+  adminComments.value = [];
+  try {
+    const data = await getAdminVideoComments(row.id, { page: 1, size: 100 });
+    adminComments.value = data.list || [];
+  } finally {
+    commentLoading.value = false;
+  }
+}
+
+async function handleAdminDeleteComment(commentId) {
+  try {
+    await ElMessageBox.confirm('确定删除该评论？', '删除评论', { type: 'warning' });
+  } catch {
+    return;
+  }
+  adminCommentDeletingId.value = commentId;
+  try {
+    await deleteAdminComment(commentId);
+    adminComments.value = adminComments.value.filter((c) => c.id !== commentId);
+    if (commentVideoRow.value) {
+      commentVideoRow.value.comment_count = Math.max(0, (commentVideoRow.value.comment_count || 1) - 1);
+    }
+    await loadVideos();
+    ElMessage.success('已删除');
+  } finally {
+    adminCommentDeletingId.value = null;
+  }
+}
+
 async function loadVideos() {
   const data = await getAdminVideos();
   videos.value = data.list || [];
@@ -464,6 +531,12 @@ function coverPreview(url) {
 const linkPreviewThumb = computed(() => {
   if (linkPreviewThumbBroken.value || !linkPreview.value?.thumbnail) return '';
   return coverPreview(linkPreview.value.thumbnail);
+});
+
+const commentDialogTitle = computed(() => {
+  const row = commentVideoRow.value;
+  if (!row) return '评论管理';
+  return `评论管理 · ${row.series_title} 第${row.episode_number}集`;
 });
 
 function onPreviewThumbError() {
@@ -775,4 +848,9 @@ function logout() {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
 }
+.admin-comment-list { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow: auto; }
+.admin-comment-item { padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+.admin-comment-head { display: flex; align-items: center; gap: 10px; }
+.admin-comment-time { font-size: 12px; color: #999; flex: 1; }
+.admin-comment-body { margin: 8px 0 0; white-space: pre-wrap; word-break: break-word; line-height: 1.5; }
 </style>

@@ -98,6 +98,8 @@
           </div>
         </div>
       </div>
+
+      <VideoCommentSection v-if="video?.id" :video-id="video.id" />
     </template>
 
     <div v-else-if="!loading" class="play-empty">
@@ -116,6 +118,7 @@ import InteractionPanel from '@/components/InteractionPanel/InteractionPanel.vue
 import BranchChoicePanel from '@/branch/components/BranchChoicePanel.vue';
 import BranchSegmentPlayer from '@/branch/components/BranchSegmentPlayer.vue';
 import PageBackBar from '@/components/PageBackBar.vue';
+import VideoCommentSection from '@/components/comments/VideoCommentSection.vue';
 import { getBranchPointDetail, chooseBranchPoint, getBranchPointStats } from '@/api/branchPoint';
 import { getVideoDetail, syncVideoDuration } from '@/api/video';
 import { recordInteraction, getInteractionStats } from '@/api/interaction';

@@ -177,16 +177,18 @@
 
       </div>
 
+      <VideoCommentSection
+        v-if="video?.id"
+        v-show="!playerFullscreen"
+        :video-id="video.id"
+        @toast="showToast"
+      />
+
     </template>
 
-
-
     <div v-else-if="!loading" class="play-empty">
-
       <PageBackBar label="返回" @back="goBack" />
-
       <p>{{ loadError || '视频不存在或未发布' }}</p>
-
     </div>
 
 
@@ -216,6 +218,7 @@ import { getBranchPointDetail, chooseBranchPoint, getBranchPointStats } from '@/
 import PageBackBar from '@/components/PageBackBar.vue';
 import SeriesEngagementBar from '@/components/SeriesEngagementBar.vue';
 import OfflineDownloadButton from '@/components/offline/OfflineDownloadButton.vue';
+import VideoCommentSection from '@/components/comments/VideoCommentSection.vue';
 import { useOfflineCacheStore } from '@/stores/offlineCache';
 import { buildVideoRecordFromCache } from '@/services/offlineCache';
 import { isEffectivelyOfflineNow } from '@/composables/useNetworkStatus';

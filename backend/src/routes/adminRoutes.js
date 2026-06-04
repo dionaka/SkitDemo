@@ -4,6 +4,7 @@ const videoAdminController = require('../controllers/admin/videoAdminController'
 const seriesController = require('../controllers/admin/seriesController');
 const highlightController = require('../controllers/admin/highlightController');
 const settingsController = require('../controllers/admin/settingsController');
+const commentAdminController = require('../controllers/admin/commentAdminController');
 const auth = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
@@ -27,6 +28,8 @@ router.put('/videos/:id/cover', upload.imageSingle('cover_file'), videoAdminCont
 router.post('/videos/:id/regenerate-cover', videoAdminController.regenerateCover);
 router.put('/videos/:id/publish', videoAdminController.publish);
 router.delete('/videos/:id', videoAdminController.remove);
+router.get('/videos/:id/comments', commentAdminController.listByVideo);
+router.delete('/comments/:id', commentAdminController.remove);
 router.post('/videos/:id/analyze', videoAdminController.analyze);
 
 router.get('/highlights', highlightController.list);

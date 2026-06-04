@@ -24,7 +24,8 @@ class VideoService {
     return db.prepare(`
       SELECT v.*, s.title as series_title,
         (SELECT COUNT(*) FROM highlight h WHERE h.video_id = v.id) as highlight_count,
-        (SELECT COUNT(*) FROM video_branch_point bp WHERE bp.video_id = v.id AND bp.status = 1) as branch_point_count
+        (SELECT COUNT(*) FROM video_branch_point bp WHERE bp.video_id = v.id AND bp.status = 1) as branch_point_count,
+        (SELECT COUNT(*) FROM video_comment cm WHERE cm.video_id = v.id AND cm.status = 1) as comment_count
       FROM video v
       LEFT JOIN series s ON s.id = v.series_id
       ORDER BY s.title ASC, v.episode_number ASC, v.created_at DESC

@@ -6,6 +6,7 @@ const watchProgressController = require('../controllers/user/watchProgressContro
 const authController = require('../controllers/user/authController');
 const searchController = require('../controllers/user/searchController');
 const engagementController = require('../controllers/user/engagementController');
+const commentController = require('../controllers/user/commentController');
 const backgroundController = require('../controllers/user/backgroundController');
 const upload = require('../middleware/upload');
 
@@ -35,6 +36,9 @@ router.put('/watch-progress/:videoId', watchProgressController.save);
 
 router.get('/videos', videoController.list);
 router.get('/videos/:id', videoController.detail);
+router.get('/videos/:id/comments', commentController.listByVideo);
+router.post('/videos/:id/comments', commentController.create);
+router.delete('/comments/:id', commentController.remove);
 router.post('/videos/:id/duration', videoController.syncDuration);
 router.post('/interactions', interactionController.record);
 router.get('/interactions/stats/:highlightId', interactionController.stats);
