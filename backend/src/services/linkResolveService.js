@@ -3,7 +3,11 @@ const path = require('path');
 const { promisify } = require('util');
 const { execFile } = require('child_process');
 const config = require('../config');
-const { extractLinkFromText, matchPlatform, PLATFORM_LABELS, normalizeUrl } = require('../utils/linkPatterns');
+const {
+  extractLinkFromText, matchPlatform, PLATFORM_LABELS, normalizeUrl, canonicalizeResolveUrl,
+} = require('../utils/linkPatterns');
+const bilibiliResolve = require('./bilibiliResolveService');
+const { BROWSER_UA } = bilibiliResolve;
 
 const execFileAsync = promisify(execFile);
 
@@ -22,10 +26,36 @@ function getMaxBytes() {
 }
 
 function getBiliCookiesPath() {
-  const fromEnv = process.env.BILI_COOKIES_PATH;
-  if (fromEnv && fs.existsSync(fromEnv)) return fromEnv;
-  const defaultPath = path.join(config.uploadBasePath, 'cookies', 'bili_cookies.txt');
-  return fs.existsSync(defaultPath) ? defaultPath : null;
+  const candidates = [
+    process.env.BILI_COOKIES_PATH,
+    path.join(config.uploadBasePath, 'cookies', 'bili_cookies.txt'),
+    path.join(__dirname, '../../cookies/bili_cookies.txt'),
+  ].filter(Boolean);
+
+  return candidates.find((p) => fs.existsSync(p)) || null;
+}
+
+function resolveTargetUrl(textOrUrl) {
+  const extracted = extractLinkFromText(textOrUrl);
+  return extracted ? canonicalizeResolveUrl(extracted) : null;
+}
+
+function formatYtDlpError(err, platform) {
+  const msg = String(err.stderr || err.message || err);
+  if (platform === 'bilibili' && /412|Precondition Failed/i.test(msg)) {
+    const cookiePath = getBiliCookiesPath();
+    if (!cookiePath) {
+      return (
+        'B站返回 412，需要登录 Cookie。请将 Netscape 格式 Cookie 保存到 '
+        + 'uploads/cookies/bili_cookies.txt（见 backend/cookies/README.md），然后重启后端。'
+      );
+    }
+    return (
+      'B站返回 412，Cookie 可能已过期或 yt-dlp 版本过旧。'
+      + ' 请重新导出 Cookie 并执行: ~/SkitDemo/backend/bin/yt-dlp -U'
+    );
+  }
+  return msg.trim() || '解析失败';
 }
 
 function bundledYtDlpPath() {
@@ -67,32 +97,57 @@ async function ensureYtDlp() {
 }
 
 function buildYtDlpArgs(url, extra = []) {
+  const platform = matchPlatform(url);
   const args = [
     '--no-playlist',
     '--no-warnings',
     '--no-progress',
     '--retries', '3',
     '--socket-timeout', '30',
-    ...extra,
-    url,
   ];
 
-  const cookies = getBiliCookiesPath();
-  if (cookies && matchPlatform(url) === 'bilibili') {
-    args.unshift('--cookies', cookies);
+  if (platform === 'bilibili') {
+    args.push(
+      '--add-header', `Referer:https://www.bilibili.com/`,
+      '--add-header', `User-Agent:${BROWSER_UA}`,
+    );
+    const cookies = getBiliCookiesPath();
+    if (cookies) {
+      args.push('--cookies', cookies);
+    }
   }
 
+  if (platform === 'douyin') {
+    args.push(
+      '--add-header', `Referer:https://www.douyin.com/`,
+      '--add-header', `User-Agent:${BROWSER_UA}`,
+    );
+  }
+
+  if (platform === 'xiaohongshu') {
+    args.push(
+      '--add-header', `Referer:https://www.xiaohongshu.com/`,
+      '--add-header', `User-Agent:${BROWSER_UA}`,
+    );
+  }
+
+  args.push(...extra, url);
   return args;
 }
 
 async function runYtDlpJson(url) {
   const bin = await ensureYtDlp();
-  const { stdout } = await execFileAsync(
-    bin,
-    buildYtDlpArgs(url, ['--dump-single-json', '--skip-download']),
-    { timeout: 120000, maxBuffer: 10 * 1024 * 1024 }
-  );
-  return JSON.parse(stdout);
+  try {
+    const { stdout } = await execFileAsync(
+      bin,
+      buildYtDlpArgs(url, ['--dump-single-json', '--skip-download']),
+      { timeout: 120000, maxBuffer: 10 * 1024 * 1024 },
+    );
+    return JSON.parse(stdout);
+  } catch (err) {
+    err.stderr = err.stderr || '';
+    throw err;
+  }
 }
 
 function mapPreview(info, sourceUrl) {
@@ -117,7 +172,7 @@ function mapPreview(info, sourceUrl) {
 
 class LinkResolveService {
   detect(textOrUrl) {
-    const url = extractLinkFromText(textOrUrl);
+    const url = resolveTargetUrl(textOrUrl);
     if (!url) {
       return { ok: false, message: '未识别到支持的链接（B站 / 抖音 / 小红书）' };
     }
@@ -127,6 +182,7 @@ class LinkResolveService {
       url,
       platform,
       platform_label: PLATFORM_LABELS[platform] || platform,
+      bili_cookie_configured: platform === 'bilibili' ? Boolean(getBiliCookiesPath()) : undefined,
     };
   }
 
@@ -136,7 +192,25 @@ class LinkResolveService {
 
     const url = detected.url;
     try {
-      const info = await runYtDlpJson(url);
+      let info;
+      try {
+        info = await runYtDlpJson(url);
+      } catch (ytErr) {
+        if (detected.platform === 'bilibili') {
+          const fallback = await bilibiliResolve.previewByApi(url);
+          return {
+            ok: true,
+            ...fallback,
+            preview_source: 'bilibili-api',
+            download_requires_cookie: !getBiliCookiesPath(),
+            hint: getBiliCookiesPath()
+              ? '预览来自 B 站 API；下载仍依赖 yt-dlp + Cookie'
+              : '预览成功，但下载需配置 B 站 Cookie（uploads/cookies/bili_cookies.txt）',
+          };
+        }
+        throw ytErr;
+      }
+
       const preview = mapPreview(info, url);
       if (!preview.is_video) {
         return {
@@ -153,11 +227,11 @@ class LinkResolveService {
           ...preview,
         };
       }
-      return { ok: true, ...preview };
+      return { ok: true, ...preview, preview_source: 'yt-dlp' };
     } catch (err) {
       return {
         ok: false,
-        message: err.message || '解析失败',
+        message: formatYtDlpError(err, detected.platform),
         platform: detected.platform,
         platform_label: detected.platform_label,
         source_url: url,
@@ -166,10 +240,17 @@ class LinkResolveService {
   }
 
   async downloadVideo(url, { onProgress } = {}) {
-    const normalized = normalizeUrl(url);
+    const normalized = canonicalizeResolveUrl(normalizeUrl(url));
     const platform = matchPlatform(normalized);
     if (!platform) {
       throw new Error('不支持的链接平台');
+    }
+
+    if (platform === 'bilibili' && !getBiliCookiesPath()) {
+      throw new Error(
+        'B站下载需要 Cookie。请将登录后的 Cookie 保存到 uploads/cookies/bili_cookies.txt'
+        + '（说明见 backend/cookies/README.md）'
+      );
     }
 
     const bin = await ensureYtDlp();
@@ -201,7 +282,13 @@ class LinkResolveService {
       child.on('error', reject);
       child.on('close', (code) => {
         if (code === 0) resolve();
-        else reject(new Error(stderr.trim() || `yt-dlp 退出码 ${code}`));
+        else {
+          const errObj = { stderr, message: stderr };
+          reject(Object.assign(
+            new Error(formatYtDlpError(errObj, platform)),
+            { stderr },
+          ));
+        }
       });
     });
 

@@ -117,6 +117,14 @@
                 class="preview-thumb"
                 alt="封面预览"
               />
+              <el-alert
+                v-if="linkPreview.hint"
+                :title="linkPreview.hint"
+                :type="linkPreview.download_requires_cookie ? 'warning' : 'info'"
+                show-icon
+                :closable="false"
+                class="preview-hint"
+              />
             </template>
             <el-alert v-else :title="linkPreview.message || '解析失败'" type="warning" show-icon :closable="false" />
           </div>
@@ -124,7 +132,7 @@
           <p class="upload-hint">
             支持 B站、抖音、小红书视频链接（参考
             <a href="https://github.com/vacacia/astrbot_plugin_link_resolver" target="_blank" rel="noopener">link_resolver</a>
-            ）。服务器请执行 <code>bash backend/scripts/install-yt-dlp.sh</code> 安装 yt-dlp；B 站 Cookie 见 <code>uploads/cookies/bili_cookies.txt</code>。
+            ）。B 站下载需配置 Cookie：<code>uploads/cookies/bili_cookies.txt</code>（说明见 <code>backend/cookies/README.md</code>）。
           </p>
         </el-tab-pane>
       </el-tabs>

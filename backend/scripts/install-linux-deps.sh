@@ -21,6 +21,11 @@ fi
 
 echo "==> 安装 yt-dlp ..."
 bash "$ROOT/scripts/install-yt-dlp.sh"
+if [ -x "$ROOT/bin/yt-dlp" ]; then
+  "$ROOT/bin/yt-dlp" -U || true
+fi
+
+mkdir -p "$(dirname "$ROOT")/uploads/cookies"
 
 echo "==> npm install ..."
 npm install

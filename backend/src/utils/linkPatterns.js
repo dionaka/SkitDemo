@@ -38,6 +38,28 @@ function normalizeUrl(url) {
   return `https://${trimmed}`;
 }
 
+/** 去掉跟踪参数，避免 yt-dlp / B 站风控异常 */
+function canonicalizeResolveUrl(url) {
+  const normalized = normalizeUrl(url);
+  if (!normalized) return normalized;
+
+  try {
+    const u = new URL(normalized);
+    if (/bilibili\.com$/i.test(u.hostname) || u.hostname.endsWith('.bilibili.com')) {
+      const bv = u.pathname.match(/\/video\/(BV[\w]+)/i);
+      if (bv) return `https://www.bilibili.com/video/${bv[1]}`;
+      const av = u.pathname.match(/\/video\/(av\d+)/i);
+      if (av) return `https://www.bilibili.com/video/${av[1]}`;
+    }
+    if (u.hostname === 'b23.tv') {
+      return normalized.split(/[\s?#]/)[0];
+    }
+  } catch {
+    // keep as-is
+  }
+  return normalized.split(/[\s?#]/)[0];
+}
+
 function matchPlatform(url) {
   const normalized = normalizeUrl(url);
   if (!normalized) return null;
@@ -73,6 +95,7 @@ function extractLinkFromText(text) {
 module.exports = {
   PLATFORM_LABELS,
   normalizeUrl,
+  canonicalizeResolveUrl,
   matchPlatform,
   extractLinkFromText,
 };
