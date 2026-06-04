@@ -208,6 +208,7 @@ class VideoService {
     const dirs = [
       path.join(config.uploadBasePath, 'videos'),
       path.join(config.uploadBasePath, 'covers'),
+      path.join(config.uploadBasePath, 'cookies'),
     ];
     dirs.forEach((d) => fs.mkdirSync(d, { recursive: true }));
     return dirs;

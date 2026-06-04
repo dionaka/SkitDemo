@@ -16,6 +16,8 @@ router.use(auth);
 router.get('/series', seriesController.list);
 router.get('/videos', videoAdminController.list);
 router.post('/videos/backfill-durations', videoAdminController.backfillDurations);
+router.post('/videos/resolve-link', videoAdminController.resolveLinkPreview);
+router.post('/videos/import-from-link', videoAdminController.importFromLink);
 router.post('/videos', upload.fields([
   { name: 'video_file', maxCount: 1 },
   { name: 'cover_file', maxCount: 1 },

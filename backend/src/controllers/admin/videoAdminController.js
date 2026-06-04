@@ -2,7 +2,9 @@ const coverService = require('../../services/coverService');
 const videoService = require('../../services/videoService');
 const highlightService = require('../../services/highlightService');
 const seriesService = require('../../services/seriesService');
+const linkResolveService = require('../../services/linkResolveService');
 const { success, fail } = require('../../utils/response');
+const { probeVideoDuration } = require('../../utils/videoProbe');
 
 exports.upload = async (req, res) => {
   try {
@@ -171,6 +173,86 @@ exports.analyze = async (req, res) => {
     }, message));
   } catch (err) {
     res.status(400).json(fail(400, err.message));
+  }
+};
+
+exports.resolveLinkPreview = async (req, res) => {
+  try {
+    const { url, text } = req.body || {};
+    const input = (url || text || '').trim();
+    if (!input) return res.status(400).json(fail(400, '请粘贴视频链接'));
+
+    const result = await linkResolveService.preview(input);
+    if (!result.ok) {
+      return res.status(400).json({ ...fail(400, result.message), data: result });
+    }
+    res.json(success(result, '解析成功'));
+  } catch (err) {
+    res.status(500).json(fail(500, err.message));
+  }
+};
+
+exports.importFromLink = async (req, res) => {
+  try {
+    const { url, text, series_title, title, episode_number, total_duration } = req.body || {};
+    const input = (url || text || '').trim();
+    if (!input) return res.status(400).json(fail(400, '请粘贴视频链接'));
+
+    const detected = linkResolveService.detect(input);
+    if (!detected.ok) return res.status(400).json(fail(400, detected.message));
+
+    const preview = await linkResolveService.preview(input);
+    if (!preview.ok) return res.status(400).json({ ...fail(400, preview.message), data: preview });
+
+    const episodeNum = parseInt(episode_number, 10) || 1;
+    const episodeTitle = (title || preview.title || '未命名').trim();
+    const seriesName = (series_title || preview.title || episodeTitle).trim();
+    if (!seriesName || !episodeTitle) {
+      return res.status(400).json(fail(400, '请填写剧名和单集标题'));
+    }
+
+    const { videoUrl, absolutePath } = await linkResolveService.downloadVideo(detected.url);
+    let coverUrl = await linkResolveService.downloadThumbnail(preview.thumbnail);
+    if (!coverUrl) {
+      coverUrl = await coverService.resolveCoverForUpload({ videoUrl, coverFile: null });
+    }
+
+    const probedDuration = absolutePath ? await probeVideoDuration(absolutePath) : null;
+    const formDuration = parseInt(total_duration, 10) || 0;
+    const totalDuration = probedDuration || preview.duration_seconds || formDuration || 0;
+
+    const series = seriesService.findOrCreate(seriesName);
+    const video = videoService.create({
+      title: episodeTitle,
+      coverUrl,
+      videoUrl,
+      totalDuration,
+      seriesId: series.id,
+      episodeNumber: episodeNum,
+    });
+
+    if (episodeNum === 1 || coverService.isPlaceholderCover(series.cover_url)) {
+      seriesService.syncSeriesCover(series.id, coverUrl);
+    }
+
+    const updatedSeries = seriesService.getById(series.id);
+
+    res.json(success({
+      video_id: video.id,
+      title: video.title,
+      series_id: updatedSeries.id,
+      series_title: updatedSeries.title,
+      episode_number: video.episode_number,
+      cover_url: video.cover_url,
+      video_url: video.video_url,
+      total_duration: video.total_duration,
+      status: video.status,
+      platform: preview.platform,
+      platform_label: preview.platform_label,
+      source_url: preview.source_url,
+    }, `已从${preview.platform_label}链接导入视频`));
+  } catch (err) {
+    res.status(500).json(fail(500, err.message));
   }
 };
 

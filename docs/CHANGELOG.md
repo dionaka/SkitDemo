@@ -1,5 +1,15 @@
 # 更新日志
 
+## [2026-06-04] 管理端链接解析上传
+
+- 视频管理页新增 **「链接解析」** 标签页，支持粘贴 B站 / 抖音 / 小红书链接并导入为剧集视频
+- 可先 **解析预览** 查看标题、作者、时长与封面，再 **下载并导入**
+- 后端基于 `yt-dlp` 下载（参考 [astrbot_plugin_link_resolver](https://github.com/vacacia/astrbot_plugin_link_resolver)）
+- API：`POST /api/admin/videos/resolve-link`、`POST /api/admin/videos/import-from-link`
+- 可选：在 `uploads/cookies/bili_cookies.txt` 放置 B 站 Cookie 以提升画质；环境变量 `LINK_RESOLVE_MAX_MB`（默认 200）限制体积
+
+---
+
 ## [2026-06-01] 管理端登录页样式改版
 
 - 管理后台登录页（`/admin/login`）对齐个人网站登录页视觉：渐变动图背景、左右分栏卡片、楷体输入框、黄色虚线登录按钮

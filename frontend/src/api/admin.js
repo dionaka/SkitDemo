@@ -11,6 +11,12 @@ export const uploadVideo = (formData) =>
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
+export const resolveVideoLink = (data) =>
+  request.post('/api/admin/videos/resolve-link', data, { silent: true });
+
+export const importVideoFromLink = (data) =>
+  request.post('/api/admin/videos/import-from-link', data, { timeout: 600000, silent: true });
+
 export const publishVideo = (id) => request.put(`/api/admin/videos/${id}/publish`);
 
 export const updateVideo = (id, data) => request.put(`/api/admin/videos/${id}`, data);
