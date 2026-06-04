@@ -228,7 +228,7 @@ const linkResolveService = require('../../services/linkResolveService');
 
 exports.getBiliCookiesSettings = (_req, res) => {
   const status = biliCookiesService.getStatus();
-  const cookies_text = status.configured ? biliCookiesService.readCookieText() : '';
+  const cookies_text = status.configured ? biliCookiesService.readCookieTextForDisplay() : '';
   res.json(success({ ...status, cookies_text }));
 };
 

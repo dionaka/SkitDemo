@@ -62,9 +62,9 @@
               <div v-loading="biliCookieLoading" class="cookie-panel">
                 <el-alert type="info" :closable="false" show-icon class="cookie-alert">
                   <template #title>如何获取</template>
-                  <p>1. 浏览器登录 <a href="https://www.bilibili.com" target="_blank" rel="noopener">bilibili.com</a></p>
-                  <p>2. 安装扩展「Get cookies.txt LOCALLY」，点击 Export 复制全部内容</p>
-                  <p>3. 粘贴到下方文本框并保存（需包含 <code>SESSDATA</code>）</p>
+                  <p>1. 浏览器登录 bilibili.com</p>
+                  <p>2. F12 → 网络/Application → 复制 Cookie，或直接粘贴整串 <code>buvid3=...; SESSDATA=...; bili_jct=...</code></p>
+                  <p>3. 粘贴到下方并保存（必须包含 <code>SESSDATA</code>）</p>
                 </el-alert>
 
                 <el-form label-width="100px" class="cookie-form">
@@ -81,7 +81,7 @@
                       v-model="biliCookieForm.cookies_text"
                       type="textarea"
                       :rows="8"
-                      placeholder="# Netscape HTTP Cookie File&#10;.bilibili.com	TRUE	/	FALSE	...	SESSDATA	..."
+                      placeholder="buvid3=...; SESSDATA=...; bili_jct=...; DedeUserID=..."
                       class="cookie-textarea"
                     />
                   </el-form-item>
