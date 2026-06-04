@@ -88,6 +88,7 @@ import PageBackBar from '@/components/PageBackBar.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 import SeriesCover from '@/components/SeriesCover.vue';
 import { getProfile, uploadAvatar } from '@/api/auth';
+import { persistAvatarFromFile } from '@/services/userAppearanceCache';
 import { getFavoriteSeries } from '@/api/engagement';
 import { useSessionStore } from '@/stores/session';
 import { smartBack } from '@/utils/navigation';
@@ -153,6 +154,7 @@ async function onAvatarSelected(event) {
   try {
     const data = await uploadAvatar(session.userSessionId, file);
     session.setUser(data);
+    persistAvatarFromFile(data.avatar_url, file).catch(() => {});
   } catch (e) {
     window.alert(e.message || '头像上传失败');
   } finally {

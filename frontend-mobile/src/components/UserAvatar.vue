@@ -8,6 +8,7 @@
 <script setup>
 import { computed } from 'vue';
 import { resolveMediaUrl } from '@/config/server';
+import { resolveCachedAvatarUrl } from '@/services/userAppearanceCache';
 
 const props = defineProps({
   username: { type: String, default: '' },
@@ -17,7 +18,11 @@ const props = defineProps({
   alt: { type: String, default: '用户头像' },
 });
 
-const resolvedUrl = computed(() => resolveMediaUrl(props.avatarUrl));
+const resolvedUrl = computed(() => {
+  const cached = resolveCachedAvatarUrl(props.avatarUrl);
+  if (cached) return cached;
+  return resolveMediaUrl(props.avatarUrl);
+});
 const letter = computed(() => {
   const name = props.username || '';
   return name.slice(0, 1).toUpperCase() || '?';

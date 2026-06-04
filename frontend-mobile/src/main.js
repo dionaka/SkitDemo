@@ -10,6 +10,7 @@ import { useOfflineCacheStore } from './stores/offlineCache';
 import { useSessionStore } from './stores/session';
 import { useSkinStore } from './skin/store/skinStore';
 import { hydrateUserCloudAsync } from './services/userCloudSync';
+import { applyAppearanceCache } from './services/userAppearanceCache';
 import './assets/styles/main.css';
 
 const app = createApp(App);
@@ -61,11 +62,15 @@ async function bootstrap() {
     registerNativeBackButton();
   }
 
+  const session = useSessionStore(pinia);
+  if (session.isLoggedIn && session.userId) {
+    applyAppearanceCache(session.userId);
+  }
+
   app.mount('#app');
   removeBootSplash();
   await hideNativeSplash();
 
-  const session = useSessionStore(pinia);
   await session.restoreSession();
   hydrateUserCloudAsync().catch(() => {});
 }

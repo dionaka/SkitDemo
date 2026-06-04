@@ -6,8 +6,13 @@ import { parseSkinFile, cleanupParsedSkin } from '../parser/parseSkinFile';
 import { prepareThemeForCloud } from '../parser/persistAssets';
 import { isSkinActive } from '../parser/normalizeTheme';
 import { isHomeRoute, scrollHomeMainToTop } from '../composables/useHomeSkinRefresh';
+import { schedulePersistAppearanceCache } from '@/services/userAppearanceCache';
 
 const EMPTY_THEME = null;
+
+function cacheCloudPayload(data) {
+  if (data) schedulePersistAppearanceCache(data);
+}
 
 export const useSkinStore = defineStore('bilibiliSkin', {
   state: () => ({
@@ -94,6 +99,7 @@ export const useSkinStore = defineStore('bilibiliSkin', {
       try {
         const data = await getUserBackgroundOnce(session.userSessionId);
         this.applyPayload(data);
+        cacheCloudPayload(data);
         return data;
       } catch {
         this.theme = EMPTY_THEME;
@@ -114,6 +120,7 @@ export const useSkinStore = defineStore('bilibiliSkin', {
           skin_data: JSON.stringify(this.theme),
         });
         this.applyPayload(data);
+        cacheCloudPayload(data);
         return data;
       } finally {
         this.syncing = false;
@@ -147,6 +154,7 @@ export const useSkinStore = defineStore('bilibiliSkin', {
       try {
         const data = await clearUserBackground(session.userSessionId);
         this.theme = EMPTY_THEME;
+        cacheCloudPayload(data);
         return data;
       } finally {
         this.syncing = false;

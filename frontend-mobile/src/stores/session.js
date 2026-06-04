@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { getProfile } from '@/api/auth';
 import { getApiBaseUrl } from '@/config/server';
 import { hydrateUserCloudAsync, resetUserCloudLocal } from '@/services/userCloudSync';
+import { clearAppearanceCache } from '@/services/userAppearanceCache';
 
 function createAnonymousSessionId() {
   return `session_${Math.random().toString(36).slice(2, 12)}`;
@@ -58,12 +59,14 @@ export const useSessionStore = defineStore('session', {
       else localStorage.removeItem('app_avatar_url');
     },
     logout() {
+      const previousUserId = this.userId;
       this.username = '';
       this.userId = null;
       this.avatarUrl = '';
       localStorage.removeItem('app_username');
       localStorage.removeItem('app_user_id');
       localStorage.removeItem('app_avatar_url');
+      if (previousUserId) clearAppearanceCache(previousUserId);
       const nextId = createAnonymousSessionId();
       this.userSessionId = nextId;
       localStorage.setItem('user_session_id', nextId);

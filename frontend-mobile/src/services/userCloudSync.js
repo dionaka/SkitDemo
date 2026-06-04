@@ -3,6 +3,11 @@ import { useSessionStore } from '@/stores/session';
 import { useAppBackgroundStore } from '@/stores/appBackground';
 import { useSkinStore } from '@/skin/store/skinStore';
 import { clearLegacyBackgroundStorage } from '@/utils/appBackground';
+import {
+  applyAppearanceCache,
+  clearAppearanceCache,
+  schedulePersistAppearanceCache,
+} from '@/services/userAppearanceCache';
 
 const HYDRATE_TIMEOUT_MS = 3000;
 
@@ -15,9 +20,12 @@ function withTimeout(promise, ms) {
   ]);
 }
 
-export function applyUserBackgroundPayload(data = {}) {
+export function applyUserBackgroundPayload(data = {}, options = {}) {
   useAppBackgroundStore().applyPayload(data);
   useSkinStore().applyPayload(data);
+  if (options.persistCache !== false && data && typeof data === 'object') {
+    schedulePersistAppearanceCache(data);
+  }
 }
 
 export function resetUserCloudLocal() {
@@ -30,9 +38,12 @@ export async function hydrateUserCloudAsync() {
 
   const session = useSessionStore();
   if (!session.isLoggedIn) {
+    if (session.userId) clearAppearanceCache(session.userId);
     resetUserCloudLocal();
     return null;
   }
+
+  applyAppearanceCache(session.userId);
 
   const bg = useAppBackgroundStore();
   const skin = useSkinStore();
@@ -47,7 +58,6 @@ export async function hydrateUserCloudAsync() {
     applyUserBackgroundPayload(data);
     return data;
   } catch {
-    resetUserCloudLocal();
     return null;
   } finally {
     bg.loading = false;

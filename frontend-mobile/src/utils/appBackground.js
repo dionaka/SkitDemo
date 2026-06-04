@@ -28,6 +28,8 @@ export function isBackgroundActive(state = BACKGROUND_DEFAULTS) {
 }
 
 export function resolveBackgroundImageUrl(backgroundUrl) {
+  if (!backgroundUrl) return '';
+  if (backgroundUrl.startsWith('data:')) return backgroundUrl;
   return resolveMediaUrl(backgroundUrl);
 }
 

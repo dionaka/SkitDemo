@@ -17,8 +17,13 @@ import {
   clearLegacyBackgroundStorage,
 } from '@/utils/appBackground';
 import { useSessionStore } from '@/stores/session';
+import { schedulePersistAppearanceCache } from '@/services/userAppearanceCache';
 
 let settingsTimer = null;
+
+function cacheCloudPayload(data) {
+  if (data) schedulePersistAppearanceCache(data);
+}
 
 export const useAppBackgroundStore = defineStore('appBackground', {
   state: () => ({
@@ -68,6 +73,7 @@ export const useAppBackgroundStore = defineStore('appBackground', {
       try {
         const data = await getUserBackgroundOnce(session.userSessionId);
         this.applyPayload(data);
+        cacheCloudPayload(data);
         return data;
       } catch {
         this.resetLocal();
@@ -93,6 +99,7 @@ export const useAppBackgroundStore = defineStore('appBackground', {
           blur: this.blur,
         });
         this.applyPayload(data);
+        cacheCloudPayload(data);
         return data;
       } finally {
         this.syncing = false;
@@ -117,6 +124,7 @@ export const useAppBackgroundStore = defineStore('appBackground', {
       try {
         const data = await uploadUserBackground(session.userSessionId, uploadFile);
         this.applyPayload(data);
+        cacheCloudPayload(data);
         return data;
       } finally {
         this.syncing = false;
@@ -130,6 +138,7 @@ export const useAppBackgroundStore = defineStore('appBackground', {
       try {
         const data = await clearUserBackground(session.userSessionId);
         this.applyPayload(data);
+        cacheCloudPayload(data);
         return data;
       } finally {
         this.syncing = false;
