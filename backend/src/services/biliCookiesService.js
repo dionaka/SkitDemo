@@ -108,10 +108,41 @@ function validateCookieText(text) {
   }
 }
 
+function netscapeToBrowserString(text) {
+  const pairs = [];
+  const seen = new Set();
+
+  for (const line of String(text || '').split('\n')) {
+    const row = line.trim();
+    if (!row || row.startsWith('#')) continue;
+    const cols = row.split('\t');
+    if (cols.length < 7) continue;
+    const name = cols[5]?.trim();
+    const value = cols.slice(6).join('\t').trim();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    pairs.push(`${name}=${value}`);
+  }
+
+  return pairs.join('; ');
+}
+
 function readCookieText() {
   const filePath = getCookieFilePath();
   if (!fs.existsSync(filePath)) return '';
   return fs.readFileSync(filePath, 'utf8');
+}
+
+/** 管理端回显：优先浏览器整串格式，便于用户再次编辑 */
+function readCookieTextForDisplay() {
+  const text = readCookieText();
+  if (!text) return '';
+  if (isBrowserCookieString(text)) return text.trim();
+  if (isNetscapeCookieText(text)) {
+    const browser = netscapeToBrowserString(text);
+    if (browser) return browser;
+  }
+  return text.trim();
 }
 
 function getStatus() {
@@ -155,6 +186,7 @@ module.exports = {
   resolveReadablePath,
   getStatus,
   readCookieText,
+  readCookieTextForDisplay,
   saveCookieText,
   clearCookies,
   normalizeCookieText,
