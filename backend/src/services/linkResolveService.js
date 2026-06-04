@@ -145,11 +145,36 @@ async function runYtDlpJson(url) {
   }
 }
 
+function normalizeRemoteMediaUrl(url) {
+  if (!url) return null;
+  let u = String(url).trim();
+  if (u.startsWith('//')) u = `https:${u}`;
+  if (u.startsWith('http://')) u = u.replace(/^http:\/\//i, 'https://');
+  return u;
+}
+
+function thumbnailHeaders(platform) {
+  const headers = {
+    'User-Agent': BROWSER_UA,
+    Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+  };
+  if (platform === 'bilibili') {
+    headers.Referer = 'https://www.bilibili.com/';
+    headers.Origin = 'https://www.bilibili.com';
+  } else if (platform === 'douyin') {
+    headers.Referer = 'https://www.douyin.com/';
+  } else if (platform === 'xiaohongshu') {
+    headers.Referer = 'https://www.xiaohongshu.com/';
+  }
+  return headers;
+}
+
 function mapPreview(info, sourceUrl) {
   const platform = matchPlatform(sourceUrl);
   const duration = Math.round(Number(info.duration) || 0);
   const filesize = Number(info.filesize || info.filesize_approx || 0);
   const isVideo = duration > 0 || (info.vcodec && info.vcodec !== 'none');
+  const thumb = info.thumbnail || info.thumbnails?.[0]?.url || null;
 
   return {
     platform,
@@ -158,10 +183,24 @@ function mapPreview(info, sourceUrl) {
     title: info.title || info.fulltitle || '未命名',
     author: info.uploader || info.channel || info.creator || '',
     duration_seconds: duration,
-    thumbnail: info.thumbnail || null,
+    thumbnail: normalizeRemoteMediaUrl(thumb),
     filesize_bytes: filesize || null,
     is_video: isVideo,
     extractor: info.extractor || info.extractor_key || '',
+  };
+}
+
+async function attachLocalThumbnail(preview) {
+  if (!preview?.thumbnail) return preview;
+  const local = await module.exports.downloadThumbnail(
+    preview.thumbnail,
+    preview.platform,
+    { prefix: 'preview_' },
+  );
+  return {
+    ...preview,
+    thumbnail_remote: preview.thumbnail,
+    thumbnail: local || preview.thumbnail,
   };
 }
 
@@ -193,9 +232,10 @@ class LinkResolveService {
       } catch (ytErr) {
         if (detected.platform === 'bilibili') {
           const fallback = await bilibiliResolve.previewByApi(url);
+          const withThumb = await attachLocalThumbnail(fallback);
           return {
             ok: true,
-            ...fallback,
+            ...withThumb,
             preview_source: 'bilibili-api',
             download_requires_cookie: !getBiliCookiesPath(),
             hint: getBiliCookiesPath()
@@ -222,7 +262,7 @@ class LinkResolveService {
           ...preview,
         };
       }
-      return { ok: true, ...preview, preview_source: 'yt-dlp' };
+      return { ok: true, ...(await attachLocalThumbnail(preview)), preview_source: 'yt-dlp' };
     } catch (err) {
       return {
         ok: false,
@@ -320,20 +360,35 @@ class LinkResolveService {
     };
   }
 
-  async downloadThumbnail(thumbnailUrl) {
-    if (!thumbnailUrl) return null;
+  async downloadThumbnail(thumbnailUrl, platform, options = {}) {
+    const url = normalizeRemoteMediaUrl(thumbnailUrl);
+    if (!url) return null;
     const coversDir = path.join(config.uploadBasePath, 'covers');
     fs.mkdirSync(coversDir, { recursive: true });
 
-    const res = await fetch(thumbnailUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SkitDemo/1.0)' },
-      signal: AbortSignal.timeout(30000),
-    });
+    const headers = thumbnailHeaders(platform);
+    let res;
+    try {
+      res = await fetch(url, {
+        headers,
+        signal: AbortSignal.timeout(30000),
+        redirect: 'follow',
+      });
+    } catch {
+      return null;
+    }
     if (!res.ok) return null;
 
     const buf = Buffer.from(await res.arrayBuffer());
-    const ext = thumbnailUrl.includes('.png') ? '.png' : '.jpg';
-    const filename = `cover_${Date.now()}${ext}`;
+    if (buf.length < 128) return null;
+
+    const contentType = res.headers.get('content-type') || '';
+    let ext = '.jpg';
+    if (contentType.includes('png') || url.includes('.png')) ext = '.png';
+    else if (contentType.includes('webp') || url.includes('.webp')) ext = '.webp';
+
+    const prefix = options.prefix || 'cover_';
+    const filename = `${prefix}${Date.now()}${ext}`;
     const dest = path.join(coversDir, filename);
     fs.writeFileSync(dest, buf);
     return `/uploads/covers/${filename}`;

@@ -212,7 +212,10 @@ exports.importFromLink = async (req, res) => {
     }
 
     const { videoUrl, absolutePath } = await linkResolveService.downloadVideo(detected.url);
-    let coverUrl = await linkResolveService.downloadThumbnail(preview.thumbnail);
+    let coverUrl = await linkResolveService.downloadThumbnail(
+      preview.thumbnail_remote || preview.thumbnail,
+      preview.platform,
+    );
     if (!coverUrl) {
       coverUrl = await coverService.resolveCoverForUpload({ videoUrl, coverFile: null });
     }

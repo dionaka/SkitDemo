@@ -31,6 +31,14 @@ async function fetchView(bvid) {
   return json.data;
 }
 
+function normalizeRemoteMediaUrl(url) {
+  if (!url) return null;
+  let u = String(url).trim();
+  if (u.startsWith('//')) u = `https:${u}`;
+  if (u.startsWith('http://')) u = u.replace(/^http:\/\//i, 'https://');
+  return u;
+}
+
 function mapViewToPreview(data, sourceUrl) {
   const duration = Math.round(Number(data.duration) || 0);
   return {
@@ -40,7 +48,7 @@ function mapViewToPreview(data, sourceUrl) {
     title: data.title || '未命名',
     author: data.owner?.name || '',
     duration_seconds: duration,
-    thumbnail: data.pic || null,
+    thumbnail: normalizeRemoteMediaUrl(data.pic || null),
     filesize_bytes: null,
     is_video: duration > 0,
     extractor: 'bilibili-api-fallback',

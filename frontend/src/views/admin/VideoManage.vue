@@ -168,11 +168,13 @@
                     时长：{{ linkPreview.duration_seconds }} 秒
                   </span>
                   <img
-                    v-if="linkPreview.thumbnail"
-                    :src="linkPreview.thumbnail"
+                    v-if="linkPreviewThumb"
+                    :src="linkPreviewThumb"
                     class="preview-thumb"
                     alt="封面预览"
+                    @error="onPreviewThumbError"
                   />
+                  <span v-else-if="linkPreview.thumbnail_remote" class="preview-meta">封面加载失败（导入时仍会尝试下载）</span>
                   <el-alert
                     v-if="linkPreview.hint"
                     :title="linkPreview.hint"
@@ -303,7 +305,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
@@ -327,6 +329,7 @@ const uploading = ref(false);
 const resolvingLink = ref(false);
 const importingLink = ref(false);
 const linkPreview = ref(null);
+const linkPreviewThumbBroken = ref(false);
 const linkPanels = ref(['cookie', 'import']);
 const biliCookieLoading = ref(false);
 const savingBiliCookie = ref(false);
@@ -458,6 +461,15 @@ function coverPreview(url) {
   return resolveMediaUrl(url);
 }
 
+const linkPreviewThumb = computed(() => {
+  if (linkPreviewThumbBroken.value || !linkPreview.value?.thumbnail) return '';
+  return coverPreview(linkPreview.value.thumbnail);
+});
+
+function onPreviewThumbError() {
+  linkPreviewThumbBroken.value = true;
+}
+
 function titleFromFileName(name) {
   if (!name) return '';
   return name.replace(/\.[^.]+$/, '');
@@ -569,6 +581,7 @@ async function handleResolveLink() {
     return;
   }
   resolvingLink.value = true;
+  linkPreviewThumbBroken.value = false;
   try {
     const data = await resolveVideoLink({ text: linkForm.value.text.trim() });
     linkPreview.value = { ok: true, ...data };
