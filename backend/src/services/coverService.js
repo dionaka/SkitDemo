@@ -4,15 +4,9 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 const config = require('../config');
 const { DEFAULT_COVER_PATH, isPlaceholderCover } = require('../utils/defaultCover');
+const { getFfmpegBins } = require('../utils/ffmpegPath');
 
 const execFileAsync = promisify(execFile);
-
-let ffmpegPath = null;
-try {
-  ffmpegPath = require('ffmpeg-static');
-} catch {
-  ffmpegPath = null;
-}
 
 function toAbsoluteUploadPath(relativeUrl) {
   if (!relativeUrl?.startsWith('/uploads/')) return null;
@@ -43,7 +37,7 @@ async function extractFrameFromVideo(videoUrl, seekSec = 1) {
   const filename = `cover_${Date.now()}.jpg`;
   const outputPath = path.join(coversDir, filename);
 
-  const ffmpegBins = [...new Set([ffmpegPath, 'ffmpeg'].filter(Boolean))];
+  const ffmpegBins = getFfmpegBins();
   const argsForSeek = (seek) => [
     '-hide_banner',
     '-loglevel', 'error',
@@ -76,7 +70,7 @@ async function extractFrameFromVideo(videoUrl, seekSec = 1) {
     return `/uploads/covers/${filename}`;
   }
 
-  console.warn('[cover] 视频截帧失败，请安装 ffmpeg 或 ffmpeg-static');
+  console.warn('[cover] 视频截帧失败，请安装 ffmpeg（Linux: sudo apt install ffmpeg）');
   return null;
 }
 

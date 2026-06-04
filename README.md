@@ -77,6 +77,23 @@ cd ../frontend
 npm install
 ```
 
+#### Linux 云服务器（ECS）若 `npm install` 长时间卡住
+
+常见原因是旧版依赖 **`ffmpeg-static`** 安装时从 GitHub 下载约 70MB 二进制，国内网络易假死。**当前仓库已移除该依赖**，请改用系统 ffmpeg：
+
+```bash
+cd ~/SkitDemo
+git pull
+bash backend/scripts/install-linux-deps.sh
+# 或手动：
+#   sudo apt update && sudo apt install -y ffmpeg curl build-essential
+#   cd backend && npm install
+#   bash scripts/install-yt-dlp.sh
+ffmpeg -version
+```
+
+若仍卡住，可先清理再装：`rm -rf node_modules package-lock.json && npm install`
+
 ### 2. 配置豆包 API（管理后台）
 
 **不要将 API Key 写入 `.env` 或代码中。**

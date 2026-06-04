@@ -1,15 +1,9 @@
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const fs = require('fs');
+const { getFfmpegBins } = require('./ffmpegPath');
 
 const execFileAsync = promisify(execFile);
-
-let ffmpegPath = null;
-try {
-  ffmpegPath = require('ffmpeg-static');
-} catch {
-  ffmpegPath = null;
-}
 
 function parseDurationFromFfmpegOutput(text) {
   const match = String(text || '').match(/Duration:\s*(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)/);
@@ -24,7 +18,7 @@ function parseDurationFromFfmpegOutput(text) {
 async function probeVideoDuration(videoPath) {
   if (!videoPath || !fs.existsSync(videoPath)) return null;
 
-  const bins = [...new Set([ffmpegPath, 'ffmpeg'].filter(Boolean))];
+  const bins = getFfmpegBins();
   for (const bin of bins) {
     try {
       const { stderr } = await execFileAsync(
@@ -42,12 +36,12 @@ async function probeVideoDuration(videoPath) {
   return null;
 }
 
-function getFfmpegBins() {
-  return [...new Set([ffmpegPath, 'ffmpeg'].filter(Boolean))];
+function getFfmpegBinsExport() {
+  return getFfmpegBins();
 }
 
 module.exports = {
   probeVideoDuration,
   parseDurationFromFfmpegOutput,
-  getFfmpegBins,
+  getFfmpegBins: getFfmpegBinsExport,
 };

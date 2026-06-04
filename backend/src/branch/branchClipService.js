@@ -3,15 +3,9 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 const branchAssetService = require('./branchAssetService');
 const { toAbsoluteUploadPath, toPublicUploadUrl } = require('./utils/paths');
+const { getFfmpegBins } = require('../utils/ffmpegPath');
 
 const execFileAsync = promisify(execFile);
-
-let ffmpegPath = null;
-try {
-  ffmpegPath = require('ffmpeg-static');
-} catch {
-  ffmpegPath = null;
-}
 
 class BranchClipService {
   async ensureClip({ sourceVideoUrl, startAt = 0, endAt, duration }) {
@@ -30,7 +24,7 @@ class BranchClipService {
       return toPublicUploadUrl(outputPath);
     }
 
-    const ffmpegBins = [...new Set([ffmpegPath, 'ffmpeg'].filter(Boolean))];
+    const ffmpegBins = getFfmpegBins();
     const args = [
       '-hide_banner',
       '-loglevel', 'error',

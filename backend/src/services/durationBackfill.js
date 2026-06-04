@@ -24,7 +24,7 @@ async function backfillVideoDurations(options = {}) {
 
   const bins = getFfmpegBins();
   if (!bins.length) {
-    console.warn('[duration] 未找到 ffmpeg，无法自动检测视频时长（请安装 ffmpeg 或 npm install ffmpeg-static）');
+    console.warn('[duration] 未找到 ffmpeg，无法自动检测视频时长（Linux: sudo apt install ffmpeg）');
     return { scanned: rows.length, updated: 0, missing: 0, probeFailed: rows.length, unchanged: 0 };
   }
 
