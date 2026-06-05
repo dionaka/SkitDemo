@@ -224,23 +224,8 @@ class AIModelService {
   }
 
   _normalizeHighlightCategory(category) {
-    const raw = String(category || '').trim().toLowerCase();
-    const map = {
-      conflict: 'conflict',
-      冲突: 'conflict',
-      reversal: 'reversal',
-      反转: 'reversal',
-      sweet: 'sweet',
-      撒糖: 'sweet',
-      甜: 'sweet',
-      scene: 'scene',
-      名场面: 'scene',
-    };
-    if (map[raw]) return map[raw];
-    if (raw.includes('冲突') || raw.includes('吵') || raw.includes('打')) return 'conflict';
-    if (raw.includes('反转') || raw.includes('身份')) return 'reversal';
-    if (raw.includes('甜') || raw.includes('糖')) return 'sweet';
-    return 'scene';
+    const { normalizeCategory } = require('../config/highlightCategories');
+    return normalizeCategory(category);
   }
 
   _parseHighlights(text) {
@@ -333,7 +318,8 @@ class AIModelService {
   }
 
   _mockDanmakuHighlights(clusters) {
-    const categoryCycle = ['scene', 'reversal', 'sweet', 'conflict'];
+    const { CATEGORY_IDS } = require('../config/highlightCategories');
+    const categoryCycle = CATEGORY_IDS;
     return clusters.map((c, i) => {
       const sample = c.samples[0] || '太精彩了';
       const category = categoryCycle[i % categoryCycle.length];

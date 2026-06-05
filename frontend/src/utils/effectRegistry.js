@@ -1,4 +1,6 @@
-/** 高光激发特效注册表：新增类型只需在此扩展 */
+import { HIGHLIGHT_CATEGORIES } from '@/config/highlightCategories';
+
+/** 高光激发特效注册表：category 默认同名 effect_key，也可在管理端单独指定 */
 export const EFFECT_REGISTRY = {
   conflict: {
     css: 'conflict',
@@ -24,22 +26,63 @@ export const EFFECT_REGISTRY = {
     particles: 'confetti',
     label: '名场面 · 弹幕+彩带',
   },
+  suspense: {
+    css: 'suspense',
+    duration: 2600,
+    particles: 'suspense_mist',
+    label: '悬疑 · 迷雾',
+  },
+  funny: {
+    css: 'funny',
+    duration: 2400,
+    particles: 'funny_pop',
+    label: '搞笑 · 弹跳',
+  },
+  touch: {
+    css: 'touch',
+    duration: 2800,
+    particles: 'touch_sparkle',
+    label: '催泪 · 雨滴',
+  },
+  rage: {
+    css: 'rage',
+    duration: 2500,
+    particles: 'fire_burst',
+    label: '高燃 · 火焰',
+  },
+  shock: {
+    css: 'shock',
+    duration: 2000,
+    particles: 'shock_flash',
+    label: '震惊 · 闪白',
+  },
+  quote: {
+    css: 'quote',
+    duration: 3000,
+    particles: 'quote_sparkle',
+    label: '金句 · 台词飘屏',
+  },
   burst: {
     css: null,
     duration: 2000,
     particles: 'confetti_burst',
-    label: '庆祝 · 全屏撒花（预留）',
+    label: '庆祝 · 全屏撒花',
   },
 };
 
 export function resolveEffectKey(highlight) {
   const key = highlight?.effect_key || highlight?.category;
   if (key && EFFECT_REGISTRY[key]) return key;
+  if (key && HIGHLIGHT_CATEGORIES[key]) return key;
   return 'scene';
 }
 
 export function getEffectMeta(key) {
-  return EFFECT_REGISTRY[key] || EFFECT_REGISTRY.scene;
+  if (EFFECT_REGISTRY[key]) return EFFECT_REGISTRY[key];
+  if (HIGHLIGHT_CATEGORIES[key]) {
+    return EFFECT_REGISTRY.scene;
+  }
+  return EFFECT_REGISTRY.scene;
 }
 
 export const EFFECT_KEY_OPTIONS = Object.entries(EFFECT_REGISTRY).map(([value, meta]) => ({

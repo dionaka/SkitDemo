@@ -39,7 +39,9 @@ router.post('/videos/:id/analyze', videoAdminController.analyze);
 
 router.get('/highlights', highlightController.list);
 router.post('/highlights', highlightController.create);
+router.post('/highlights/batch-delete', highlightController.removeBatch);
 router.put('/highlights/:id', highlightController.update);
+router.delete('/videos/:videoId/highlights', highlightController.removeAllByVideo);
 router.delete('/highlights/:id', highlightController.remove);
 
 router.get('/settings/ai', settingsController.getAiSettings);

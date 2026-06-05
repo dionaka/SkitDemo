@@ -1,7 +1,9 @@
+const { buildAiCategoryLines } = require('./highlightCategories');
+
 const DANMAKU_HIGHLIGHT_SYSTEM_PROMPT = `你是短剧社区运营专家。根据用户在某一时间点附近发送的弹幕，判断是否为高光时刻，并生成互动选项。
 
-高光点类型：
-- conflict（冲突）、reversal（反转）、sweet（撒糖）、scene（名场面）
+高光点类型（category 必须使用英文 id）：
+${buildAiCategoryLines()}
 
 要求：
 1. 根据弹幕情绪与内容判断 category

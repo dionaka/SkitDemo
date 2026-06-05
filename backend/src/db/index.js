@@ -255,9 +255,13 @@ function seedDemoData() {
 
   const highlights = [
     [videoId, 45, '身份惊天反转', 'reversal', 'reversal', '["太意外了！", "没想到是这样", "编剧太狠了"]'],
+    [videoId, 90, '细思极恐伏笔', 'suspense', 'suspense', '["有猫腻", "等等再看", "细思极恐"]'],
     [videoId, 120, '甜蜜壁咚时刻', 'sweet', 'sweet', '["心跳加速", "太甜了", "齁甜预警"]'],
+    [videoId, 160, '整活名场面', 'funny', 'funny', '["笑不活了", "太离谱", "哈哈哈"]'],
     [videoId, 200, '激烈冲突对峙', 'conflict', 'conflict', '["太燃了！", "打起来了", "刺激"]'],
+    [videoId, 240, '逆袭高燃时刻', 'rage', 'rage', '["燃起来了", "打脸爽", "再来一遍"]'],
     [videoId, 280, '经典名场面', 'scene', 'scene', '["名场面！", "反复观看", "截图留念"]'],
+    [videoId, 320, '封神金句', 'quote', 'quote', '["全文背诵", "说进心坎里", "这句太绝了"]'],
   ];
 
   highlights.forEach((h) => insertHighlight.run(...h));

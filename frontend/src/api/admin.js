@@ -42,6 +42,12 @@ export const updateHighlight = (id, data) => request.put(`/api/admin/highlights/
 
 export const deleteHighlight = (id) => request.delete(`/api/admin/highlights/${id}`);
 
+export const deleteAllHighlights = (videoId, params) =>
+  request.delete(`/api/admin/videos/${videoId}/highlights`, { params });
+
+export const deleteHighlightsBatch = (data) =>
+  request.post('/api/admin/highlights/batch-delete', data);
+
 export const analyzeDanmakuHighlights = (videoId) =>
   request.post(`/api/admin/videos/${videoId}/danmaku/analyze-highlights`, null, { timeout: 120000 });
 

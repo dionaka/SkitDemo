@@ -4,7 +4,7 @@
       <div class="panel-header">
         <div class="panel-header-left">
           <div class="title-row">
-            <span class="tag" :class="highlight?.category">{{ categoryLabel }}</span>
+            <span class="tag" :style="{ background: getCategoryColor(highlight?.category) }">{{ categoryLabel }}</span>
             <h3>{{ highlight?.title }}</h3>
           </div>
         </div>
@@ -50,6 +50,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import { getCategoryLabel, getCategoryColor } from '@/config/highlightCategories';
 
 const props = defineProps({
   visible: Boolean,
@@ -61,8 +62,7 @@ const props = defineProps({
 
 defineEmits(['select', 'dismiss']);
 
-const labels = { conflict: '冲突', reversal: '反转', sweet: '撒糖', scene: '名场面' };
-const categoryLabel = computed(() => labels[props.highlight?.category] || '高光');
+const categoryLabel = computed(() => getCategoryLabel(props.highlight?.category));
 
 const percentageMap = computed(() => {
   const m = new Map();
@@ -136,10 +136,14 @@ function percentageFor(option) {
   flex-shrink: 0;
 }
 
-.tag.conflict { background: rgba(255, 71, 87, 0.85); }
-.tag.reversal { background: rgba(255, 165, 2, 0.85); }
-.tag.sweet { background: rgba(255, 107, 129, 0.85); }
-.tag.scene { background: rgba(83, 82, 237, 0.85); }
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+}
 
 .panel-header h3 {
   font-size: 14px;

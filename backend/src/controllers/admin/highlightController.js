@@ -43,3 +43,27 @@ exports.remove = (req, res) => {
   if (!ok) return res.status(404).json(fail(404, '高光点不存在'));
   res.json(success(null, '删除成功'));
 };
+
+exports.removeAllByVideo = (req, res) => {
+  try {
+    const videoId = req.params.videoId;
+    const { source } = req.query;
+    const deleted = highlightService.deleteByVideoId(videoId, { source: source || null });
+    res.json(success({ deleted }, `已删除 ${deleted} 条高光`));
+  } catch (err) {
+    res.status(400).json(fail(400, err.message));
+  }
+};
+
+exports.removeBatch = (req, res) => {
+  try {
+    const { video_id: videoId, ids } = req.body || {};
+    if (!videoId || !Array.isArray(ids) || !ids.length) {
+      return res.status(400).json(fail(400, '缺少 video_id 或 ids'));
+    }
+    const deleted = highlightService.deleteByIds(videoId, ids);
+    res.json(success({ deleted }, `已删除 ${deleted} 条高光`));
+  } catch (err) {
+    res.status(400).json(fail(400, err.message));
+  }
+};

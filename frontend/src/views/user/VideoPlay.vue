@@ -91,7 +91,7 @@
           >
             <span class="hl-time">{{ formatTime(h.timestamp) }}</span>
             <span class="hl-title">{{ h.title }}</span>
-            <span class="hl-tag">{{ categoryLabel(h.category) }}</span>
+            <span class="hl-tag" :style="{ background: getCategoryColor(h.category) }">{{ getCategoryLabel(h.category) }}</span>
           </div>
         </div>
       </div>
@@ -141,6 +141,7 @@ import { smartBack } from '@/utils/navigation';
 import { getLocalProgress, setLocalProgress, formatProgressLabel, clampProgressSeconds } from '@/utils/watchProgress';
 import { getPlayPreferences, savePlayPreferences } from '@/utils/playPreferences';
 import { resolveEffectKey } from '@/utils/effectRegistry';
+import { getCategoryLabel, getCategoryColor } from '@/config/highlightCategories';
 import DanmakuSendBar from '@/components/danmaku/DanmakuSendBar.vue';
 import { listDanmaku, sendDanmaku } from '@/api/danmaku';
 
@@ -442,8 +443,7 @@ function formatTime(sec) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-const labels = { conflict: '冲突', reversal: '反转', sweet: '撒糖', scene: '名场面' };
-function categoryLabel(c) { return labels[c] || c; }
+
 </script>
 
 <style scoped>
@@ -481,10 +481,7 @@ function categoryLabel(c) { return labels[c] || c; }
 .hl-time { font-weight: 600; color: #e94560; min-width: 50px; }
 .hl-title { flex: 1; }
 .hl-tag { font-size: 12px; padding: 2px 8px; border-radius: 10px; color: #fff; }
-.hl-item.conflict .hl-tag { background: #ff4757; }
-.hl-item.reversal .hl-tag { background: #ffa502; }
-.hl-item.sweet .hl-tag { background: #ff6b81; }
-.hl-item.scene .hl-tag { background: #5352ed; }
+.hl-tag { font-size: 11px; padding: 2px 8px; border-radius: 6px; color: #fff; }
 .branch-list { margin-top: 16px; }
 .branch-item { border-left: 3px solid #5352ed; }
 .branch-tag { background: #5352ed !important; }

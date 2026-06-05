@@ -4,12 +4,13 @@
     :style="{ left: position + '%' }"
     @click.stop="$emit('click')"
   >
-    <div class="dot" :class="highlight.category" />
+    <div class="dot" :style="{ background: dotColor }" />
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue';
+import { getCategoryColor } from '@/config/highlightCategories';
 
 const props = defineProps({
   highlight: Object,
@@ -21,6 +22,8 @@ defineEmits(['click']);
 const position = computed(() =>
   props.duration ? (props.highlight.timestamp / props.duration) * 100 : 0
 );
+
+const dotColor = computed(() => getCategoryColor(props.highlight?.category));
 </script>
 
 <style scoped>
@@ -38,9 +41,4 @@ const position = computed(() =>
   cursor: pointer;
   border: 2px solid #fff;
 }
-
-.dot.conflict { background: #ff4757; }
-.dot.reversal { background: #ffa502; }
-.dot.sweet { background: #ff6b81; }
-.dot.scene { background: #5352ed; }
 </style>

@@ -118,6 +118,35 @@ class HighlightService {
     return result.changes > 0;
   }
 
+  deleteByVideoId(videoId, { source = null } = {}) {
+    const id = Number(videoId);
+    if (!Number.isInteger(id) || id < 1) throw new Error('无效的视频 ID');
+
+    let sql = 'DELETE FROM highlight WHERE video_id = ?';
+    const params = [id];
+    if (source) {
+      sql += ' AND source = ?';
+      params.push(String(source));
+    }
+    return db.prepare(sql).run(...params).changes;
+  }
+
+  deleteByIds(videoId, ids) {
+    const id = Number(videoId);
+    if (!Number.isInteger(id) || id < 1) throw new Error('无效的视频 ID');
+    if (!Array.isArray(ids) || !ids.length) return 0;
+
+    const safeIds = ids
+      .map((item) => Number(item))
+      .filter((item) => Number.isInteger(item) && item > 0);
+    if (!safeIds.length) return 0;
+
+    const placeholders = safeIds.map(() => '?').join(',');
+    return db.prepare(
+      `DELETE FROM highlight WHERE video_id = ? AND id IN (${placeholders})`,
+    ).run(id, ...safeIds).changes;
+  }
+
   archive(id, mergedIntoId = null) {
     return this.update(id, {
       status: 'archived',
