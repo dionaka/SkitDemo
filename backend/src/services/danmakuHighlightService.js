@@ -84,6 +84,7 @@ class DanmakuHighlightService {
         options: candidate.options,
         danmaku_density: candidate.danmaku_count,
         confidence: candidate.confidence,
+        effect_key: candidate.category,
         source: nearby.source === 'ai_video' ? 'ai_video' : 'danmaku',
       });
 
@@ -97,6 +98,7 @@ class DanmakuHighlightService {
       category: candidate.category,
       interaction_type: candidate.category,
       options: candidate.options,
+      effect_key: candidate.category,
       source: 'danmaku',
       status: 'active',
       danmaku_density: candidate.danmaku_count,

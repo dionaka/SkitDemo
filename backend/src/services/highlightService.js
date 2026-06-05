@@ -6,6 +6,14 @@ const config = require('../config');
 
 function mapHighlightRow(h) {
   if (!h) return null;
+  let effectConfig = null;
+  if (h.effect_config) {
+    try {
+      effectConfig = JSON.parse(h.effect_config);
+    } catch {
+      effectConfig = null;
+    }
+  }
   return {
     ...h,
     options: JSON.parse(h.options),
@@ -14,6 +22,8 @@ function mapHighlightRow(h) {
     danmaku_density: h.danmaku_density ?? null,
     confidence: h.confidence ?? null,
     merged_into_id: h.merged_into_id ?? null,
+    effect_key: h.effect_key || h.category,
+    effect_config: effectConfig,
   };
 }
 
@@ -37,9 +47,10 @@ class HighlightService {
     const result = db.prepare(`
       INSERT INTO highlight (
         video_id, timestamp, title, category, interaction_type, options,
-        source, status, danmaku_density, confidence, merged_into_id
+        source, status, danmaku_density, confidence, merged_into_id,
+        effect_key, effect_config
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       data.video_id,
       data.timestamp,
@@ -52,6 +63,8 @@ class HighlightService {
       data.danmaku_density ?? null,
       data.confidence ?? null,
       data.merged_into_id ?? null,
+      data.effect_key || data.category,
+      data.effect_config ? JSON.stringify(data.effect_config) : null,
     );
     return this.getById(result.lastInsertRowid);
   }
@@ -71,12 +84,15 @@ class HighlightService {
       danmaku_density: data.danmaku_density ?? existing.danmaku_density,
       confidence: data.confidence ?? existing.confidence,
       merged_into_id: data.merged_into_id ?? existing.merged_into_id,
+      effect_key: data.effect_key ?? existing.effect_key,
+      effect_config: data.effect_config !== undefined ? data.effect_config : existing.effect_config,
     };
 
     db.prepare(`
       UPDATE highlight SET
         timestamp=?, title=?, category=?, interaction_type=?, options=?,
-        source=?, status=?, danmaku_density=?, confidence=?, merged_into_id=?
+        source=?, status=?, danmaku_density=?, confidence=?, merged_into_id=?,
+        effect_key=?, effect_config=?
       WHERE id=?
     `).run(
       updated.timestamp,
@@ -89,6 +105,8 @@ class HighlightService {
       updated.danmaku_density,
       updated.confidence,
       updated.merged_into_id,
+      updated.effect_key || updated.category,
+      updated.effect_config ? JSON.stringify(updated.effect_config) : null,
       id,
     );
 

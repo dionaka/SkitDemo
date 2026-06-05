@@ -22,6 +22,11 @@
           <el-tag size="small" :type="sourceTagType(row.source)">{{ sourceLabel(row.source) }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="激发特效" width="120">
+        <template #default="{ row }">
+          <el-tag size="small" type="info">{{ effectLabel(row.effect_key || row.category) }}</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="互动选项">
         <template #default="{ row }">
           <el-tag v-for="o in row.options" :key="o" size="small" style="margin-right:4px">{{ o }}</el-tag>
@@ -51,6 +56,11 @@
             <el-option label="名场面 scene" value="scene" />
           </el-select>
         </el-form-item>
+        <el-form-item label="激发特效">
+          <el-select v-model="form.effect_key" clearable placeholder="默认跟随类型">
+            <el-option v-for="opt in EFFECT_KEY_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="选项1"><el-input v-model="form.opt1" /></el-form-item>
         <el-form-item label="选项2"><el-input v-model="form.opt2" /></el-form-item>
         <el-form-item label="选项3"><el-input v-model="form.opt3" /></el-form-item>
@@ -75,6 +85,7 @@ import {
   analyzeDanmakuHighlights,
   getDanmakuDensity,
 } from '@/api/admin';
+import { EFFECT_KEY_OPTIONS, EFFECT_REGISTRY } from '@/utils/effectRegistry';
 
 const route = useRoute();
 const videoId = route.params.videoId;
@@ -82,7 +93,11 @@ const highlights = ref([]);
 const showAdd = ref(false);
 const editingId = ref(null);
 const analyzingDanmaku = ref(false);
-const form = ref({ timestamp: 0, title: '', category: 'reversal', opt1: '', opt2: '', opt3: '' });
+const form = ref({ timestamp: 0, title: '', category: 'reversal', effect_key: '', opt1: '', opt2: '', opt3: '' });
+
+function effectLabel(key) {
+  return EFFECT_REGISTRY[key]?.label || key || '—';
+}
 
 const SOURCE_LABELS = { ai_video: 'AI视频', danmaku: '弹幕', manual: '手动' };
 
@@ -109,6 +124,7 @@ function editHighlight(row) {
     timestamp: row.timestamp,
     title: row.title,
     category: row.category,
+    effect_key: row.effect_key && row.effect_key !== row.category ? row.effect_key : '',
     opt1: row.options[0] || '',
     opt2: row.options[1] || '',
     opt3: row.options[2] || '',
@@ -129,6 +145,7 @@ async function handleSave() {
     title: form.value.title,
     category: form.value.category,
     interaction_type: form.value.category,
+    effect_key: form.value.effect_key || form.value.category,
     options,
   };
 
@@ -142,7 +159,7 @@ async function handleSave() {
 
   showAdd.value = false;
   editingId.value = null;
-  form.value = { timestamp: 0, title: '', category: 'reversal', opt1: '', opt2: '', opt3: '' };
+  form.value = { timestamp: 0, title: '', category: 'reversal', effect_key: '', opt1: '', opt2: '', opt3: '' };
   await loadHighlights();
 }
 

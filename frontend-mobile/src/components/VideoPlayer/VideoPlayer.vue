@@ -23,7 +23,7 @@
           @click="togglePlay"
           @play="onPlay"
         />
-        <EffectOverlay v-show="!segmentVisible" :type="effectType" :active="showEffect" />
+        <EffectOverlay v-show="!segmentVisible" :effect-key="effectKey" :active="showEffect" />
         <VideoDanmakuLayer
           v-if="!segmentVisible"
           ref="danmakuLayerRef"
@@ -111,6 +111,8 @@ import {
   setFullscreenBackHandler,
   setBodyFullscreenClass,
 } from '@/utils/playerFullscreen';
+import { getEffectMeta } from '@/utils/effectRegistry';
+import { runParticleEffect } from '@/utils/effectParticles';
 
 const props = defineProps({
   src: String,
@@ -141,8 +143,9 @@ const cssFullscreen = ref(false);
 const videoIsPortrait = ref(true);
 const triggeredIds = ref(new Set());
 const branchTriggeredIds = ref(new Set());
-const effectType = ref('');
+const effectKey = ref('scene');
 const showEffect = ref(false);
+let effectTimer = null;
 const hasAppliedStart = ref(false);
 const playbackStarted = ref(false);
 const pendingHighlightIds = ref(new Set());
@@ -366,11 +369,18 @@ function formatTime(sec) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-function playEffect(type) {
-  effectType.value = type;
+function playEffect(key, config = {}) {
+  const meta = getEffectMeta(key);
+  effectKey.value = key;
   showEffect.value = false;
-  requestAnimationFrame(() => { showEffect.value = true; });
-  setTimeout(() => { showEffect.value = false; }, 2500);
+  if (effectTimer) clearTimeout(effectTimer);
+  requestAnimationFrame(() => {
+    showEffect.value = Boolean(meta.css);
+    runParticleEffect(meta.particles, config);
+  });
+  effectTimer = setTimeout(() => {
+    showEffect.value = false;
+  }, meta.duration);
 }
 
 function resetTriggers() {
@@ -411,6 +421,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  if (effectTimer) clearTimeout(effectTimer);
   document.removeEventListener('fullscreenchange', syncFullscreenState);
   document.removeEventListener('webkitfullscreenchange', syncFullscreenState);
   document.removeEventListener('click', onDocumentClick);

@@ -1,22 +1,34 @@
 <template>
-  <div v-if="active" class="effect-overlay" :class="type">
-    <template v-if="type === 'conflict' || type === 'reversal'">
+  <div v-if="active && cssClass" class="effect-overlay" :class="cssClass">
+    <template v-if="cssClass === 'conflict'">
       <div v-for="i in 5" :key="'l'+i" class="lightning" :style="lightningStyle(i)" />
       <div class="shake-text">⚡</div>
     </template>
 
-    <template v-if="type === 'sweet'">
+    <template v-if="cssClass === 'reversal'">
+      <div class="shake-text reversal-mark">↯</div>
+    </template>
+
+    <template v-if="cssClass === 'sweet'">
       <div v-for="i in 20" :key="'h'+i" class="heart" :style="heartStyle(i)">❤</div>
     </template>
 
-    <template v-if="type === 'scene'">
+    <template v-if="cssClass === 'scene'">
       <div v-for="(d, i) in danmakus" :key="'d'+i" class="danmaku" :style="danmakuStyle(i)">{{ d }}</div>
     </template>
   </div>
 </template>
 
 <script setup>
-defineProps({ type: String, active: Boolean });
+import { computed } from 'vue';
+import { getEffectMeta } from '@/utils/effectRegistry';
+
+const props = defineProps({
+  effectKey: { type: String, default: 'scene' },
+  active: Boolean,
+});
+
+const cssClass = computed(() => getEffectMeta(props.effectKey).css || '');
 
 const danmakus = ['名场面！', '太精彩了', '666', '反复观看', '截图留念', '绝了'];
 
@@ -48,6 +60,11 @@ function danmakuStyle(i) {
 .shake-text {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   font-size: 80px; animation: shake 0.5s ease infinite;
+}
+.reversal-mark {
+  font-size: 88px;
+  color: #ffd166;
+  text-shadow: 0 0 20px rgba(255, 209, 102, 0.8);
 }
 .lightning {
   position: absolute; top: 0; width: 4px; height: 100%;

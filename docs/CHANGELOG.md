@@ -1,5 +1,13 @@
 # 更新日志
 
+## [2026-06-04] 高光激发特效注册表
+
+- 用户**选择高光互动选项后**才触发特效（其余场景不触发）
+- 特效注册表 `effectRegistry` + `canvas-confetti` 粒子（撒糖/名场面）
+- 后端 `highlight` 表预留 `effect_key`、`effect_config`；管理端可选手动指定激发特效
+
+---
+
 ## [2026-06-04] 弹幕与弹幕高光
 
 - 播放页集成 [vue-danmaku](https://github.com/hellodigua/vue-danmaku) 弹幕层，支持开关、登录后发弹幕（40 字、5 色）

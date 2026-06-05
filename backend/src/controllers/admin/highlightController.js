@@ -10,7 +10,7 @@ exports.list = (req, res) => {
 
 exports.create = (req, res) => {
   try {
-    const { video_id, timestamp, title, category, interaction_type, options } = req.body;
+    const { video_id, timestamp, title, category, interaction_type, options, effect_key, effect_config } = req.body;
     if (!video_id || timestamp === undefined || !title || !category || !options) {
       return res.status(400).json(fail(400, '参数不完整'));
     }
@@ -21,6 +21,8 @@ exports.create = (req, res) => {
       category,
       interaction_type: interaction_type || category,
       options,
+      effect_key: effect_key || category,
+      effect_config: effect_config || null,
       source: 'manual',
       status: 'active',
     });

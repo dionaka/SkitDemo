@@ -140,6 +140,7 @@ import { useSessionStore } from '@/stores/session';
 import { smartBack } from '@/utils/navigation';
 import { getLocalProgress, setLocalProgress, formatProgressLabel, clampProgressSeconds } from '@/utils/watchProgress';
 import { getPlayPreferences, savePlayPreferences } from '@/utils/playPreferences';
+import { resolveEffectKey } from '@/utils/effectRegistry';
 import DanmakuSendBar from '@/components/danmaku/DanmakuSendBar.vue';
 import { listDanmaku, sendDanmaku } from '@/api/danmaku';
 
@@ -421,7 +422,10 @@ async function onSelectOption(option) {
     });
     hasSelected.value = true;
     panelMode.value = 'result';
-    playerRef.value?.playEffect(currentHighlight.value.category);
+    playerRef.value?.playEffect(
+      resolveEffectKey(currentHighlight.value),
+      currentHighlight.value.effect_config || {},
+    );
     await loadStats(currentHighlight.value.id);
     ElMessage.success(`你选择了「${option}」`);
     setTimeout(closePanel, 3000);

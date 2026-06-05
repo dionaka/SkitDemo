@@ -220,9 +220,16 @@ function migrateSchema() {
   if (!highlightCols.includes('merged_into_id')) {
     db.exec('ALTER TABLE highlight ADD COLUMN merged_into_id INTEGER');
   }
+  if (!highlightCols.includes('effect_key')) {
+    db.exec('ALTER TABLE highlight ADD COLUMN effect_key TEXT');
+  }
+  if (!highlightCols.includes('effect_config')) {
+    db.exec('ALTER TABLE highlight ADD COLUMN effect_config TEXT');
+  }
 
   db.exec("UPDATE highlight SET source = 'ai_video' WHERE source IS NULL OR source = ''");
   db.exec("UPDATE highlight SET status = 'active' WHERE status IS NULL OR status = ''");
+  db.exec("UPDATE highlight SET effect_key = category WHERE effect_key IS NULL OR effect_key = ''");
 }
 
 function seedDemoData() {

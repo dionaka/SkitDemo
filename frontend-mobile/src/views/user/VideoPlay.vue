@@ -250,6 +250,7 @@ import { smartBack } from '@/utils/navigation';
 import { getLocalProgress, setLocalProgress, formatProgressLabel, clampProgressSeconds } from '@/utils/watchProgress';
 
 import { getPlayPreferences, savePlayPreferences } from '@/utils/playPreferences';
+import { resolveEffectKey } from '@/utils/effectRegistry';
 import DanmakuSendBar from '@/components/danmaku/DanmakuSendBar.vue';
 import { listDanmaku, sendDanmaku } from '@/api/danmaku';
 
@@ -745,7 +746,10 @@ async function onSelectOption(option) {
       selected_option: option,
     });
 
-    playerRef.value?.playEffect(currentHighlight.value.category);
+    playerRef.value?.playEffect(
+      resolveEffectKey(currentHighlight.value),
+      currentHighlight.value.effect_config || {},
+    );
 
     await loadStats(currentHighlight.value.id);
 
