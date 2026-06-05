@@ -196,7 +196,34 @@
       </el-tabs>
     </el-card>
 
-    <el-table :data="videos" stripe style="margin-top:20px">
+    <div class="batch-toolbar">
+      <span class="batch-label">批量高光</span>
+      <el-button
+        type="primary"
+        :disabled="!selectedVideos.length || batchRunning"
+        @click="runBatchAnalyze('selected')"
+      >
+        分析所选 ({{ selectedVideos.length }})
+      </el-button>
+      <el-button :disabled="batchRunning" @click="runBatchAnalyze('missing')">
+        分析无高光视频
+      </el-button>
+      <el-button :disabled="batchRunning" @click="runBatchAnalyze('published')">
+        分析全部已发布
+      </el-button>
+      <el-button :loading="batchRunning" @click="runBatchAnalyze('all')">
+        分析全部视频
+      </el-button>
+    </div>
+
+    <el-table
+      ref="tableRef"
+      :data="videos"
+      stripe
+      style="margin-top:12px"
+      @selection-change="onSelectionChange"
+    >
+      <el-table-column type="selection" width="48" />
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column label="封面" width="90">
         <template #default="{ row }">
@@ -259,6 +286,35 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <el-dialog
+      v-model="batchDialogVisible"
+      title="批量 AI 高光分析"
+      width="480"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="!batchRunning"
+    >
+      <p v-if="batchProgress.total" class="batch-current">
+        正在处理：{{ batchProgress.current || '…' }}
+      </p>
+      <el-progress
+        v-if="batchProgress.total"
+        :percentage="Math.round((batchProgress.done / batchProgress.total) * 100)"
+        :status="batchRunning ? undefined : (batchProgress.fail ? 'warning' : 'success')"
+      />
+      <ul v-if="batchProgress.total && !batchRunning" class="batch-summary">
+        <li>共 {{ batchProgress.total }} 个视频</li>
+        <li>AI 分析成功 {{ batchProgress.ok }} 个</li>
+        <li v-if="batchProgress.mock">模拟数据 {{ batchProgress.mock }} 个（请检查 API 配置）</li>
+        <li v-if="batchProgress.fail">失败 {{ batchProgress.fail }} 个</li>
+      </ul>
+      <p v-else-if="!batchProgress.total" class="batch-hint">点击开始后依次分析，请勿关闭页面。</p>
+      <template #footer>
+        <el-button v-if="!batchRunning" type="primary" @click="batchDialogVisible = false">关闭</el-button>
+        <el-button v-else disabled>分析进行中…</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="editVisible" title="编辑视频" width="520px" @closed="resetEditForm">
       <el-form label-width="100px">
@@ -374,6 +430,11 @@ const adminComments = ref([]);
 const adminCommentDeletingId = ref(null);
 const commentVideoRow = ref(null);
 const analyzingId = ref(null);
+const tableRef = ref(null);
+const selectedVideos = ref([]);
+const batchRunning = ref(false);
+const batchDialogVisible = ref(false);
+const batchProgress = ref({ done: 0, total: 0, current: '', ok: 0, mock: 0, fail: 0 });
 const deletingId = ref(null);
 const regeneratingId = ref(null);
 const editVisible = ref(false);
@@ -757,8 +818,83 @@ async function handleAnalyze(id) {
       ElMessage.warning(data.analyze_message || '使用了模拟数据，非真实 AI 分析');
     }
     await loadVideos();
+  } catch (e) {
+    ElMessage.error(e.message || '分析失败');
   } finally {
     analyzingId.value = null;
+  }
+}
+
+function onSelectionChange(rows) {
+  selectedVideos.value = rows || [];
+}
+
+function pickBatchTargets(mode) {
+  const list = videos.value || [];
+  if (mode === 'selected') return [...selectedVideos.value];
+  if (mode === 'published') return list.filter((v) => v.status === 1 && v.video_url);
+  if (mode === 'missing') return list.filter((v) => v.video_url && (v.highlight_count ?? 0) === 0);
+  if (mode === 'all') return list.filter((v) => v.video_url);
+  return [];
+}
+
+async function runBatchAnalyze(mode) {
+  if (batchRunning.value) return;
+
+  const targets = pickBatchTargets(mode);
+  if (!targets.length) {
+    ElMessage.info('没有符合条件的视频');
+    return;
+  }
+
+  const modeLabels = {
+    selected: '所选',
+    missing: '尚无高光',
+    published: '已发布',
+    all: '全部',
+  };
+
+  try {
+    await ElMessageBox.confirm(
+      `将对 ${targets.length} 个${modeLabels[mode] || ''}视频依次执行 AI 高光分析。\n`
+      + '已有 AI 视频高光会被重新生成；手动/弹幕高光不受影响。\n'
+      + '过程可能较久，请勿关闭页面。',
+      '批量 AI 高光分析',
+      { confirmButtonText: '开始', cancelButtonText: '取消', type: 'info' },
+    );
+  } catch {
+    return;
+  }
+
+  batchRunning.value = true;
+  batchDialogVisible.value = true;
+  batchProgress.value = { done: 0, total: targets.length, current: '', ok: 0, mock: 0, fail: 0 };
+
+  for (const video of targets) {
+    batchProgress.value.current = `${video.series_title} · 第 ${video.episode_number} 集`;
+    try {
+      const data = await analyzeVideo(video.id);
+      if (data.analyze_source === 'doubao') {
+        batchProgress.value.ok += 1;
+      } else {
+        batchProgress.value.mock += 1;
+      }
+    } catch {
+      batchProgress.value.fail += 1;
+    }
+    batchProgress.value.done += 1;
+  }
+
+  batchRunning.value = false;
+  batchProgress.value.current = '已完成';
+  await loadVideos();
+  tableRef.value?.clearSelection?.();
+
+  const { ok, mock, fail, total } = batchProgress.value;
+  if (fail === 0 && mock === 0) {
+    ElMessage.success(`批量分析完成，${ok}/${total} 个视频已生成 AI 高光`);
+  } else {
+    ElMessage.warning(`批量完成：AI 成功 ${ok}，模拟 ${mock}，失败 ${fail}`);
   }
 }
 
@@ -796,6 +932,17 @@ function logout() {
 
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: center; }
+.batch-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.batch-label { font-size: 13px; color: #606266; font-weight: 600; }
+.batch-current { margin: 0 0 12px; font-size: 14px; color: #303133; }
+.batch-summary { margin: 12px 0 0; padding-left: 18px; color: #606266; font-size: 13px; line-height: 1.8; }
+.batch-hint { margin: 0; color: #909399; font-size: 13px; }
 .admin-name { color: #666; margin-right: 8px; font-size: 14px; }
 .upload-card { margin-bottom: 8px; }
 .upload-card h3 { margin-bottom: 16px; }

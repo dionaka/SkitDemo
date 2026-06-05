@@ -31,7 +31,8 @@ export const uploadVideoCover = (id, formData) =>
 export const regenerateVideoCover = (id, data = {}) =>
   request.post(`/api/admin/videos/${id}/regenerate-cover`, data);
 
-export const analyzeVideo = (id) => request.post(`/api/admin/videos/${id}/analyze`);
+export const analyzeVideo = (id) =>
+  request.post(`/api/admin/videos/${id}/analyze`, null, { timeout: 300000, silent: true });
 
 export const getHighlights = (videoId) =>
   request.get('/api/admin/highlights', { params: { video_id: videoId } });
