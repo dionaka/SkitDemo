@@ -1,6 +1,34 @@
-import confetti from 'canvas-confetti';
+let confettiLoader = null;
 
-function fire(opts) {
+function loadConfetti() {
+  if (typeof window === 'undefined') return Promise.resolve(null);
+  if (window.confetti) return Promise.resolve(window.confetti);
+  if (confettiLoader) return confettiLoader;
+
+  confettiLoader = new Promise((resolve) => {
+    const existing = document.querySelector('script[data-confetti-cdn]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(window.confetti || null), { once: true });
+      existing.addEventListener('error', () => resolve(null), { once: true });
+      if (window.confetti) resolve(window.confetti);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js';
+    script.async = true;
+    script.dataset.confettiCdn = '1';
+    script.onload = () => resolve(window.confetti || null);
+    script.onerror = () => resolve(null);
+    document.head.appendChild(script);
+  });
+
+  return confettiLoader;
+}
+
+async function fire(opts) {
+  const confetti = await loadConfetti();
+  if (!confetti) return;
   try {
     confetti({ disableForReducedMotion: true, ...opts });
   } catch {
@@ -15,7 +43,7 @@ export function runParticleEffect(particleType, config = {}) {
     case 'none':
       break;
     case 'confetti':
-      fire({
+      void fire({
         particleCount: Math.round(60 * intensity),
         spread: 65,
         origin: { y: 0.65 },
@@ -23,27 +51,28 @@ export function runParticleEffect(particleType, config = {}) {
       });
       break;
     case 'confetti_burst':
-      fire({
+      void fire({
         particleCount: Math.round(120 * intensity),
         spread: 100,
         startVelocity: 45,
         origin: { y: 0.5 },
+      }).then(() => {
+        setTimeout(() => {
+          void fire({
+            particleCount: Math.round(60 * intensity),
+            spread: 120,
+            origin: { x: 0.2, y: 0.55 },
+          });
+          void fire({
+            particleCount: Math.round(60 * intensity),
+            spread: 120,
+            origin: { x: 0.8, y: 0.55 },
+          });
+        }, 180);
       });
-      setTimeout(() => {
-        fire({
-          particleCount: Math.round(60 * intensity),
-          spread: 120,
-          origin: { x: 0.2, y: 0.55 },
-        });
-        fire({
-          particleCount: Math.round(60 * intensity),
-          spread: 120,
-          origin: { x: 0.8, y: 0.55 },
-        });
-      }, 180);
       break;
     case 'hearts_confetti':
-      fire({
+      void fire({
         particleCount: Math.round(40 * intensity),
         spread: 55,
         origin: { y: 0.7 },
@@ -52,7 +81,7 @@ export function runParticleEffect(particleType, config = {}) {
       });
       break;
     case 'suspense_mist':
-      fire({
+      void fire({
         particleCount: Math.round(35 * intensity),
         spread: 80,
         startVelocity: 18,
@@ -63,7 +92,7 @@ export function runParticleEffect(particleType, config = {}) {
       });
       break;
     case 'funny_pop':
-      fire({
+      void fire({
         particleCount: Math.round(50 * intensity),
         spread: 360,
         startVelocity: 28,
@@ -73,7 +102,7 @@ export function runParticleEffect(particleType, config = {}) {
       });
       break;
     case 'touch_sparkle':
-      fire({
+      void fire({
         particleCount: Math.round(45 * intensity),
         spread: 50,
         startVelocity: 22,
@@ -83,7 +112,7 @@ export function runParticleEffect(particleType, config = {}) {
       });
       break;
     case 'fire_burst':
-      fire({
+      void fire({
         particleCount: Math.round(80 * intensity),
         spread: 85,
         startVelocity: 42,
@@ -92,7 +121,7 @@ export function runParticleEffect(particleType, config = {}) {
       });
       break;
     case 'shock_flash':
-      fire({
+      void fire({
         particleCount: Math.round(70 * intensity),
         spread: 110,
         startVelocity: 38,
@@ -102,7 +131,7 @@ export function runParticleEffect(particleType, config = {}) {
       });
       break;
     case 'quote_sparkle':
-      fire({
+      void fire({
         particleCount: Math.round(55 * intensity),
         spread: 60,
         origin: { y: 0.6 },
