@@ -79,6 +79,24 @@
         @send="onSendDanmaku"
       />
 
+      <div class="gift-bar" v-if="video">
+        <button class="gift-trigger-btn" @click="toggleGiftPanel">
+          <span class="gift-icon">🎁</span>
+          <span>送礼物</span>
+        </button>
+      </div>
+
+      <GiftPanel
+        v-if="giftPanelVisible"
+        @send="onSendGift"
+      />
+
+      <GiftEffectOverlay
+        :visible="giftEffectVisible"
+        :effect-type="currentGift?.id"
+        :sender-name="giftSenderName"
+      />
+
       <div v-if="highlights.length" class="highlight-list">
         <h3>高光点时间轴</h3>
         <div class="hl-items">
@@ -144,6 +162,8 @@ import { resolveEffectKey } from '@/utils/effectRegistry';
 import { getCategoryLabel, getCategoryColor } from '@/config/highlightCategories';
 import DanmakuSendBar from '@/components/danmaku/DanmakuSendBar.vue';
 import { listDanmaku, sendDanmaku } from '@/api/danmaku';
+import GiftPanel from '@/components/gift/GiftPanel.vue';
+import GiftEffectOverlay from '@/components/gift/GiftEffectOverlay.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -172,6 +192,10 @@ const startTime = ref(0);
 const resumeHint = ref('');
 const prefs = ref(getPlayPreferences());
 const danmakuList = ref([]);
+const giftPanelVisible = ref(false);
+const currentGift = ref(null);
+const giftEffectVisible = ref(false);
+const giftSenderName = ref('神秘用户');
 let lastSaveAt = 0;
 let sessionBaselinePosition = 0;
 const PROGRESS_ADVANCE_SECONDS = 3;
@@ -437,6 +461,20 @@ async function loadStats(highlightId) {
   interactionStats.value = await getInteractionStats(highlightId);
 }
 
+function onSendGift(gift) {
+  currentGift.value = gift;
+  giftSenderName.value = session.userInfo?.nickname || '神秘用户';
+  giftEffectVisible.value = true;
+  giftPanelVisible.value = false;
+  setTimeout(() => {
+    giftEffectVisible.value = false;
+  }, 3000);
+}
+
+function toggleGiftPanel() {
+  giftPanelVisible.value = !giftPanelVisible.value;
+}
+
 function formatTime(sec) {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
@@ -485,4 +523,35 @@ function formatTime(sec) {
 .branch-list { margin-top: 16px; }
 .branch-item { border-left: 3px solid #5352ed; }
 .branch-tag { background: #5352ed !important; }
+
+.gift-bar {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.gift-trigger-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ffd93d 100%);
+  border: none;
+  border-radius: 30px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+}
+
+.gift-trigger-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(255, 107, 107, 0.5);
+}
+
+.gift-icon {
+  font-size: 20px;
+}
 </style>
