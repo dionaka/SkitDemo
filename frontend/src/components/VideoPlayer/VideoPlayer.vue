@@ -28,6 +28,23 @@
           <slot name="overlay" />
         </div>
       </div>
+
+      <div class="player-gift-area">
+        <slot name="gift" />
+      </div>
+
+      <div class="player-effect-area">
+        <slot name="gift-effect" />
+      </div>
+
+      <button
+        type="button"
+        class="floating-gift-btn"
+        aria-label="送礼物"
+        @click="$emit('gift-trigger')"
+      >
+        🎁
+      </button>
     </div>
 
     <div v-show="!segmentVisible" class="controls">
@@ -102,9 +119,10 @@ const props = defineProps({
   segmentVisible: { type: Boolean, default: false },
   danmakuEnabled: { type: Boolean, default: true },
   danmakuItems: { type: Array, default: () => [] },
+  giftPanelVisible: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['highlight-reached', 'branch-reached', 'timeupdate', 'pause', 'overlay-dismiss', 'duration']);
+const emit = defineEmits(['highlight-reached', 'branch-reached', 'timeupdate', 'pause', 'overlay-dismiss', 'duration', 'gift-trigger']);
 
 const speedOptions = [0.75, 1, 1.25, 1.5, 2];
 
@@ -564,4 +582,48 @@ video { width: 100%; max-height: min(480px, 80vh); display: block; cursor: point
 }
 .time { font-size: 12px; white-space: nowrap; }
 .volume { width: 60px; accent-color: #e94560; }
+.player-gift-area {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+.player-effect-area {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+}
+.floating-gift-btn {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 20;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ffd93d 100%);
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(255, 107, 107, 0.45);
+  animation: floating-pulse 2s ease-in-out infinite;
+  transition: transform 0.2s ease;
+}
+.video-player.is-fullscreen .floating-gift-btn {
+  bottom: 80px;
+  right: 24px;
+  width: 64px;
+  height: 64px;
+  font-size: 32px;
+  box-shadow: 0 4px 20px rgba(255, 107, 107, 0.5);
+}
+.floating-gift-btn:hover {
+  transform: scale(1.1);
+}
+@keyframes floating-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
 </style>

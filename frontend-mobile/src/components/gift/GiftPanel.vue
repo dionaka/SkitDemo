@@ -75,7 +75,7 @@ function sendGift() {
 }
 
 .gift-panel.is-fullscreen {
-  z-index: 99999; /* 保证在全屏模式下最高层级 */
+  z-index: 99999;
 }
 
 .gift-list {
@@ -101,7 +101,7 @@ function sendGift() {
   border: 2px solid transparent;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 80px;
+  min-width: 70px;
 }
 
 .gift-item:hover {
@@ -116,13 +116,13 @@ function sendGift() {
 }
 
 .gift-icon {
-  width: 56px;
-  height: 56px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: 24px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
@@ -131,8 +131,8 @@ function sendGift() {
 }
 
 .gift-image {
-  width: 40px;
-  height: 40px;
+  width: 35px;
+  height: 35px;
   object-fit: contain;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
@@ -146,13 +146,13 @@ function sendGift() {
 
 .gift-name {
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .gift-price {
   color: rgba(255, 255, 255, 0.6);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .gift-actions {
@@ -167,7 +167,7 @@ function sendGift() {
   border: none;
   padding: 12px 48px;
   border-radius: 24px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -177,6 +177,10 @@ function sendGift() {
 .gift-send-btn:hover:not(:disabled) {
   transform: scale(1.05);
   box-shadow: 0 6px 25px rgba(233, 69, 96, 0.5);
+}
+
+.gift-send-btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .gift-send-btn:disabled {

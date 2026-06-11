@@ -67,7 +67,7 @@
         :highlights="effectiveHighlights"
         :branch-points="effectiveBranchPoints"
         :start-time="startTime"
-        :overlay-visible="panelVisible || branchPanelVisible"
+        :overlay-visible="panelVisible || branchPanelVisible || giftPanelVisible"
         :segment-visible="branchSegmentVisible"
         :danmaku-enabled="prefs.danmakuEnabled"
         :danmaku-items="danmakuList"
@@ -117,7 +117,30 @@
             @segment-ended="onBranchSegmentEnded"
           />
         </template>
+        <template #gift>
+          <GiftPanel
+            v-if="giftPanelVisible"
+            :is-fullscreen="playerFullscreen"
+            @send="onSendGift"
+          />
+        </template>
+        <template #gift-effect>
+          <GiftEffectOverlay
+            :visible="giftEffectVisible"
+            :effect-type="currentGiftEffect"
+            :sender-name="session.isLoggedIn ? '我' : '神秘用户'"
+          />
+        </template>
       </VideoPlayer>
+
+      <button
+        v-if="showGiftButton"
+        class="gift-button"
+        :class="{ 'in-fullscreen': playerFullscreen }"
+        @click="toggleGiftPanel"
+      >
+        🎁
+      </button>
 
       <DanmakuSendBar
         v-if="video && !isOfflinePlayback"
@@ -203,8 +226,6 @@
       <p>{{ loadError || '视频不存在或未发布' }}</p>
     </div>
 
-
-
     <div v-if="toast" class="toast">{{ toast }}</div>
 
   </div>
@@ -231,6 +252,8 @@ import PageBackBar from '@/components/PageBackBar.vue';
 import SeriesEngagementBar from '@/components/SeriesEngagementBar.vue';
 import OfflineDownloadButton from '@/components/offline/OfflineDownloadButton.vue';
 import VideoCommentSection from '@/components/comments/VideoCommentSection.vue';
+import GiftPanel from '@/components/gift/GiftPanel.vue';
+import GiftEffectOverlay from '@/components/gift/GiftEffectOverlay.vue';
 import { useOfflineCacheStore } from '@/stores/offlineCache';
 import { buildVideoRecordFromCache } from '@/services/offlineCache';
 import { isEffectivelyOfflineNow } from '@/composables/useNetworkStatus';
@@ -318,6 +341,11 @@ const playerFullscreen = ref(false);
 const danmakuList = ref([]);
 
 const prefs = ref(getPlayPreferences());
+
+const giftPanelVisible = ref(false);
+const giftEffectVisible = ref(false);
+const currentGiftEffect = ref('');
+const showGiftButton = ref(true);
 
 let lastSaveAt = 0;
 /** 本次进入播放页时的起点，避免续播瞬间误刷新「最近观看」 */
@@ -835,7 +863,30 @@ function startCountdown(ms, onDone) {
   }, ms);
 }
 
+function toggleGiftPanel() {
+  giftPanelVisible.value = !giftPanelVisible.value;
+}
 
+function onSendGift(gift) {
+  giftPanelVisible.value = false;
+  currentGiftEffect.value = gift.id;
+  giftEffectVisible.value = true;
+  
+  setTimeout(() => {
+    giftEffectVisible.value = false;
+  }, getEffectDuration(gift.id));
+}
+
+function getEffectDuration(effectId) {
+  const durations = {
+    plane: 3000,
+    car: 2500,
+    carnival: 6000,
+    castle: 4000,
+    crown: 8000
+  };
+  return durations[effectId] || 3000;
+}
 
 
 function formatTime(sec) {
@@ -989,6 +1040,41 @@ function formatTime(sec) {
 .branch-item { border-left: 3px solid #5352ed; }
 
 .branch-tag { background: #5352ed !important; }
+
+.gift-button {
+  position: fixed;
+  right: 20px;
+  bottom: 200px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b6b 0%, #e94560 100%);
+  border: none;
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(233, 69, 96, 0.5);
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.gift-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 25px rgba(233, 69, 96, 0.6);
+}
+
+.gift-button:active {
+  transform: scale(0.95);
+}
+
+.gift-button.in-fullscreen {
+  position: absolute;
+  z-index: 150;
+  right: 16px;
+  bottom: 100px;
+}
 
 </style>
 

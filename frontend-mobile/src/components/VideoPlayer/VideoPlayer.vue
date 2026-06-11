@@ -40,6 +40,14 @@
             <slot name="overlay" />
           </div>
         </div>
+
+        <div class="player-gift-area">
+          <slot name="gift" />
+        </div>
+
+        <div class="player-effect-area">
+          <slot name="gift-effect" />
+        </div>
       </div>
 
       <div v-show="!segmentVisible" class="controls" :class="{ 'controls--overlay': cssFullscreen }">
@@ -518,6 +526,21 @@ defineExpose({
   min-height: 0;
   display: flex;
   pointer-events: auto;
+}
+
+.player-gift-area {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.player-effect-area {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
 }
 
 video {

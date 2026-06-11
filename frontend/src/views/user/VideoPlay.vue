@@ -34,12 +34,14 @@
         :segment-visible="branchSegmentVisible"
         :danmaku-enabled="prefs.danmakuEnabled"
         :danmaku-items="danmakuList"
+        :gift-panel-visible="giftPanelVisible"
         @highlight-reached="onHighlightReached"
         @branch-reached="onBranchReached"
         @timeupdate="onTimeUpdate"
         @pause="onPause"
         @duration="onVideoDuration"
         @overlay-dismiss="onOverlayDismiss"
+        @gift-trigger="toggleGiftPanel"
       >
         <template #overlay>
           <InteractionPanel
@@ -68,6 +70,21 @@
             v-if="branchSegmentVisible"
             :asset="branchPlayback.asset"
             @segment-ended="onBranchSegmentEnded"
+            @exit="onBranchSegmentExit"
+          />
+        </template>
+        <template #gift>
+          <GiftPanel
+            v-if="giftPanelVisible"
+            :is-fullscreen="isPlayerFullscreen"
+            @send="onSendGift"
+          />
+        </template>
+        <template #gift-effect>
+          <GiftEffectOverlay
+            :visible="giftEffectVisible"
+            :effect-type="currentGift?.id"
+            :sender-name="giftSenderName"
           />
         </template>
       </VideoPlayer>
@@ -77,24 +94,6 @@
         :logged-in="session.isLoggedIn"
         :disabled="!prefs.danmakuEnabled"
         @send="onSendDanmaku"
-      />
-
-      <div class="gift-bar" v-if="video">
-        <button class="gift-trigger-btn" @click="toggleGiftPanel">
-          <span class="gift-icon">🎁</span>
-          <span>送礼物</span>
-        </button>
-      </div>
-
-      <GiftPanel
-        v-if="giftPanelVisible"
-        @send="onSendGift"
-      />
-
-      <GiftEffectOverlay
-        :visible="giftEffectVisible"
-        :effect-type="currentGift?.id"
-        :sender-name="giftSenderName"
       />
 
       <div v-if="highlights.length" class="highlight-list">
@@ -196,6 +195,7 @@ const giftPanelVisible = ref(false);
 const currentGift = ref(null);
 const giftEffectVisible = ref(false);
 const giftSenderName = ref('神秘用户');
+const isPlayerFullscreen = ref(false);
 let lastSaveAt = 0;
 let sessionBaselinePosition = 0;
 const PROGRESS_ADVANCE_SECONDS = 3;
@@ -207,7 +207,11 @@ const backLabel = computed(() => (video.value?.series_id ? '返回选集' : '返
 const effectiveHighlights = computed(() => (prefs.value.highlightEnabled ? highlights.value : []));
 const effectiveBranchPoints = computed(() => (prefs.value.branchEnabled ? branchPoints.value : []));
 
-onMounted(loadVideo);
+onMounted(() => {
+  loadVideo();
+  document.addEventListener('fullscreenchange', syncPlayerFullscreenState);
+  document.addEventListener('webkitfullscreenchange', syncPlayerFullscreenState);
+});
 
 async function loadVideo() {
   loading.value = true;
@@ -244,6 +248,8 @@ async function loadVideo() {
 
 onBeforeUnmount(() => {
   flushProgress(playerRef.value?.getCurrentTime() || 0);
+  document.removeEventListener('fullscreenchange', syncPlayerFullscreenState);
+  document.removeEventListener('webkitfullscreenchange', syncPlayerFullscreenState);
 });
 
 function savePrefs() {
@@ -433,6 +439,15 @@ function onBranchSegmentEnded() {
   playerRef.value?.play?.();
 }
 
+function onBranchSegmentExit() {
+  branchSegmentVisible.value = false;
+  branchPlayback.value = { asset: null };
+  const t = resumeAfterBranch.value;
+  if (playerRef.value?.jumpTo) {
+    playerRef.value.jumpTo(t);
+  }
+}
+
 function seekBranchPoint(b) {
   playerRef.value?.jumpToBranch?.(b.timestamp, b.id);
 }
@@ -473,6 +488,10 @@ function onSendGift(gift) {
 
 function toggleGiftPanel() {
   giftPanelVisible.value = !giftPanelVisible.value;
+}
+
+function syncPlayerFullscreenState() {
+  isPlayerFullscreen.value = !!document.fullscreenElement || !!document.webkitFullscreenElement;
 }
 
 function formatTime(sec) {
@@ -523,35 +542,4 @@ function formatTime(sec) {
 .branch-list { margin-top: 16px; }
 .branch-item { border-left: 3px solid #5352ed; }
 .branch-tag { background: #5352ed !important; }
-
-.gift-bar {
-  display: flex;
-  justify-content: center;
-  padding: 16px 0;
-}
-
-.gift-trigger-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 28px;
-  background: linear-gradient(135deg, #ff6b6b 0%, #ffd93d 100%);
-  border: none;
-  border-radius: 30px;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
-}
-
-.gift-trigger-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 25px rgba(255, 107, 107, 0.5);
-}
-
-.gift-icon {
-  font-size: 20px;
-}
 </style>
