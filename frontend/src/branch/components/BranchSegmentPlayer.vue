@@ -1,5 +1,9 @@
 <template>
   <div class="branch-segment">
+    <button class="segment-exit-btn" @click="onExit" aria-label="退出">
+      ✕
+    </button>
+
     <video
       v-if="asset?.type === 'video' && asset.video_url"
       ref="videoRef"
@@ -44,7 +48,7 @@ const props = defineProps({
   autoPlay: { type: Boolean, default: true },
 });
 
-const emit = defineEmits(['branch-point', 'segment-ended', 'error']);
+const emit = defineEmits(['branch-point', 'segment-ended', 'error', 'exit']);
 
 const videoRef = ref(null);
 const audioRef = ref(null);
@@ -258,6 +262,11 @@ function pause() {
   audioRef.value?.pause();
 }
 
+function onExit() {
+  pause();
+  emit('exit');
+}
+
 defineExpose({ pause, restart: startSegment });
 </script>
 
@@ -269,6 +278,30 @@ defineExpose({ pause, restart: startSegment });
   border-radius: 12px;
   overflow: hidden;
   aspect-ratio: 16 / 9;
+}
+.segment-exit-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+.segment-exit-btn:hover {
+  background: rgba(233, 69, 96, 0.8);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.1);
 }
 .segment-video,
 .composite-image {

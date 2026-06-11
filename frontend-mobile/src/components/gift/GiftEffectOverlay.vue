@@ -51,8 +51,8 @@ function confettiStyle(i) {
     animationDelay: `${r2 * 2.5}s`,
     animationDuration: `${2.5 + r3 * 2}s`,
     color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-    fontSize: `${10 + (i % 6) * 4}px`,
-    '--drift': `${(r - 0.5) * 80}px`,
+    fontSize: `${8 + (i % 5) * 3}px`,
+    '--drift': `${(r - 0.5) * 60}px`,
   };
 }
 
@@ -91,7 +91,7 @@ function sparkleStyle(i) {
     left: `${20 + r * 60}%`,
     top: `${15 + r2 * 55}%`,
     animationDelay: `${r * 2}s`,
-    fontSize: `${10 + (i % 4) * 5}px`,
+    fontSize: `${8 + (i % 4) * 4}px`,
   };
 }
 </script>
@@ -102,7 +102,6 @@ function sparkleStyle(i) {
     class="gift-effect-container"
     :class="[giftMeta.anim, currentEffect, { premium: isPremium }]"
   >
-    <!-- 嘉年华：彩色光晕 + 聚光灯 + 彩带 + 烟花 -->
     <template v-if="currentEffect === 'carnival'">
       <div class="carnival-bg" />
       <div class="carnival-spotlights">
@@ -110,7 +109,7 @@ function sparkleStyle(i) {
       </div>
       <div class="carnival-confetti">
         <div
-          v-for="i in 36"
+          v-for="i in 22"
           :key="'c' + i"
           class="confetti-piece"
           :style="confettiStyle(i)"
@@ -119,7 +118,7 @@ function sparkleStyle(i) {
         </div>
       </div>
       <div class="carnival-fireworks">
-        <div v-for="i in 5" :key="'fw' + i" class="firework-burst" :style="fireworkStyle(i)">
+        <div v-for="i in 4" :key="'fw' + i" class="firework-burst" :style="fireworkStyle(i)">
           <span class="firework-core">✨</span>
           <span v-for="j in 6" :key="'fs' + i + '-' + j" class="firework-spark" :style="{ '--spark-angle': j * 60 + 'deg' }" />
         </div>
@@ -127,17 +126,16 @@ function sparkleStyle(i) {
       <div class="carnival-flash" />
     </template>
 
-    <!-- 皇冠：金色光束 + 涟漪 + 星芒 -->
     <template v-if="currentEffect === 'crown'">
       <div class="crown-bg" />
       <div class="crown-rays">
-        <div v-for="i in 12" :key="'ray' + i" class="light-ray" :style="rayStyle(i)" />
+        <div v-for="i in 10" :key="'ray' + i" class="light-ray" :style="rayStyle(i)" />
       </div>
       <div class="crown-ripples">
         <div v-for="i in 3" :key="'rip' + i" class="ripple-ring" :style="rippleStyle(i)" />
       </div>
       <div class="crown-sparkles">
-        <div v-for="i in 14" :key="'sp' + i" class="sparkle" :style="sparkleStyle(i)">✨</div>
+        <div v-for="i in 10" :key="'sp' + i" class="sparkle" :style="sparkleStyle(i)">✨</div>
       </div>
       <div class="crown-shimmer" />
     </template>
@@ -170,7 +168,6 @@ function sparkleStyle(i) {
   justify-content: center;
 }
 
-/* ========== 嘉年华光效 ========== */
 .carnival-bg {
   position: absolute;
   inset: 0;
@@ -192,7 +189,7 @@ function sparkleStyle(i) {
 
 .spotlight-beam {
   position: absolute;
-  width: 120px;
+  width: 90px;
   height: 200%;
   background: linear-gradient(to bottom,
     transparent 0%,
@@ -203,7 +200,7 @@ function sparkleStyle(i) {
   transform-origin: center top;
   transform: rotate(var(--angle));
   animation: spotlight-sweep 3s ease-in-out infinite;
-  filter: blur(8px);
+  filter: blur(6px);
 }
 
 .carnival-confetti {
@@ -214,7 +211,7 @@ function sparkleStyle(i) {
 
 .confetti-piece {
   position: absolute;
-  top: -20px;
+  top: -15px;
   animation: confetti-fall linear infinite;
 }
 
@@ -232,30 +229,29 @@ function sparkleStyle(i) {
 
 .firework-core {
   position: absolute;
-  font-size: 28px;
+  font-size: 22px;
   transform: translate(-50%, -50%);
-  filter: drop-shadow(0 0 8px gold);
+  filter: drop-shadow(0 0 6px gold);
 }
 
 .firework-spark {
   position: absolute;
-  width: 4px;
-  height: 4px;
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
   background: #ffd700;
-  box-shadow: 0 0 6px #ff6b6b, 0 0 10px #ffd93d;
-  transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(-24px);
+  box-shadow: 0 0 5px #ff6b6b, 0 0 8px #ffd93d;
+  transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(-18px);
   animation: spark-fade 1.2s ease-out infinite;
 }
 
 .carnival-flash {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.12) 0%, transparent 60%);
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
   animation: flash-pulse 1.5s ease-in-out infinite;
 }
 
-/* ========== 皇冠光效 ========== */
 .crown-bg {
   position: absolute;
   inset: 0;
@@ -278,9 +274,9 @@ function sparkleStyle(i) {
 .light-ray {
   position: absolute;
   bottom: 0;
-  left: -2px;
-  width: 4px;
-  height: 140px;
+  left: -1.5px;
+  width: 3px;
+  height: 110px;
   transform-origin: bottom center;
   background: linear-gradient(to top, rgba(255, 215, 0, 0.7), transparent);
   filter: blur(1px);
@@ -298,8 +294,8 @@ function sparkleStyle(i) {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
   transform: translate(-50%, -50%);
   border: 2px solid rgba(255, 215, 0, 0.5);
   border-radius: 50%;
@@ -314,7 +310,7 @@ function sparkleStyle(i) {
 .sparkle {
   position: absolute;
   animation: sparkle-twinkle 2s ease-in-out infinite;
-  filter: drop-shadow(0 0 4px gold);
+  filter: drop-shadow(0 0 3px gold);
 }
 
 .crown-shimmer {
@@ -331,7 +327,6 @@ function sparkleStyle(i) {
   animation: shimmer-sweep 3s ease-in-out infinite;
 }
 
-/* ========== 主体礼物 ========== */
 .gift-stage {
   position: relative;
   display: flex;
@@ -345,22 +340,22 @@ function sparkleStyle(i) {
 }
 
 .gift-image {
-  width: min(200px, 40vw);
+  width: min(160px, 45vw);
   height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.35));
 }
 
 .gift-emoji {
-  font-size: min(120px, 24vw);
+  font-size: min(100px, 28vw);
   line-height: 1;
-  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.3));
   position: relative;
   z-index: 1;
 }
 
 .gift-emoji.crown {
-  filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.8)) drop-shadow(0 8px 24px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 0 24px rgba(255, 215, 0, 0.8)) drop-shadow(0 6px 20px rgba(0, 0, 0, 0.3));
   animation: crown-float 2s ease-in-out infinite;
 }
 
@@ -404,19 +399,18 @@ function sparkleStyle(i) {
   border-radius: 50%;
 }
 
-/* ========== 送礼提示 ========== */
 .gift-message {
   position: absolute;
-  bottom: 18%;
+  bottom: 16%;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 28px;
+  gap: 8px;
+  padding: 10px 20px;
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(10px);
-  border-radius: 50px;
+  border-radius: 40px;
   animation: message-pop 0.5s ease-out;
   white-space: nowrap;
   z-index: 10;
@@ -424,35 +418,34 @@ function sparkleStyle(i) {
 
 .crown-message {
   border: 1px solid rgba(255, 215, 0, 0.35);
-  box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+  box-shadow: 0 0 16px rgba(255, 215, 0, 0.2);
 }
 
 .carnival-message {
   border: 1px solid rgba(255, 107, 157, 0.35);
-  box-shadow: 0 0 20px rgba(255, 100, 200, 0.2);
+  box-shadow: 0 0 16px rgba(255, 100, 200, 0.2);
 }
 
 .gift-sender {
   color: #ffd700;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: bold;
 }
 
 .gift-text {
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .gift-highlight {
   color: #ff6b6b;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: bold;
 }
 
 .crown-message .gift-highlight { color: #ffd700; }
 .carnival-message .gift-highlight { color: #ff6b9d; }
 
-/* ========== 基础动画 ========== */
 .slide .gift-stage { animation: gift-slide 2.5s ease-in-out forwards; }
 .pop:not(.premium) .gift-stage { animation: gift-pop 2s ease-out forwards; }
 .rise .gift-stage { animation: gift-rise 2.5s ease-out forwards; }
@@ -496,7 +489,7 @@ function sparkleStyle(i) {
 
 @keyframes crown-float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  50% { transform: translateY(-8px); }
 }
 
 @keyframes carnival-bounce {
@@ -510,7 +503,6 @@ function sparkleStyle(i) {
   100% { transform: translateX(-50%) scale(1); opacity: 1; }
 }
 
-/* 嘉年华 */
 @keyframes carnival-bg-pulse {
   0%, 100% { opacity: 0.7; }
   50% { opacity: 1; }
@@ -533,8 +525,8 @@ function sparkleStyle(i) {
 }
 
 @keyframes spark-fade {
-  0% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(-24px); }
-  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(-48px); }
+  0% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(-18px); }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(-36px); }
 }
 
 @keyframes flash-pulse {
@@ -542,7 +534,6 @@ function sparkleStyle(i) {
   50% { opacity: 1; }
 }
 
-/* 皇冠 */
 @keyframes rays-rotate {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -554,8 +545,8 @@ function sparkleStyle(i) {
 }
 
 @keyframes ripple-expand {
-  0% { width: 60px; height: 60px; opacity: 0.8; }
-  100% { width: 280px; height: 280px; opacity: 0; }
+  0% { width: 50px; height: 50px; opacity: 0.8; }
+  100% { width: 220px; height: 220px; opacity: 0; }
 }
 
 @keyframes sparkle-twinkle {
